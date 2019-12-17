@@ -1,6 +1,7 @@
 # keyprotect-go-client
 
 [![Build Status](https://travis-ci.com/IBM/keyprotect-go-client.svg?branch=master)](https://travis-ci.com/IBM/keyprotect-go-client)
+[![GoDoc](https://godoc.org/github.com/keyprotect-go-client?status.svg)](https://godoc.org/github.com/IBM/keyprotect-go-client)
 
 keyprotect-go-client is a Go client library for interacting with the IBM KeyProtect service.
 
