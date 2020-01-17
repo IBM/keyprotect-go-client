@@ -81,7 +81,7 @@ type KeysActionRequest struct {
 	Payload    string   `json:"payload,omitempty"`
 }
 
-// Create creates a new KP key.
+// CreateKey creates a new KP key.
 func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool) (*Key, error) {
 	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
 }
@@ -217,8 +217,8 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn) 
 
 // Wrap calls the wrap action with the given plain text.
 func (c *Client) Wrap(ctx context.Context, id string, plainText []byte, additionalAuthData *[]string) ([]byte, error) {
-	pt, _, err := c.wrap(ctx, id, plainText, additionalAuthData)
-	return pt, err
+	_, ct, err := c.wrap(ctx, id, plainText, additionalAuthData)
+	return ct, err
 }
 
 // WrapCreateDEK calls the wrap action without plain text.

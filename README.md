@@ -30,7 +30,7 @@ keys, err := client.GetKeys(context.Background(), 0, 0)
 
 ### Migrating
 
-For users of the original `key-protect-client` that is now deprecated, this library is a drop in replacement. Updating the package reference to `github.com/IBM/keyprotect-go-client` should be the only change needed. If you are worried about new incompatible changes, version `v0.3.1` of `key-protect-client` is equivalent to version `v0.3.2` of `keyprotect-go-client`, so pinning `v0.3.2` of the new library should be sufficient to pull from the new repo with no new functional changes.
+For users of the original `key-protect-client` that is now deprecated, this library is a drop in replacement. Updating the package reference to `github.com/IBM/keyprotect-go-client` should be the only change needed. If you are worried about new incompatible changes, version `v0.3.1` of `key-protect-client` is equivalent to version `v0.3.3` of `keyprotect-go-client`, so pinning `v0.3.3` of the new library should be sufficient to pull from the new repo with no new functional changes.
 
 ## Authentication
 
