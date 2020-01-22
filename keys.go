@@ -327,7 +327,7 @@ type Policies struct {
 func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
 	policyresponse := Policies{}
 
-	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policy", id), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies", id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +358,7 @@ func (c *Client) SetPolicy(ctx context.Context, id string, prefer PreferReturn, 
 
 	policyresponse := Policies{}
 
-	req, err := c.newRequest("PUT", fmt.Sprintf("keys/%s/policy", id), &policyRequest)
+	req, err := c.newRequest("PUT", fmt.Sprintf("keys/%s/policies", id), &policyRequest)
 	if err != nil {
 		return nil, err
 	}

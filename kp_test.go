@@ -797,7 +797,7 @@ func TestPolicies(t *testing.T) {
 			"Policy Replace",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policy", http.StatusOK, testKeys)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
 
 				_, err := api.SetPolicy(ctx, testKey, ReturnMinimal, 3)
 				assert.NoError(t, err)
@@ -812,7 +812,7 @@ func TestPolicies(t *testing.T) {
 			"Policy Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policy", http.StatusOK, testKeys)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
 
 				_, err := api.GetPolicy(ctx, testKey)
 				assert.NoError(t, err)
