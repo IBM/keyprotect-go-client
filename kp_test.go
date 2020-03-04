@@ -15,6 +15,7 @@
 package kp
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -1069,4 +1070,80 @@ func TestDo_ConnectionError_HasCorrelationID(t *testing.T) {
 
 	urlErr := err.(*URLError)
 	assert.NotEmpty(t, urlErr.CorrelationID)
+}
+
+func TestDo_KPErrorResponseWithReasons_IsErrorStruct(t *testing.T) {
+	defer gock.Off()
+
+	errorWithReasons := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Conflict: Action could not be performed on key. Please see reasons for more details.",
+				"reasons": [
+					{
+						"code": "KEY_ROTATION_NOT_PERMITTED",
+						"message": "This root key has been rotated within the last hour. Only one 'rotate' action per hour is permitted",
+						"status": 409,
+						"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+					}
+				]
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").Reply(409).Body(bytes.NewReader(errorWithReasons))
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.Rotate(context.Background(), "boguskeyID", "")
+
+	reasonsErr := err.(*Error)
+
+	assert.NotNil(t, reasonsErr.URL)
+	assert.Equal(t, 409, reasonsErr.StatusCode)
+	assert.Equal(t, "Conflict: Action could not be performed on key. Please see reasons for more details.", reasonsErr.Message)
+	assert.Equal(t, errorWithReasons, reasonsErr.BodyContent)
+	assert.NotNil(t, reasonsErr.CorrelationID)
+	assert.NotEmpty(t, reasonsErr.Reasons)
+	assert.Contains(t, reasonsErr.Error(), "reasons=")
+	assert.Contains(t, reasonsErr.Error(), "This root key has been rotated within the last hour. Only one 'rotate' action per hour is permitted")
+}
+
+func TestDo_KPErrorResponseWithoutReasons_IsErrorStruct(t *testing.T) {
+	defer gock.Off()
+
+	errorWithoutReasons := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Unauthorized: The user does not have access to the specified resource"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").Reply(401).Body(bytes.NewReader(errorWithoutReasons))
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	_, err = c.GetKeys(context.Background(), 0, 0)
+
+	reasonsErr := err.(*Error)
+
+	assert.NotNil(t, reasonsErr.URL)
+	assert.Equal(t, 401, reasonsErr.StatusCode)
+	assert.Equal(t, "Unauthorized: The user does not have access to the specified resource", reasonsErr.Message)
+	assert.Equal(t, errorWithoutReasons, reasonsErr.BodyContent)
+	assert.NotNil(t, reasonsErr.CorrelationID)
+	assert.Empty(t, reasonsErr.Reasons)
 }
