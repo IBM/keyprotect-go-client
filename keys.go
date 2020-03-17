@@ -151,7 +151,21 @@ func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, exp
 	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true)
 }
 
-// GetKeys retrieves a collection of keys that can be paged through.
+// GetKeyTotal retrieves the number of keys that can be paged through.
+func (c *Client) GetKeyTotal(ctx context.Context) (string, error) {
+
+	req, err := c.newRequest("HEAD", "keys", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.do(ctx, req, nil)
+	if err != nil {
+		return "", err
+	}
+	return res.Header.Get("Key-Total"), nil
+}
+
+// GetKeys retrieves a collection of keys for the instance.
 func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, error) {
 	if limit == 0 {
 		limit = 2000
@@ -181,6 +195,40 @@ func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
 	keys := Keys{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keys.Keys[0], nil
+}
+
+//GetKeyMetadata retrieves key metadata details by ID.
+func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
+	keys := Keys{}
+
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/metadata", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keys.Keys[0], nil
+}
+
+//ListKeyVersions retrieves all the rotated key versions associated with the key
+func (c *Client) GetKeyVersions(ctx context.Context, id string) (*Key, error) {
+	keys := Keys{}
+
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
 	if err != nil {
 		return nil, err
 	}
