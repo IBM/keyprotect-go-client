@@ -82,16 +82,17 @@ type KeysActionRequest struct {
 	Payload    string   `json:"payload,omitempty"`
 }
 
-//KeyVersion represents the key version information as returned by KP API
+// KeyVersion is a ID of a version of a CRK (root Key or exportable Key).
+// New versions are created by the Rotate operation on a CRK.
 type KeyVersion struct {
 	ID           string     `json:"id,omitempty"`
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
-//KeyVersions represents the collection of all the versions of a Key
-type KeyVersions struct {
-	Metadata KeysMetadata `json:"metadata"`
-	Versions []KeyVersion `json:"resources"`
+//keyVersions represents the collection of all the versions of a Key
+type keyVersions struct {
+	metadata KeysMetadata `json:"metadata"`
+	versions []KeyVersion `json:"resources"`
 }
 
 // CreateKey creates a new KP key.
@@ -240,8 +241,8 @@ func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
 }
 
 //ListKeyVersions retrieves all the rotated key versions associated with the key
-func (c *Client) ListKeyVersions(ctx context.Context, id string) (*KeyVersions, error) {
-	keys := KeyVersions{}
+func (c *Client) ListKeyVersions(ctx context.Context, id string) (*[]KeyVersion, error) {
+	keys := []KeyVersion{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
 	if err != nil {
@@ -379,8 +380,9 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
-// Policy represents a policy as returned by the KP API.
-type Policy struct {
+// RotationPolicy represents a rotation policy of a key as returned by the KP API.
+type RotationPolicy struct {
+	ID        string     `json:"id,omitempty"`
 	Type      string     `json:"type,omitempty"`
 	CreatedBy string     `json:"createdBy,omitempty"`
 	CreatedAt *time.Time `json:"creationDate,omitempty"`
@@ -389,7 +391,22 @@ type Policy struct {
 	UpdatedBy string     `json:"updatedBy,omitempty"`
 	Rotation  struct {
 		Interval int `json:"interval_month,omitempty"`
-	} `json:"rotation,omitempty"`
+	} `json:"rotation,omitempty" mapstructure:"rotation"`
+}
+
+// DualAuthPolicy represents a dual auth delete policy of a key as returned by the KP API.
+// this policy enables dual authorization for deleting a key
+type DualAuthPolicy struct {
+	ID             string     `json:"id,omitempty"`
+	Type           string     `json:"type,omitempty"`
+	CreatedBy      string     `json:"createdBy,omitempty"`
+	CreatedAt      *time.Time `json:"creationDate,omitempty"`
+	CRN            string     `json:"crn,omitempty"`
+	UpdatedAt      *time.Time `json:"lastUpdateDate,omitempty"`
+	UpdatedBy      string     `json:"updatedBy,omitempty"`
+	DualAuthDelete struct {
+		Enabled bool `json:"enabled,omitempty"`
+	} `json:"dualAuthDelete,omitempty" mapstructure:"dualauthDelete"`
 }
 
 // PoliciesMetadata represents the metadata of a collection of keys.
@@ -401,11 +418,11 @@ type PoliciesMetadata struct {
 // Policies represents a collection of Policies.
 type Policies struct {
 	Metadata PoliciesMetadata `json:"metadata"`
-	Policies []Policy         `json:"resources"`
+	Policies []interface{}    `json:"resources"`
 }
 
-// GetPolicy retrieves a policy by Key ID.
-func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
+// GetPolicies retrieves all policies by Key ID.
+func (c *Client) GetPolicies(ctx context.Context, id string) (*[]interface{}, error) {
 	policyresponse := Policies{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies", id), nil)
@@ -418,23 +435,68 @@ func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
 		return nil, err
 	}
 
+	return &policyresponse.Policies, nil
+}
+
+// GetRotationPolicy retrieves a rotation policy by Key ID.
+func (c *Client) GetRotationPolicy(ctx context.Context, id string) (interface{}, error) {
+	policyresponse := Policies{}
+
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies?policy=rotation", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = c.do(ctx, req, &policyresponse)
+	if err != nil {
+		return nil, err
+	}
+
 	return &policyresponse.Policies[0], nil
 }
 
-// SetPolicy updates a policy resource by specifying the ID of the key and the rotation interval needed.
-func (c *Client) SetPolicy(ctx context.Context, id string, prefer PreferReturn, rotationInterval int) (*Policy, error) {
+// GetDualAuthPolicy retrieves a dual auth policy by Key ID.
+func (c *Client) GetDualAuthPolicy(ctx context.Context, id string) (interface{}, error) {
+	policyresponse := Policies{}
 
-	policy := Policy{
-		Type: policyType,
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies?policy=dualAuthDelete", id), nil)
+	if err != nil {
+		return nil, err
 	}
-	policy.Rotation.Interval = rotationInterval
+
+	_, err = c.do(ctx, req, &policyresponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &policyresponse.Policies[0], nil
+}
+
+// SetPolicies updates a policy resource by specifying the ID of the key and either the rotation interval or dual auth or both .
+func (c *Client) SetPolicies(ctx context.Context, id string, prefer PreferReturn, rotationInterval int, dualAuthEnabled bool) (*[]interface{}, error) {
+	var policies []interface{}
+	if rotationInterval != 0 {
+		rotationPolicy := RotationPolicy{
+			Type: policyType,
+		}
+		rotationPolicy.Rotation.Interval = rotationInterval
+		policies = append(policies, rotationPolicy)
+	}
+
+	if dualAuthEnabled {
+		dualAuthPolicy := DualAuthPolicy{
+			Type: policyType,
+		}
+		dualAuthPolicy.DualAuthDelete.Enabled = dualAuthEnabled
+		policies = append(policies, dualAuthPolicy)
+	}
 
 	policyRequest := Policies{
 		Metadata: PoliciesMetadata{
-			CollectionType:   keyType,
-			NumberOfPolicies: 1,
+			CollectionType:   policyType,
+			NumberOfPolicies: len(policies),
 		},
-		Policies: []Policy{policy},
+		Policies: policies,
 	}
 
 	policyresponse := Policies{}
@@ -451,7 +513,77 @@ func (c *Client) SetPolicy(ctx context.Context, id string, prefer PreferReturn, 
 		return nil, err
 	}
 
+	return &policyresponse.Policies, nil
+}
+
+// SetRotationPolicy updates a policy resource by specifying the ID of the key and the rotation interval needed.
+func (c *Client) SetRotationPolicy(ctx context.Context, id string, prefer PreferReturn, rotationInterval int) (interface{}, error) {
+	var policies []interface{}
+
+	rotationPolicy := RotationPolicy{
+		Type: policyType,
+	}
+	rotationPolicy.Rotation.Interval = rotationInterval
+	policies = append(policies, rotationPolicy)
+
+	policyRequest := Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: len(policies),
+		},
+		Policies: policies,
+	}
+
+	policyresponse := Policies{}
+
+	req, err := c.newRequest("PUT", fmt.Sprintf("keys/%s/policies?policy=rotation", id), &policyRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Prefer", preferHeaders[prefer])
+
+	_, err = c.do(ctx, req, &policyresponse)
+	if err != nil {
+		return nil, err
+	}
+
 	return &policyresponse.Policies[0], nil
+}
+
+// SetDualAuthPolicy updates a policy resource by specifying the ID of the key and the dual auth enabled.
+func (c *Client) SetDualAuthPolicy(ctx context.Context, id string, prefer PreferReturn, dualAuthEnabled bool) (interface{}, error) {
+	var policies []interface{}
+
+	dualAuthPolicy := DualAuthPolicy{
+		Type: policyType,
+	}
+	dualAuthPolicy.DualAuthDelete.Enabled = dualAuthEnabled
+	policies = append(policies, dualAuthPolicy)
+
+	policyRequest := Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: len(policies),
+		},
+		Policies: policies,
+	}
+
+	policyresponse := Policies{}
+
+	req, err := c.newRequest("PUT", fmt.Sprintf("keys/%s/policies?policy=dualAuthDelete", id), &policyRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Prefer", preferHeaders[prefer])
+
+	_, err = c.do(ctx, req, &policyresponse)
+	if err != nil {
+		return nil, err
+	}
+
+	return &policyresponse.Policies, nil
 }
 
 // doKeysAction calls the KP Client to perform an action on a key.
