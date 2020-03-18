@@ -82,6 +82,18 @@ type KeysActionRequest struct {
 	Payload    string   `json:"payload,omitempty"`
 }
 
+//KeyVersion represents the key version information as returned by KP API
+type KeyVersion struct {
+	ID           string     `json:"id,omitempty"`
+	CreationDate *time.Time `json:"creationDate,omitempty"`
+}
+
+//KeyVersions represents the collection of all the versions of a Key
+type KeyVersions struct {
+	Metadata KeysMetadata `json:"metadata"`
+	Versions []KeyVersion `json:"resources"`
+}
+
 // CreateKey creates a new KP key.
 func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool) (*Key, error) {
 	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
@@ -151,18 +163,20 @@ func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, exp
 	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true)
 }
 
-// GetKeyTotal retrieves the number of keys that can be paged through.
-func (c *Client) GetKeyTotal(ctx context.Context) (string, error) {
+// GetKeyCount returns the total number of keys in the current KeyProtect Instance.
+// This can be useful when looking up the total key count for pagination or other reasons, without doing a full lookup
+// over all the keys in an instance, which can be time consuming
+func (c *Client) GetKeyTotal(ctx context.Context) (int64, error) {
 
 	req, err := c.newRequest("HEAD", "keys", nil)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 	res, err := c.do(ctx, req, nil)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	return res.Header.Get("Key-Total"), nil
+	return strconv.ParseInt(res.Header.Get("Key-Total"), 10, 0)
 }
 
 // GetKeys retrieves a collection of keys for the instance.
@@ -207,7 +221,8 @@ func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
 	return &keys.Keys[0], nil
 }
 
-//GetKeyMetadata retrieves key metadata details by ID.
+// GetKeyMetadata retrieves and returns only the metadata information of a Key.
+// This can be useful if you don't have full permissions on a key, such as access to the payload data of an exportable key.
 func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
 	keys := Keys{}
 
@@ -225,8 +240,8 @@ func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
 }
 
 //ListKeyVersions retrieves all the rotated key versions associated with the key
-func (c *Client) GetKeyVersions(ctx context.Context, id string) (*Key, error) {
-	keys := Keys{}
+func (c *Client) ListKeyVersions(ctx context.Context, id string) (*KeyVersions, error) {
+	keys := KeyVersions{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
 	if err != nil {
@@ -238,7 +253,7 @@ func (c *Client) GetKeyVersions(ctx context.Context, id string) (*Key, error) {
 		return nil, err
 	}
 
-	return &keys.Keys[0], nil
+	return &keys, nil
 }
 
 type CallOpt interface{}
