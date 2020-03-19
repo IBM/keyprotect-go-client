@@ -124,6 +124,17 @@ func TestKeys(t *testing.T) {
 		},
 	}
 
+	testVersions := []KeyVersion{
+		KeyVersion{
+			ID:           testKey,
+			CreationDate: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+		},
+		KeyVersion{
+			ID:           "d1177b1f-cb13-4de5-9d5e-a984c4ba4f8f",
+			CreationDate: time.Date(2020, time.March, 10, 45, 0, 0, 0, time.UTC),
+		},
+	}
+
 	keysActionDEK := KeysActionRequest{
 		PlainText:  "YWJjZGVmZ2hpamtsbW5vCg==",
 		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
@@ -656,7 +667,7 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
-				MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
 
 				k, err := api.CreateRootKey(ctx, "test", nil)
 				assert.NoError(t, err)
@@ -666,6 +677,28 @@ func TestKeys(t *testing.T) {
 				assert.NoError(t, err)
 
 				err = api.Rotate(ctx, key1, "")
+				assert.Error(t, err)
+
+				return nil
+
+			},
+		},
+		{
+			"List Key Versions",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusCreated, testKeys)
+				MockAuthURL(keyURL, http.StatusOK, testVersions)
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
+
+				k, err := api.CreateRootKey(ctx, "test", nil)
+				assert.NoError(t, err)
+
+				key1 := k.ID
+
+				_, err = api.ListKeyVersions(ctx, key1)
+				assert.NoError(t, err)
+
+				_, err = api.ListKeyVersions(ctx, "")
 				assert.Error(t, err)
 
 				return nil
@@ -693,6 +726,30 @@ func TestKeys(t *testing.T) {
 				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
 				assert.NotEmpty(t, err.(*Error).CorrelationID)
 				return nil
+			},
+		},
+		{
+			"Get Key Metadata",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				// Successful call
+				MockAuthURL(keyURL, http.StatusOK, testKeys)
+				key, err := api.GetKeyMetadata(ctx, testKey)
+				assert.NoError(t, err)
+				assert.Equal(t, testKey, key.ID)
+
+				// Set it up to fail twice, with one retry
+				RetryMax = 1
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
+				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
+				key, err = api.GetKeyMetadata(ctx, testKey)
+				assert.Error(t, err)
+
+				// Validate that the error we get back has the status and message from the retry
+				assert.Equal(t, http.StatusBadGateway, err.(*Error).StatusCode)
+				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
+				assert.NotEmpty(t, err.(*Error).CorrelationID)
+				return nil
+
 			},
 		},
 
@@ -773,32 +830,65 @@ func TestMisc(t *testing.T) {
 //
 func TestPolicies(t *testing.T) {
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
-	testKeys := &Keys{
-		Metadata: KeysMetadata{
-			CollectionType: "json",
-			NumberOfKeys:   2,
+	rPolicy := RotationPolicy{
+		CreatedBy: "Owner",
+		CreatedAt: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+		CRN:       "crn:v1:bluemix:public:kms:us-south:a/a642ae45c51f0999376640d3f68f5a8d:9e5346f2-5911-4461-a1c2-c83046427473:policy:15a6eafc-b38e-46d8-9e00-40b7dbc73270",
+		ID:        "15a6eafc-b38e-46d8-9e00-40b7dbc73270",
+		UpdatedAt: time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
+		Rotation: struct {
+			Interval int `json:"interval_month,omitempty"`
+		}{
+			Interval: 10,
 		},
-		Keys: []Key{
-			Key{
-				ID:          testKey,
-				Name:        "Key1",
-				Extractable: false,
-			},
-			Key{
-				ID:          "5ngy2-kko9n-4mj5f-w3jer",
-				Name:        "Key2",
-				Extractable: true,
-			},
-		},
+		UpdatedBy: "Owner",
 	}
+	daPolicy := DualAuthPolicy{
+		CreatedBy: "Owner",
+		CreatedAt: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+		CRN:       "crn:v1:bluemix:public:kms:us-south:a/a642ae45c51f0999376640d3f68f5a8d:9e5346f2-5911-4461-a1c2-c83046427473:policy:15a6eafc-b38e-46d8-9e00-40b7dbc73270",
+		ID:        "15a6eafc-b38e-46d8-9e00-40b7dbc73270",
+		UpdatedAt: time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
+		DualAuthDelete: struct {
+			Enabled bool `json:"enabled,omitempty"`
+		}{
+			Enabled: true,
+		},
+		UpdatedBy: "Owner",
+	}
+	policies := []interface{}{rPolicy, daPolicy}
+	testPolicies := &Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 2,
+		},
+		Policies: policies,
+	}
+
+	rotationPolicy := &Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 1,
+		},
+		Policies: []interface{}{rPolicy},
+	}
+
+	dualAuthPolicy := &Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 1,
+		},
+		Policies: []interface{}{daPolicy},
+	}
+
 	keyURL := NewTestURL("/api/v2/keys")
 
 	cases := TestCases{
 		{
-			"Policy Replace",
+			"Policies Replace",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
+				MockAuthURL(keyURL, http.StatusOK, testPolicies)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testPolicies)
 
 				_, err := api.SetPolicies(ctx, testKey, ReturnMinimal, 3, true)
 				assert.NoError(t, err)
@@ -810,15 +900,75 @@ func TestPolicies(t *testing.T) {
 			},
 		},
 		{
-			"Policy Get",
+			"Policies Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
+				MockAuthURL(keyURL, http.StatusOK, testPolicies)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testPolicies)
 
 				_, err := api.GetPolicies(ctx, testKey)
 				assert.NoError(t, err)
 
 				_, err = api.GetPolicies(ctx, "")
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Rotation Policy Replace",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusOK, rotationPolicy)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies?policy=rotation", http.StatusOK, rotationPolicy)
+
+				_, err := api.SetRotationPolicy(ctx, testKey, ReturnMinimal, 10)
+				assert.NoError(t, err)
+
+				_, err = api.SetRotationPolicy(ctx, "", ReturnMinimal, 10)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Dual Auth Policy Replace",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusOK, dualAuthPolicy)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies?policy=dualAuthDelete", http.StatusOK, dualAuthPolicy)
+
+				_, err := api.SetDualAuthPolicy(ctx, testKey, ReturnMinimal, true)
+				assert.NoError(t, err)
+
+				_, err = api.SetDualAuthPolicy(ctx, "", ReturnMinimal, true)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Rotation Policy Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusOK, rotationPolicy)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies?policy=rotation", http.StatusOK, rotationPolicy)
+
+				_, err := api.GetRotationPolicy(ctx, testKey)
+				assert.NoError(t, err)
+
+				_, err = api.GetRotationPolicy(ctx, "")
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Dual Auth Policy Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusOK, dualAuthPolicy)
+				MockAuthURL("/api/v2/keys/"+testKey+"/policies?policy=dualAuthDelete", http.StatusOK, dualAuthPolicy)
+
+				_, err := api.GetDualAuthPolicy(ctx, testKey)
+				assert.NoError(t, err)
+
+				_, err = api.GetDualAuthPolicy(ctx, "")
 				assert.Error(t, err)
 
 				return nil
