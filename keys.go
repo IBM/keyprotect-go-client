@@ -241,8 +241,8 @@ func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
 }
 
 //ListKeyVersions retrieves all the rotated key versions associated with the key
-func (c *Client) ListKeyVersions(ctx context.Context, id string) (*[]KeyVersion, error) {
-	keys := []KeyVersion{}
+func (c *Client) ListKeyVersions(ctx context.Context, id string) (*keyVersions, error) {
+	keys := keyVersions{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
 	if err != nil {
