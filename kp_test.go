@@ -124,14 +124,20 @@ func TestKeys(t *testing.T) {
 		},
 	}
 
-	testVersions := []KeyVersion{
-		KeyVersion{
-			ID:           testKey,
-			CreationDate: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+	testVersions := &keyVersions{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   2,
 		},
-		KeyVersion{
-			ID:           "d1177b1f-cb13-4de5-9d5e-a984c4ba4f8f",
-			CreationDate: time.Date(2020, time.March, 10, 45, 0, 0, 0, time.UTC),
+		Versions: []KeyVersion{
+			KeyVersion{
+				ID:           testKey,
+				CreationDate: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+			},
+			KeyVersion{
+				ID:           "d1177b1f-cb13-4de5-9d5e-a984c4ba4f8f",
+				CreationDate: time.Date(2020, time.March, 10, 45, 0, 0, 0, time.UTC),
+			},
 		},
 	}
 
@@ -969,6 +975,146 @@ func TestPolicies(t *testing.T) {
 				assert.NoError(t, err)
 
 				_, err = api.GetDualAuthPolicy(ctx, "")
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
+
+}
+
+func TestInstancePolicies(t *testing.T) {
+	policy := Policy{
+		CreatedBy:  "Owner",
+		CreatedAt:  time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+		UpdatedAt:  time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
+		UpdatedBy:  "Owner",
+		PolicyType: "dualAuthDelete",
+		PolicyData: struct {
+			Enabled bool `json:"enabled,omitempty"`
+		}{
+			Enabled: true,
+		},
+	}
+	policies := []interface{}{policy}
+	testPolicies := &Policies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 1,
+		},
+		Policies: policies,
+	}
+
+	URL := NewTestURL("/api/v2")
+
+	cases := TestCases{
+		{
+			"Instance Policies Replace",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(URL, http.StatusOK, testPolicies)
+				MockAuthURL("/api/v2/instance/policies", http.StatusServiceUnavailable, nil)
+
+				err := api.SetInstancePolicies(ctx, true)
+				assert.NoError(t, err)
+
+				err = api.SetInstancePolicies(ctx, true)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Instance Policies Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(URL, http.StatusOK, testPolicies)
+				MockAuthURL("/api/v2/instance/policies", http.StatusServiceUnavailable, nil)
+
+				_, err := api.GetInstancePolicies(ctx)
+				assert.NoError(t, err)
+
+				_, err = api.GetInstancePolicies(ctx)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
+}
+
+func TestRegistrations(t *testing.T) {
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	URL := NewTestURL("/api/v2/keys")
+	reg1 := Registration{
+		KeyID:              testKey,
+		ResourceCrn:        "crn:v1:staging:public:kms:us-south:a/deadbeef-0000-0000-0000-1234567890ab:833622d7-6d32-48f6-a8ea-7231cd2fe060:bucket:bucket1",
+		CreatedBy:          "Owner",
+		CreationDate:       time.Date(2020, time.December, 18, 16, 0, 0, 0, time.UTC),
+		LastUpdateDate:     time.Date(2020, time.March, 20, 22, 0, 0, 0, time.UTC),
+		Description:        "...",
+		PreventKeyDeletion: true,
+		KeyVersion: KeyVersion{
+			ID:           testKey,
+			CreationDate: time.Date(2019, time.October, 24, 15, 0, 0, 0, time.UTC),
+		},
+	}
+	reg2 := Registration{
+		KeyID:              "29c05aae-f00f-416f-95c6-af200d502836",
+		ResourceCrn:        "crn:v1:staging:public:kms:us-south:a/deadbeef-0000-0000-0000-1234567890ab:833622d7-6d32-48f6-a8ea-7231cd2fe060:bucket:bucket1",
+		CreatedBy:          "Owner",
+		CreationDate:       time.Date(2020, time.September, 18, 16, 0, 0, 0, time.UTC),
+		LastUpdateDate:     time.Date(2020, time.January, 20, 22, 0, 0, 0, time.UTC),
+		Description:        "...",
+		PreventKeyDeletion: true,
+		KeyVersion: KeyVersion{
+			ID:           testKey,
+			CreationDate: time.Date(2019, time.July, 24, 15, 0, 0, 0, time.UTC),
+		},
+	}
+	testRegs := registrations{
+		Metadata: KeysMetadata{
+			CollectionType: "application/vnd.ibm.kms.registration+json",
+			NumberOfKeys:   1,
+		},
+		Registrations: []Registration{reg1},
+	}
+
+	testAnyRegs := registrations{
+		Metadata: KeysMetadata{
+			CollectionType: "application/vnd.ibm.kms.registration+json",
+			NumberOfKeys:   1,
+		},
+		Registrations: []Registration{reg1, reg2},
+	}
+
+	cases := TestCases{
+		{
+			"List Key Registrations",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(URL, http.StatusOK, testRegs)
+				MockAuthURL("/api/v2/keys/"+testKey+"/registrations", http.StatusServiceUnavailable, nil)
+
+				_, err := api.ListKeyRegistrations(ctx, testKey)
+				assert.NoError(t, err)
+
+				_, err = api.ListKeyRegistrations(ctx, testKey)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"List Any Key Registrations",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(URL, http.StatusOK, testAnyRegs)
+				MockAuthURL("/api/v2/keys/registrations", http.StatusServiceUnavailable, nil)
+
+				_, err := api.ListAnyKeyRegistrations(ctx)
+				assert.NoError(t, err)
+
+				_, err = api.ListAnyKeyRegistrations(ctx)
 				assert.Error(t, err)
 
 				return nil
