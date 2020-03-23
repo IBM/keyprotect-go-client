@@ -193,11 +193,17 @@ func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
 }
 
 // Delete deletes a key resource by specifying the ID of the key.
-func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn) (*Key, error) {
+func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, force ...bool) (*Key, error) {
 
 	req, err := c.newRequest("DELETE", fmt.Sprintf("keys/%s", id), nil)
 	if err != nil {
 		return nil, err
+	}
+	
+	if len(force) != 0 {
+		v := url.Values{}
+		v.Set("force", strconv.FormatBool(force[0]))
+		req.URL.RawQuery = v.Encode()
 	}
 
 	req.Header.Set("Prefer", preferHeaders[prefer])
