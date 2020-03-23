@@ -1147,3 +1147,23 @@ func TestDo_KPErrorResponseWithoutReasons_IsErrorStruct(t *testing.T) {
 	assert.NotNil(t, reasonsErr.CorrelationID)
 	assert.Empty(t, reasonsErr.Reasons)
 }
+
+func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
+	defer gock.Off()
+
+	gock.New("http://example.com").
+		MatchParam("force", "true").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.DeleteKey(context.Background(), "abcd-1234", ReturnMinimal, ForceOpt{true})
+
+	assert.Nil(t, key)
+	assert.Nil(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
