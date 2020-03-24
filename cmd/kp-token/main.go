@@ -17,9 +17,24 @@ package main
 import (
 	"fmt"
 	"os"
+	"reflect"
+	"time"
 
 	"github.com/IBM/keyprotect-go-client/iam"
 )
+
+// usage: kp-token
+//
+// Small CLI utility for outputting an IAM Access Token and metadata to console.
+// The output is intended be used with `grep` or `awk` to grab fields and values.
+//
+// For example, to grab the access token needed for IBM Cloud Authorization headers:
+//
+//    `kp-token | awk '/AccessToken/ { print $2 }'`
+//
+// This utility does not cache responses, and will retrieve a new token from IAM
+// every call. If you need caching it is suggested to save the token somewhere
+// or use a utility with more intelligence.
 
 func main() {
 	apiKey, ok := os.LookupEnv("IBMCLOUD_API_KEY")
@@ -33,6 +48,15 @@ func main() {
 	if err != nil {
 		fmt.Printf("%+v\n", err)
 	} else {
-		fmt.Printf("%+v\n", token)
+		v := reflect.ValueOf(*token)
+		t := v.Type()
+		for i := 0; i < v.NumField(); i++ {
+			switch ft := v.Field(i).Interface().(type) {
+			case time.Time:
+				fmt.Printf("%-15s %s\n", t.Field(i).Name, ft.Format(time.RFC3339))
+			default:
+				fmt.Printf("%-15s %s\n", t.Field(i).Name, ft)
+			}
+		}
 	}
 }
