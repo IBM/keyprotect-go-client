@@ -36,7 +36,7 @@ type Policy struct {
 	} `json:"policy_data,omitempty" mapstructure:"policyData"`
 }
 
-// GetPolicy retrieves all policies by Key ID.
+// GetInstancePolicies retrieves all policies for the instance
 func (c *Client) GetInstancePolicies(ctx context.Context) (interface{}, error) {
 	policyresponse := Policies{}
 
@@ -53,7 +53,7 @@ func (c *Client) GetInstancePolicies(ctx context.Context) (interface{}, error) {
 	return policyresponse.Policies, nil
 }
 
-// SetPolicy updates a policy resource by specifying the ID of the key and either the rotation interval or dual auth or both .
+// SetInstancePolicies updates an instance-level policy
 func (c *Client) SetInstancePolicies(ctx context.Context, dualAuthEnabled bool) error {
 	var policies []interface{}
 
