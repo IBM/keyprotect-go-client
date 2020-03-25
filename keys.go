@@ -17,6 +17,7 @@ package kp
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/url"
@@ -85,8 +86,8 @@ type KeysActionRequest struct {
 // KeyVersion is a ID of a version of a CRK (root Key or exportable Key).
 // New versions are created by the Rotate operation on a CRK.
 type KeyVersion struct {
-	ID           string    `json:"id,omitempty"`
-	CreationDate time.Time `json:"creationDate,omitempty"`
+	ID           string     `json:"id,omitempty"`
+	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
 //keyVersions represents the collection of all the versions of a Key
@@ -382,13 +383,13 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 
 // RotationPolicy represents a rotation policy of a key as returned by the KP API.
 type RotationPolicy struct {
-	ID        string    `json:"id,omitempty"`
-	Type      string    `json:"type,omitempty"`
-	CreatedBy string    `json:"createdBy,omitempty"`
-	CreatedAt time.Time `json:"creationDate,omitempty"`
-	CRN       string    `json:"crn,omitempty"`
-	UpdatedAt time.Time `json:"lastUpdateDate,omitempty"`
-	UpdatedBy string    `json:"updatedBy,omitempty"`
+	ID        string     `json:"id,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	CreatedBy string     `json:"createdBy,omitempty"`
+	CreatedAt *time.Time `json:"creationDate,omitempty"`
+	CRN       string     `json:"crn,omitempty"`
+	UpdatedAt *time.Time `json:"lastUpdateDate,omitempty"`
+	UpdatedBy string     `json:"updatedBy,omitempty"`
 	Rotation  struct {
 		Interval int `json:"interval_month,omitempty"`
 	} `json:"rotation,omitempty" mapstructure:"rotation"`
@@ -397,13 +398,13 @@ type RotationPolicy struct {
 // DualAuthPolicy represents a dual auth delete policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type DualAuthPolicy struct {
-	ID             string    `json:"id,omitempty"`
-	Type           string    `json:"type,omitempty"`
-	CreatedBy      string    `json:"createdBy,omitempty"`
-	CreatedAt      time.Time `json:"creationDate,omitempty"`
-	CRN            string    `json:"crn,omitempty"`
-	UpdatedAt      time.Time `json:"lastUpdateDate,omitempty"`
-	UpdatedBy      string    `json:"updatedBy,omitempty"`
+	ID             string     `json:"id,omitempty"`
+	Type           string     `json:"type,omitempty"`
+	CreatedBy      string     `json:"createdBy,omitempty"`
+	CreatedAt      *time.Time `json:"creationDate,omitempty"`
+	CRN            string     `json:"crn,omitempty"`
+	UpdatedAt      *time.Time `json:"lastUpdateDate,omitempty"`
+	UpdatedBy      string     `json:"updatedBy,omitempty"`
 	DualAuthDelete struct {
 		Enabled bool `json:"enabled,omitempty"`
 	} `json:"dualAuthDelete,omitempty" mapstructure:"dualauthDelete"`
@@ -422,7 +423,7 @@ type Policies struct {
 }
 
 // GetPolicies retrieves all policies by Key ID.
-func (c *Client) GetPolicies(ctx context.Context, id string) (*[]interface{}, error) {
+func (c *Client) GetPolicies(ctx context.Context, id string) (interface{}, error) {
 	policyresponse := Policies{}
 
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies", id), nil)
@@ -473,7 +474,7 @@ func (c *Client) GetDualAuthPolicy(ctx context.Context, id string) (interface{},
 }
 
 // SetPolicies updates a policy resource by specifying the ID of the key and either the rotation interval or dual auth or both .
-func (c *Client) SetPolicies(ctx context.Context, id string, prefer PreferReturn, rotationInterval int, dualAuthEnabled bool) (*[]interface{}, error) {
+func (c *Client) SetPolicies(ctx context.Context, id string, prefer PreferReturn, rotationInterval int, dualAuthEnabled bool) (interface{}, error) {
 	var policies []interface{}
 	if rotationInterval != 0 {
 		rotationPolicy := RotationPolicy{
@@ -498,6 +499,10 @@ func (c *Client) SetPolicies(ctx context.Context, id string, prefer PreferReturn
 		},
 		Policies: policies,
 	}
+
+	js, _ := json.MarshalIndent(policyRequest, "", " ")
+
+	fmt.Printf("Json Request: %s\n", js)
 
 	policyresponse := Policies{}
 

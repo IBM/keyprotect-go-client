@@ -24,9 +24,9 @@ type Registration struct {
 	KeyID              string     `json:"keyId,omitempty"`
 	ResourceCrn        string     `json:"resourceCrn,omitempty"`
 	CreatedBy          string     `json:"createdBy,omitempty"`
-	CreationDate       time.Time  `json:"creationDate,omitempty"`
+	CreationDate       *time.Time `json:"creationDate,omitempty"`
 	UpdatedBy          string     `json:"updatedBy,omitempty"`
-	LastUpdateDate     time.Time  `json:"lastUpdated,omitempty"`
+	LastUpdateDate     *time.Time `json:"lastUpdated,omitempty"`
 	Description        string     `json:"description,omitempty"`
 	PreventKeyDeletion bool       `json:"preventKeyDeletion,omitempty"`
 	KeyVersion         KeyVersion `json:"keyVersion,omitempty"`

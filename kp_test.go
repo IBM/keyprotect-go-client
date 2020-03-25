@@ -131,12 +131,10 @@ func TestKeys(t *testing.T) {
 		},
 		Versions: []KeyVersion{
 			KeyVersion{
-				ID:           testKey,
-				CreationDate: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
+				ID: testKey,
 			},
 			KeyVersion{
-				ID:           "d1177b1f-cb13-4de5-9d5e-a984c4ba4f8f",
-				CreationDate: time.Date(2020, time.March, 10, 45, 0, 0, 0, time.UTC),
+				ID: "d1177b1f-cb13-4de5-9d5e-a984c4ba4f8f",
 			},
 		},
 	}
@@ -838,10 +836,8 @@ func TestPolicies(t *testing.T) {
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
 	rPolicy := RotationPolicy{
 		CreatedBy: "Owner",
-		CreatedAt: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
 		CRN:       "crn:v1:bluemix:public:kms:us-south:a/a642ae45c51f0999376640d3f68f5a8d:9e5346f2-5911-4461-a1c2-c83046427473:policy:15a6eafc-b38e-46d8-9e00-40b7dbc73270",
 		ID:        "15a6eafc-b38e-46d8-9e00-40b7dbc73270",
-		UpdatedAt: time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
 		Rotation: struct {
 			Interval int `json:"interval_month,omitempty"`
 		}{
@@ -851,10 +847,8 @@ func TestPolicies(t *testing.T) {
 	}
 	daPolicy := DualAuthPolicy{
 		CreatedBy: "Owner",
-		CreatedAt: time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
 		CRN:       "crn:v1:bluemix:public:kms:us-south:a/a642ae45c51f0999376640d3f68f5a8d:9e5346f2-5911-4461-a1c2-c83046427473:policy:15a6eafc-b38e-46d8-9e00-40b7dbc73270",
 		ID:        "15a6eafc-b38e-46d8-9e00-40b7dbc73270",
-		UpdatedAt: time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
 		DualAuthDelete: struct {
 			Enabled bool `json:"enabled,omitempty"`
 		}{
@@ -988,8 +982,6 @@ func TestPolicies(t *testing.T) {
 func TestInstancePolicies(t *testing.T) {
 	policy := Policy{
 		CreatedBy:  "Owner",
-		CreatedAt:  time.Date(2019, time.November, 20, 22, 0, 0, 0, time.UTC),
-		UpdatedAt:  time.Date(2020, time.March, 23, 22, 0, 0, 0, time.UTC),
 		UpdatedBy:  "Owner",
 		PolicyType: "dualAuthDelete",
 		PolicyData: struct {
@@ -1051,26 +1043,20 @@ func TestRegistrations(t *testing.T) {
 		KeyID:              testKey,
 		ResourceCrn:        "crn:v1:staging:public:kms:us-south:a/deadbeef-0000-0000-0000-1234567890ab:833622d7-6d32-48f6-a8ea-7231cd2fe060:bucket:bucket1",
 		CreatedBy:          "Owner",
-		CreationDate:       time.Date(2020, time.December, 18, 16, 0, 0, 0, time.UTC),
-		LastUpdateDate:     time.Date(2020, time.March, 20, 22, 0, 0, 0, time.UTC),
 		Description:        "...",
 		PreventKeyDeletion: true,
 		KeyVersion: KeyVersion{
-			ID:           testKey,
-			CreationDate: time.Date(2019, time.October, 24, 15, 0, 0, 0, time.UTC),
+			ID: testKey,
 		},
 	}
 	reg2 := Registration{
 		KeyID:              "29c05aae-f00f-416f-95c6-af200d502836",
 		ResourceCrn:        "crn:v1:staging:public:kms:us-south:a/deadbeef-0000-0000-0000-1234567890ab:833622d7-6d32-48f6-a8ea-7231cd2fe060:bucket:bucket1",
 		CreatedBy:          "Owner",
-		CreationDate:       time.Date(2020, time.September, 18, 16, 0, 0, 0, time.UTC),
-		LastUpdateDate:     time.Date(2020, time.January, 20, 22, 0, 0, 0, time.UTC),
 		Description:        "...",
 		PreventKeyDeletion: true,
 		KeyVersion: KeyVersion{
-			ID:           testKey,
-			CreationDate: time.Date(2019, time.July, 24, 15, 0, 0, 0, time.UTC),
+			ID: testKey,
 		},
 	}
 	testRegs := registrations{
