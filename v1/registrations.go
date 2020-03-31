@@ -33,7 +33,7 @@ type RegistrationDetails struct {
 	UpdatedBy          string                 `json:"updatedBy,omitempty"`
 	LastUpdateDate     *time.Time             `json:"lastUpdated,omitempty"`
 	Description        string                 `json:"description,omitempty"`
-	PreventKeyDeletion bool                   `json:"preventKeyDeletion,omitempty"`
+	PreventKeyDeletion bool                   `json:"preventKeyDeletion"`
 	KeyVersion         map[string]interface{} `json:"keyVersion,omitempty"`
 }
 
@@ -42,7 +42,7 @@ type RegistrationsMetadata struct {
 	NumberOfRegistrations int    `json:"collectionTotal"`
 }
 
-type RegistrationOutput struct {
+type RegistrationsOutput struct {
 	Metadata      RegistrationsMetadata `json:"metadata"`
 	Registrations []RegistrationDetails `json:"resources"`
 }
@@ -52,13 +52,13 @@ type ListRegistrationsRequest struct {
 	Input *ListRegistrationsInput
 }
 
-func (c *Client) ListKeyRegistrationsRequest(in *ListRegistrationsInput) ListRegistrationsRequest {
-	req := NewRequest(c, "GET", "/api/v2/keys/{{.KeyID}}/registrations?urlEncodedResourceCRNQuery={{.CRN}}", in, &RegistrationsOutput{})
+func (c *Client) ListRegistrationsOfKeyRequest(in *ListRegistrationsInput) ListRegistrationsRequest {
+	req := NewRequest(c, "GET", "/api/v2/keys/{{.KeyID}}/registrations", in, &RegistrationsOutput{})
 
 	return ListRegistrationsRequest{Request: req, Input: in}
 }
 
-func (c *Client) ListAllKeysRegistrationsRequest(in *ListRegistrationsInput) ListRegistrationsRequest {
+func (c *Client) ListKeysOfRegistrationRequest(in *ListRegistrationsInput) ListRegistrationsRequest {
 	req := NewRequest(c, "GET", "/api/v2/keys/registrations?urlEncodedResourceCRNQuery={{.CRN}}", in, &RegistrationsOutput{})
 
 	return ListRegistrationsRequest{Request: req, Input: in}
