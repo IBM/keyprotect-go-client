@@ -111,23 +111,12 @@ type CreatePoliciesInput struct {
 	Policies *[]PolicyDetails `json:"resources,omitempty" mapstructure:"resources"`
 }
 
-// PoliciesMetadata represents the metadata of a collection of keys.
-type PoliciesMetadata struct {
-	CollectionType   string `json:"collectionType"`
-	NumberOfPolicies int    `json:"collectionTotal"`
-}
-
 type RotationPolicy struct {
 	Interval int `json:"interval_month,omitempty"`
 }
 
 type DualAuthPolicy struct {
 	Enabled bool `json:"enabled,omitempty"`
-}
-
-type PoliciesOutput struct {
-	Metadata PoliciesMetadata `json:"metadata"`
-	Policies *[]PolicyDetails `json:"resources"`
 }
 
 type PolicyDetails struct {
@@ -140,6 +129,17 @@ type PolicyDetails struct {
 	UpdatedBy string          `json:"updatedBy,omitempty"`
 	Rotation  *RotationPolicy `json:"rotation,omitempty" mapstructure:"rotation"`
 	DualAuth  *DualAuthPolicy `json:"dualAuthDelete,omitempty" mapstructure:"dualAuthDelete"`
+}
+
+// PoliciesMetadata represents the metadata of a collection of keys.
+type PoliciesMetadata struct {
+	CollectionType   string `json:"collectionType"`
+	NumberOfPolicies int    `json:"collectionTotal"`
+}
+
+type PoliciesOutput struct {
+	Metadata PoliciesMetadata `json:"metadata"`
+	Policies *[]PolicyDetails `json:"resources"`
 }
 
 type CreatePoliciesRequest struct {
