@@ -33,8 +33,8 @@ type WrapInput struct {
 }
 
 type WrapOutput struct {
-	Plaintext  *[]byte                `json:"plaintext, omitempty"`
-	Ciphertext *[]byte                `json:"ciphertext, omitempty"`
+	Plaintext  []byte                 `json:"plaintext, omitempty"`
+	Ciphertext []byte                 `json:"ciphertext, omitempty"`
 	KeyVersion map[string]interface{} `json:"keyVersion, omitempty"`
 }
 
@@ -149,18 +149,6 @@ type CreatePoliciesRequest struct {
 
 func (c *Client) CreatePoliciesRequest(in *CreatePoliciesInput) CreatePoliciesRequest {
 	req := NewRequest(c, "PUT", "/api/v2/keys/{{.KeyID}}/policies", in, &PoliciesOutput{})
-
-	return CreatePoliciesRequest{Request: req, Input: in}
-}
-
-func (c *Client) CreateRotationPolicyRequest(in *CreatePoliciesInput) CreatePoliciesRequest {
-	req := NewRequest(c, "PUT", "/api/v2/keys/{{.KeyID}}/policies?policy=rotation", in, &PoliciesOutput{})
-
-	return CreatePoliciesRequest{Request: req, Input: in}
-}
-
-func (c *Client) CreateDualAuthPolicyRequest(in *CreatePoliciesInput) CreatePoliciesRequest {
-	req := NewRequest(c, "PUT", "/api/v2/keys/{{.KeyID}}/policies?policy=dualAuthDelete", in, &PoliciesOutput{})
 
 	return CreatePoliciesRequest{Request: req, Input: in}
 }

@@ -19,14 +19,14 @@ import (
 	"time"
 )
 
-type CreateInstPoliciesInput struct {
+type CreateInstancePoliciesInput struct {
 	Instance string `json:"-" location:"header" locationKey:"Bluemix-Instance"`
 
-	Metadata PoliciesMetadata     `json:"metadata"`
-	Policies *[]InstPolicyDetails `json:"resources,omitempty" mapstructure:"resources"`
+	Metadata PoliciesMetadata         `json:"metadata"`
+	Policies *[]InstancePolicyDetails `json:"resources,omitempty" mapstructure:"resources"`
 }
 
-type InstPolicyDetails struct {
+type InstancePolicyDetails struct {
 	CreatedBy  string          `json:"createdBy,omitempty"`
 	CreatedAt  *time.Time      `json:"creationDate,omitempty"`
 	PolicyType string          `json:"policy_type,omitempty"`
@@ -35,23 +35,23 @@ type InstPolicyDetails struct {
 	UpdatedBy  string          `json:"updatedBy,omitempty"`
 }
 
-type CreateInstPoliciesRequest struct {
+type CreateInstancePoliciesRequest struct {
 	*Request
-	Input *CreateInstPoliciesInput
+	Input *CreateInstancePoliciesInput
 }
 
-type GetInstPoliciesRequest struct {
+type GetInstancePoliciesRequest struct {
 	*Request
 	Input *GetInput
 }
 
-func (c *Client) CreateInstPoliciesRequest(in *CreateInstPoliciesInput) CreateInstPoliciesRequest {
-	req := NewRequest(c, "PUT", "/api/v2/instance/policies", in, &InstPoliciesOutput{})
+func (c *Client) CreateInstancePoliciesRequest(in *CreateInstancePoliciesInput) CreateInstancePoliciesRequest {
+	req := NewRequest(c, "PUT", "/api/v2/instance/policies", in, &InstancePoliciesOutput{})
 
-	return CreateInstPoliciesRequest{Request: req, Input: in}
+	return CreateInstancePoliciesRequest{Request: req, Input: in}
 }
 
-func (r CreateInstPoliciesRequest) Send(ctx context.Context) (int, error) {
+func (r CreateInstancePoliciesRequest) Send(ctx context.Context) (int, error) {
 	res, err := r.Request.Send(ctx)
 	if err != nil {
 		return 0, err
@@ -60,28 +60,28 @@ func (r CreateInstPoliciesRequest) Send(ctx context.Context) (int, error) {
 	return res.StatusCode, nil
 }
 
-func (c *Client) GetInstPoliciesRequest(in *GetInput) GetInstPoliciesRequest {
-	req := NewRequest(c, "GET", "/api/v2/instance/policies", in, &InstPoliciesOutput{})
+func (c *Client) GetInstancePoliciesRequest(in *GetInput) GetInstancePoliciesRequest {
+	req := NewRequest(c, "GET", "/api/v2/instance/policies", in, &InstancePoliciesOutput{})
 
-	return GetInstPoliciesRequest{Request: req, Input: in}
+	return GetInstancePoliciesRequest{Request: req, Input: in}
 }
 
-func (r GetInstPoliciesRequest) Send(ctx context.Context) (*InstPoliciesResponse, error) {
+func (r GetInstancePoliciesRequest) Send(ctx context.Context) (*InstancePoliciesResponse, error) {
 	_, err := r.Request.Send(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return &InstPoliciesResponse{
-		InstPoliciesOutput: r.Request.OutData.(*InstPoliciesOutput),
+	return &InstancePoliciesResponse{
+		InstancePoliciesOutput: r.Request.OutData.(*InstancePoliciesOutput),
 	}, nil
 }
 
-type InstPoliciesOutput struct {
-	Metadata PoliciesMetadata     `json:"metadata"`
-	Policies *[]InstPolicyDetails `json:"resources"`
+type InstancePoliciesOutput struct {
+	Metadata PoliciesMetadata         `json:"metadata"`
+	Policies *[]InstancePolicyDetails `json:"resources"`
 }
 
-type InstPoliciesResponse struct {
-	*InstPoliciesOutput
+type InstancePoliciesResponse struct {
+	*InstancePoliciesOutput
 }
