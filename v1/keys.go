@@ -16,7 +16,6 @@ package keyprotect
 
 import (
 	"context"
-	"time"
 )
 
 type GetInput struct {
@@ -101,103 +100,4 @@ func (r UnwrapRequest) Send(ctx context.Context) (*UnwrapResponse, error) {
 
 type UnwrapResponse struct {
 	*UnwrapOutput
-}
-
-type CreatePoliciesInput struct {
-	Instance string `json:"-" location:"header" locationKey:"Bluemix-Instance"`
-	KeyID    string `json:"-" location:"url" locationKey:"KeyID"`
-
-	Metadata PoliciesMetadata `json:"metadata"`
-	Policies *[]PolicyDetails `json:"resources,omitempty" mapstructure:"resources"`
-}
-
-type RotationPolicy struct {
-	Interval int `json:"interval_month,omitempty"`
-}
-
-type DualAuthPolicy struct {
-	Enabled bool `json:"enabled,omitempty"`
-}
-
-type PolicyDetails struct {
-	ID        string          `json:"id,omitempty"`
-	Type      string          `json:"type,omitempty"`
-	CreatedBy string          `json:"createdBy,omitempty"`
-	CreatedAt *time.Time      `json:"creationDate,omitempty"`
-	CRN       string          `json:"crn,omitempty"`
-	UpdatedAt *time.Time      `json:"lastUpdateDate,omitempty"`
-	UpdatedBy string          `json:"updatedBy,omitempty"`
-	Rotation  *RotationPolicy `json:"rotation,omitempty" mapstructure:"rotation"`
-	DualAuth  *DualAuthPolicy `json:"dualAuthDelete,omitempty" mapstructure:"dualAuthDelete"`
-}
-
-// PoliciesMetadata represents the metadata of a collection of keys.
-type PoliciesMetadata struct {
-	CollectionType   string `json:"collectionType"`
-	NumberOfPolicies int    `json:"collectionTotal"`
-}
-
-type PoliciesOutput struct {
-	Metadata PoliciesMetadata `json:"metadata"`
-	Policies *[]PolicyDetails `json:"resources"`
-}
-
-type CreatePoliciesRequest struct {
-	*Request
-	Input *CreatePoliciesInput
-}
-
-func (c *Client) CreatePoliciesRequest(in *CreatePoliciesInput) CreatePoliciesRequest {
-	req := NewRequest(c, "PUT", "/api/v2/keys/{{.KeyID}}/policies", in, &PoliciesOutput{})
-
-	return CreatePoliciesRequest{Request: req, Input: in}
-}
-
-func (r CreatePoliciesRequest) Send(ctx context.Context) (*PoliciesResponse, error) {
-	_, err := r.Request.Send(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PoliciesResponse{
-		PoliciesOutput: r.Request.OutData.(*PoliciesOutput),
-	}, nil
-}
-
-type PoliciesResponse struct {
-	*PoliciesOutput
-}
-
-type GetPoliciesRequest struct {
-	*Request
-	Input *GetInput
-}
-
-func (c *Client) GetPoliciesRequest(in *GetInput) GetPoliciesRequest {
-	req := NewRequest(c, "GET", "/api/v2/keys/{{.KeyID}}/policies", in, &PoliciesOutput{})
-
-	return GetPoliciesRequest{Request: req, Input: in}
-}
-
-func (c *Client) GetRotationPolicyRequest(in *GetInput) GetPoliciesRequest {
-	req := NewRequest(c, "GET", "/api/v2/keys/{{.KeyID}}/policies?policy=rotation", in, &PoliciesOutput{})
-
-	return GetPoliciesRequest{Request: req, Input: in}
-}
-
-func (c *Client) GetDualAuthPolicyRequest(in *GetInput) GetPoliciesRequest {
-	req := NewRequest(c, "GET", "/api/v2/keys/{{.KeyID}}/policies?policy=dualAuthDelete", in, &PoliciesOutput{})
-
-	return GetPoliciesRequest{Request: req, Input: in}
-}
-
-func (r GetPoliciesRequest) Send(ctx context.Context) (*PoliciesResponse, error) {
-	_, err := r.Request.Send(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PoliciesResponse{
-		PoliciesOutput: r.Request.OutData.(*PoliciesOutput),
-	}, nil
 }
