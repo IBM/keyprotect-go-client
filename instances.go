@@ -25,10 +25,10 @@ const (
 
 // DualAuthPolicy represents a dual auth delete policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
-type Policy struct {
+type InstancePolicy struct {
 	CreatedBy  string     `json:"createdBy,omitempty"`
 	CreatedAt  *time.Time `json:"creationDate,omitempty"`
-	UpdatedAt  *time.Time `json:"lastUpdateDate,omitempty"`
+	UpdatedAt  *time.Time `json:"lastUpdated,omitempty"`
 	UpdatedBy  string     `json:"updatedBy,omitempty"`
 	PolicyType string     `json:"policy_type,omitempty"`
 	PolicyData struct {
@@ -36,9 +36,15 @@ type Policy struct {
 	} `json:"policy_data,omitempty" mapstructure:"policyData"`
 }
 
+// Policies represents a collection of Policies.
+type InstancePolicies struct {
+	Metadata PoliciesMetadata `json:"metadata"`
+	Policies []InstancePolicy `json:"resources"`
+}
+
 // GetPolicy retrieves all policies by Key ID.
-func (c *Client) GetInstancePolicies(ctx context.Context) (*[]interface{}, error) {
-	policyresponse := Policies{}
+func (c *Client) GetInstancePolicies(ctx context.Context) (*InstancePolicy, error) {
+	policyresponse := InstancePolicies{}
 
 	req, err := c.newRequest("GET", "instance/policies", nil)
 	if err != nil {
@@ -50,20 +56,20 @@ func (c *Client) GetInstancePolicies(ctx context.Context) (*[]interface{}, error
 		return nil, err
 	}
 
-	return &policyresponse.Policies, nil
+	return &policyresponse.Policies[0], nil
 }
 
 // SetPolicy updates a policy resource by specifying the ID of the key and either the rotation interval or dual auth or both .
 func (c *Client) SetInstancePolicies(ctx context.Context, dualAuthEnabled bool) error {
-	var policies []interface{}
+	var policies []InstancePolicy
 
-	policy := Policy{
+	policy := InstancePolicy{
 		PolicyType: dualAuthDelete,
 	}
 	policy.PolicyData.Enabled = dualAuthEnabled
 	policies = append(policies, policy)
 
-	policyRequest := Policies{
+	policyRequest := InstancePolicies{
 		Metadata: PoliciesMetadata{
 			CollectionType:   policyType,
 			NumberOfPolicies: len(policies),
