@@ -21,35 +21,42 @@ import (
 )
 
 const (
+	//DualAuthDelete defines the policy type as dual auth delete
 	DualAuthDelete = "dualAuthDelete"
+
+	//AllowedNetwork defines the policy type as allowed network
 	AllowedNetwork = "allowedNetwork"
 )
 
-// DualAuthPolicy represents a dual auth delete policy of a key as returned by the KP API.
+// InstancePolicy represents a dual auth delete policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type InstancePolicy struct {
-	CreatedBy  string     `json:"createdBy,omitempty"`
-	CreatedAt  *time.Time `json:"creationDate,omitempty"`
-	UpdatedAt  *time.Time `json:"lastUpdated,omitempty"`
-	UpdatedBy  string     `json:"updatedBy,omitempty"`
-	PolicyType string     `json:"policy_type,omitempty"`
-	PolicyData struct {
-		Enabled    *bool       `json:"enabled,omitempty"`
-		Attributes *Attributes `json:"attributes,omitempty"`
-	} `json:"policy_data,omitempty" mapstructure:"policyData"`
+	CreatedBy  string      `json:"createdBy,omitempty"`
+	CreatedAt  *time.Time  `json:"creationDate,omitempty"`
+	UpdatedAt  *time.Time  `json:"lastUpdated,omitempty"`
+	UpdatedBy  string      `json:"updatedBy,omitempty"`
+	PolicyType string      `json:"policy_type,omitempty"`
+	PolicyData *PolicyData `json:"policy_data,omitempty" mapstructure:"policyData"`
 }
 
+// PolicyData contains the details of the policy type
+type PolicyData struct {
+	Enabled    *bool       `json:"enabled,omitempty"`
+	Attributes *Attributes `json:"attributes,omitempty"`
+}
+
+// Attributes contains the detals of allowed network policy type
 type Attributes struct {
 	AllowedNetwork string `json:"allowed_network,omitempty"`
 }
 
-// Policies represents a collection of Policies.
+// InstancePolicies represents a collection of Policies associated with Key Protect instances.
 type InstancePolicies struct {
 	Metadata PoliciesMetadata `json:"metadata"`
 	Policies []InstancePolicy `json:"resources"`
 }
 
-// GetPolicy retrieves all policies by Key ID.
+// GetInstancePolicies retrieves all policies of an Instance.
 func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, error) {
 	policyresponse := InstancePolicies{}
 
@@ -66,7 +73,7 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 	return policyresponse.Policies, nil
 }
 
-// SetPolicy updates a policy resource by specifying the ID of the key and either the rotation interval or dual auth or both .
+// SetInstancePolicy updates a policy resource of an instance to either allowed network or dual auth or both .
 func (c *Client) SetInstancePolicies(ctx context.Context, dualAuthEnabled, allowedNet bool, networkType, setType string) error {
 	var policies []InstancePolicy
 
