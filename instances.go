@@ -31,18 +31,18 @@ const (
 // InstancePolicy represents a dual auth delete policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type InstancePolicy struct {
-	CreatedBy  string      `json:"createdBy,omitempty"`
-	CreatedAt  *time.Time  `json:"creationDate,omitempty"`
-	UpdatedAt  *time.Time  `json:"lastUpdated,omitempty"`
-	UpdatedBy  string      `json:"updatedBy,omitempty"`
-	PolicyType string      `json:"policy_type,omitempty"`
-	PolicyData *PolicyData `json:"policy_data,omitempty" mapstructure:"policyData"`
+	CreatedBy  string     `json:"createdBy,omitempty"`
+	CreatedAt  *time.Time `json:"creationDate,omitempty"`
+	UpdatedAt  *time.Time `json:"lastUpdated,omitempty"`
+	UpdatedBy  string     `json:"updatedBy,omitempty"`
+	PolicyType string     `json:"policy_type,omitempty"`
+	PolicyData PolicyData `json:"policy_data,omitempty" mapstructure:"policyData"`
 }
 
 // PolicyData contains the details of the policy type
 type PolicyData struct {
-	Enabled    *bool       `json:"enabled,omitempty"`
-	Attributes *Attributes `json:"attributes,omitempty"`
+	Enabled    *bool      `json:"enabled,omitempty"`
+	Attributes Attributes `json:"attributes,omitempty"`
 }
 
 // Attributes contains the detals of allowed network policy type
@@ -73,27 +73,28 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 	return policyresponse.Policies, nil
 }
 
-// SetInstancePolicy updates a policy resource of an instance to either allowed network or dual auth or both .
-func (c *Client) SetInstancePolicies(ctx context.Context, dualAuthEnabled, allowedNet bool, networkType, setType string) error {
+// SetInstancePolicies updates a policy resource of an instance to either allowed network or dual auth or both .
+func (c *Client) SetInstancePolicies(ctx context.Context, enable bool, networkType, setType string) error {
 	var policies []InstancePolicy
 
 	if strings.Compare(setType, DualAuthDelete) == 0 {
 		policy := InstancePolicy{
 			PolicyType: DualAuthDelete,
 		}
-		policy.PolicyData.Enabled = &dualAuthEnabled
+		policy.PolicyData.Enabled = &enable
 		policies = append(policies, policy)
 	}
 
 	if strings.Compare(setType, AllowedNetwork) == 0 {
 		policy := InstancePolicy{
 			PolicyType: AllowedNetwork,
+			PolicyData: PolicyData{
+				Enabled:    &enable,
+				Attributes: Attributes{},
+			},
 		}
-		policy.PolicyData.Enabled = &allowedNet
 		if networkType != "" {
-			policy.PolicyData.Attributes = &Attributes{
-				AllowedNetwork: networkType,
-			}
+			policy.PolicyData.Attributes.AllowedNetwork = networkType
 		}
 		policies = append(policies, policy)
 	}
