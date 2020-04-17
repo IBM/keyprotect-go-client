@@ -28,7 +28,7 @@ const (
 	AllowedNetwork = "allowedNetwork"
 )
 
-// InstancePolicy represents a dual auth delete policy of a key as returned by the KP API.
+// InstancePolicy represents a instance-level policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type InstancePolicy struct {
 	CreatedBy  string     `json:"createdBy,omitempty"`
