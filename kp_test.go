@@ -829,6 +829,132 @@ func TestPolicies(t *testing.T) {
 
 }
 
+// Tests the API methods for instance policies.
+//
+func TestInstancePolicies(t *testing.T) {
+	False := false
+	True := true
+	testGetPolicies := &InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 2,
+		},
+		Policies: []InstancePolicy{
+			InstancePolicy{
+				PolicyType: "dualAuthDelete",
+				PolicyData: PolicyData{
+					Enabled: &False,
+				},
+			},
+			InstancePolicy{
+				PolicyType: "allowedNetwork",
+				PolicyData: PolicyData{
+					Enabled: &True,
+					Attributes: Attributes{
+						AllowedNetwork: "public-and-private",
+					},
+				},
+			},
+		},
+	}
+
+	testDualAuthPolicy := &InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{
+			InstancePolicy{
+				PolicyType: "dualAuthDelete",
+				PolicyData: PolicyData{
+					Enabled: &True,
+				},
+			},
+		},
+	}
+
+	testAllowedNetworkPolicy := &InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   "json",
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{
+			InstancePolicy{
+				PolicyType: "allowedNetwork",
+				PolicyData: PolicyData{
+					Enabled: &True,
+					Attributes: Attributes{
+						AllowedNetwork: "public-and-private",
+					},
+				},
+			},
+		},
+	}
+	instanceURL := NewTestURL("/api/v2/instance/policies")
+
+	cases := TestCases{
+		{
+			"Dual Auth Delete Policy Replace",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(instanceURL, http.StatusNoContent, nil)
+				MockAuthURL(instanceURL, http.StatusOK, testDualAuthPolicy)
+
+				err := api.SetInstancePolicies(ctx, true, "", "dualAuthDelete")
+				assert.NoError(t, err)
+
+				p, err := api.GetInstancePolicies(ctx)
+				for i, _ := range p {
+					if p[i].PolicyType == "dualAuthDelete" {
+						assert.True(t, *(p[i].PolicyData.Enabled))
+					}
+				}
+				return nil
+			},
+		},
+		{
+			"Allowed Network Policy Replace",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(instanceURL, http.StatusNoContent, nil)
+				MockAuthURL(instanceURL, http.StatusOK, testAllowedNetworkPolicy)
+
+				err := api.SetInstancePolicies(ctx, true, "public-and-private", "allowedNetwork")
+				assert.NoError(t, err)
+
+				p, err := api.GetInstancePolicies(ctx)
+				for i, _ := range p {
+					if p[i].PolicyType == "allowedNetwork" {
+						assert.True(t, *(p[i].PolicyData.Enabled))
+						assert.Equal(t, p[i].PolicyData.Attributes.AllowedNetwork, "public-and-private")
+					}
+				}
+				return nil
+			},
+		},
+		{
+			"Policy Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(instanceURL, http.StatusOK, testGetPolicies)
+
+				policies, err := api.GetInstancePolicies(ctx)
+				assert.NoError(t, err)
+				for _, p := range policies {
+					if p.PolicyType == "dualAuthDelete" {
+						assert.False(t, *(p.PolicyData.Enabled))
+					}
+					if p.PolicyType == "allowedNetwork" {
+						assert.True(t, *(p.PolicyData.Enabled))
+						assert.Equal(t, p.PolicyData.Attributes.AllowedNetwork, "public-and-private")
+					}
+				}
+
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
+
+}
+
 // Tests the API methods for ImportTokens.
 //
 func TestImportTokens(t *testing.T) {
