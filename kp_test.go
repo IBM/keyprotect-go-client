@@ -124,6 +124,36 @@ func TestKeys(t *testing.T) {
 		},
 	}
 
+	testDeletedKey := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{
+			Key{
+				ID:          testKey,
+				Name:        "Key1",
+				Extractable: false,
+				State:       5,
+			},
+		},
+	}
+
+	testRestoredKey := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{
+			Key{
+				ID:          testKey,
+				Name:        "Key1",
+				Extractable: false,
+				State:       1,
+			},
+		},
+	}
+
 	keysActionDEK := KeysActionRequest{
 		PlainText:  "YWJjZGVmZ2hpamtsbW5vCg==",
 		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
@@ -725,6 +755,31 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
 				_, err := api.DeleteKey(ctx, testKey, ReturnMinimal)
+				assert.Error(t, err)
+				return nil
+			},
+		},
+		{
+			"Restore Key",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusCreated, testKeys)
+				k, err := api.CreateImportedRootKey(ctx, "test", nil, "asdfqwerasdfqwerasdfqwerasdfqwer", "", "")
+				assert.NoError(t, err)
+
+				key1 := k.ID
+
+				MockAuthURL(keyURL, http.StatusOK, testDeletedKey)
+				kd, err := api.DeleteKey(ctx, key1, ReturnRepresentation)
+				assert.NoError(t, err)
+				assert.Equal(t, kd.State, 5)
+
+				MockAuthURL(keyURL, http.StatusOK, testRestoredKey)
+				kr, err := api.RestoreKey(ctx, key1, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "", ReturnRepresentation)
+				assert.NoError(t, err)
+				assert.Equal(t, kr.State, 1)
+
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
+				_, err = api.RestoreKey(ctx, testKey, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "", ReturnMinimal)
 				assert.Error(t, err)
 				return nil
 			},
