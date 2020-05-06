@@ -272,6 +272,8 @@ func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv
 
 	keysResponse := Keys{}
 
+	req.Header.Set("Prefer", preferHeaders[prefer])
+
 	if _, err := c.do(ctx, req, &keysResponse); err != nil {
 		return nil, err
 	}
