@@ -777,11 +777,6 @@ func TestKeys(t *testing.T) {
 				kr, err := api.RestoreKey(ctx, key1, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "", ReturnRepresentation)
 				assert.NoError(t, err)
 				assert.Equal(t, kr.State, 1)
-
-				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
-				_, err = api.RestoreKey(ctx, testKey, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "", ReturnMinimal)
-				assert.Error(t, err)
-				return nil
 			},
 		},
 		{
