@@ -240,7 +240,7 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 }
 
 // RestoreKey restores a deleted imported root key by specifying the ID of the key
-func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv string, prefer PreferReturn) (*Key, error) {
+func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv string) (*Key, error) {
 
 	if payload == "" {
 		return nil, fmt.Errorf("Please provide payload to restore the key")
@@ -271,8 +271,6 @@ func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv
 	req.URL.RawQuery = v.Encode()
 
 	keysResponse := Keys{}
-
-	req.Header.Set("Prefer", preferHeaders[prefer])
 
 	if _, err := c.do(ctx, req, &keysResponse); err != nil {
 		return nil, err
