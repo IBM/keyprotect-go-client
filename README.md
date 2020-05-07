@@ -5,8 +5,6 @@
 
 keyprotect-go-client is a Go client library for interacting with the IBM KeyProtect service.
 
-This client expects that you have an existing IBM Cloud Key Protect Service Instance. To get started, visit the [IBM KeyProtect Catalog Page](https://cloud.ibm.com/catalog/services/key-protect).
-
 * [Questions / Support](#questions--support)
 * [Usage](#usage)
   * [Migrating](#migrating)
@@ -24,6 +22,8 @@ There are many channels for asking questions about KeyProtect and this client.
 - If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
 
 ## Usage
+
+This client expects that you have an existing IBM Cloud Key Protect Service Instance. To get started, visit the [IBM KeyProtect Catalog Page](https://cloud.ibm.com/catalog/services/key-protect).
 
 Build a client with `ClientConfig` and `New`, then use the client to do some operations.
 ```go
