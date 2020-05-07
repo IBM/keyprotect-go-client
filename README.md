@@ -7,6 +7,14 @@ keyprotect-go-client is a Go client library for interacting with the IBM KeyProt
 
 This client expects that you have an existing IBM Cloud Key Protect Service Instance. To get started, visit the [IBM KeyProtect Catalog Page](https://cloud.ibm.com/catalog/services/key-protect).
 
+## Questions / Support
+
+There are many channels for asking questions about KeyProtect and this client.
+
+- Ask a question on Stackoverflow and tag it with `key-protect` and `ibm-cloud`
+- Open a [Github Issue](https://github.com/IBM/keyprotect-go-client/issues)
+- If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
+
 ## Usage
 
 Build a client with `ClientConfig` and `New`, then use the client to do some operations.
@@ -30,6 +38,16 @@ keys, err := client.GetKeys(context.Background(), 0, 0)
 ### Migrating
 
 For users of the original `key-protect-client` that is now deprecated, this library is a drop in replacement. Updating the package reference to `github.com/IBM/keyprotect-go-client` should be the only change needed. If you are worried about new incompatible changes, version `v0.3.1` of `key-protect-client` is equivalent to version `v0.3.3` of `keyprotect-go-client`, so pinning `v0.3.3` of the new library should be sufficient to pull from the new repo with no new functional changes.
+
+## Questions / Support
+
+There are many channels for asking questions about KeyProtect and this client.
+
+- Ask a question on Stackoverflow and tag it with `key-protect` and `ibm-cloud`
+- Open a [Github Issue](https://github.com/IBM/keyprotect-go-client/issues)
+- If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
+
+
 
 ## Authentication
 
@@ -154,28 +172,4 @@ dek = nil
 
 // Save the wrapped DEK for later.  Call Unwrap to use it, make
 // sure to specify the same AAD.
-```
-
-## Compiling the package
-
-```sh
-go build ./...
-```
-
-https://github.com/golang/go/wiki/Modules#how-to-use-modules
-
-## Running the test cases
-
-Using `go test`
-
-```sh
-go test -v -race ./...
-```
-
-The test cases are also runnable through `make`
-
-```sh
-make test
-# or
-make test-integration
 ```
