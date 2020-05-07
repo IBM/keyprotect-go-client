@@ -18,3 +18,32 @@ A correct patch is defined as the following:
  - Your patch must come with unit tests
  - Unit tests (CI job) must pass
  - New feature function should have integration tests as well
+
+
+# Development
+
+## Compiling the package
+
+```sh
+go build ./...
+```
+
+The client relies on go modules to pull in required dependencies at build time.
+
+https://github.com/golang/go/wiki/Modules#how-to-use-modules
+
+## Running the test cases
+
+Using `go test`
+
+```sh
+go test -v -race ./...
+```
+
+The test cases are also runnable through `make`
+
+```sh
+make test
+# or
+make test-integration
+```
