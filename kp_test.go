@@ -17,7 +17,6 @@ package kp
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -1472,23 +1471,28 @@ func TestRegistrationsList(t *testing.T) {
 func TestRestoreKey(t *testing.T) {
 	defer gock.Off()
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
-	restoreKeyResponse := &Keys{
-		Metadata: KeysMetadata{
-			CollectionType: "keys",
-			NumberOfKeys:   1,
+	restoreKeyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.key+json",
+			"collectionTotal":1
 		},
-		Keys: []Key{
-			Key{
-				ID:          testKey,
-				Name:        "Key1",
-				Extractable: false,
-				State:       1,
-			},
-		},
-	}
-	responseBytes, _ := json.Marshal(restoreKeyResponse)
+		"resources":[
+			{
+				"type":"keys",
+				"id":"2n4y2-4ko2n-4m23f-23j3r",
+				"name":"test secret",
+				"description":"a testing thing",
+				"state":1,
+				"extractable":false,
+				"imported":true,
+				"deleted":false,
+				"deletionDate":"2020-05-06T16:48:51Z",
+				"deletedBy":"user_xyz"
+			}
+		]
+	}`)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(responseBytes))
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(restoreKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1499,6 +1503,7 @@ func TestRestoreKey(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
+	assert.Equal(t, testKey, key.ID)
 	assert.False(t, key.Extractable)
 	assert.Equal(t, key.State, 1)
 
