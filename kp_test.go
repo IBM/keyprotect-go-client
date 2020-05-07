@@ -1492,7 +1492,7 @@ func TestRestoreKey(t *testing.T) {
 		]
 	}`)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(restoreKeyResponse))
+	gock.New("http://example.com").Reply(201).Body(bytes.NewReader(restoreKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
