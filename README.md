@@ -39,16 +39,6 @@ keys, err := client.GetKeys(context.Background(), 0, 0)
 
 For users of the original `key-protect-client` that is now deprecated, this library is a drop in replacement. Updating the package reference to `github.com/IBM/keyprotect-go-client` should be the only change needed. If you are worried about new incompatible changes, version `v0.3.1` of `key-protect-client` is equivalent to version `v0.3.3` of `keyprotect-go-client`, so pinning `v0.3.3` of the new library should be sufficient to pull from the new repo with no new functional changes.
 
-## Questions / Support
-
-There are many channels for asking questions about KeyProtect and this client.
-
-- Ask a question on Stackoverflow and tag it with `key-protect` and `ibm-cloud`
-- Open a [Github Issue](https://github.com/IBM/keyprotect-go-client/issues)
-- If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
-
-
-
 ## Authentication
 
 The KeyProtect client requires a valid [IAM API Key](https://cloud.ibm.com/docs/iam?topic=iam-userapikey#create_user_key) that is passed via the `APIKey` field in the `ClientConfig`. The client will call IAM to get an access token for that API key, caches the access token, and reuses that token on subsequent calls. If the access token is expired, the client will call IAM to get a new access token.
