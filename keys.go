@@ -316,6 +316,28 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
+// Set key for deletion.
+func (c *Client) SetKeyForDeletion(ctx context.Context, id string) error {
+
+        _, err := c.doKeysAction(ctx, id, "setKeyForDeletion", nil)
+        if err != nil {
+                return err
+        }
+
+        return nil
+}
+
+// Unset key for deletion.
+func (c *Client) UnsetKeyForDeletion(ctx context.Context, id string) error {
+
+        _, err := c.doKeysAction(ctx, id, "unsetKeyForDeletion", nil)
+        if err != nil {
+                return err
+        }
+
+        return nil
+}
+
 // Policy represents a policy as returned by the KP API.
 type Policy struct {
 	Type      string     `json:"type,omitempty"`
