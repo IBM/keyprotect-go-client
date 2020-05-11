@@ -672,6 +672,32 @@ func TestKeys(t *testing.T) {
 
 			},
 		},
+                {
+                        "Set Key For Deletion",
+                        func(t *testing.T, api *API, ctx context.Context) error {
+                                MockAuthURL(keyURL, http.StatusOK, testKeys)
+                                MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
+
+                                err = api.SetKeyForDeletion(ctx, "test")
+                                assert.NoError(t, err)
+
+                                return nil
+
+                        },
+                },
+                {
+                        "Unset Key For Deletion",
+                        func(t *testing.T, api *API, ctx context.Context) error {
+                                MockAuthURL(keyURL, http.StatusOK, testKeys)
+                                MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
+
+                                err = api.unSetKeyForDeletion(ctx, "test")
+                                assert.NoError(t, err)
+
+                                return nil
+
+                        },
+                },
 		{
 			"Get Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
