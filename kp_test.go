@@ -1564,4 +1564,6 @@ func TestGetKeyPolicies(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, policies)
 	assert.Equal(t, len(policies), 2)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
