@@ -367,9 +367,6 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-disable-keys
 func (c *Client) DisableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "disable", nil)
-	if err != nil {
-		return err
-	}
 	return err
 }
 
@@ -380,9 +377,24 @@ func (c *Client) DisableKey(ctx context.Context, id string) error {
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-disable-keys#enable-api
 func (c *Client) EnableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "enable", nil)
-	if err != nil {
-		return err
-	}
+	return err
+}
+
+// InitiateDualAuthDelete sets a key for deletion. The key must be configured with a DualAuthDelete policy.
+// After the key is set to deletion it can be deleted by another user who has Manager access.
+// For more information refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-dual-auth-keys#set-key-deletion-api
+func (c *Client) InitiateDualAuthDelete(ctx context.Context, id string) error {
+	_, err := c.doKeysAction(ctx, id, "setKeyForDeletion", nil)
+	return err
+}
+
+// CancelDualAuthDelete unsets the key for deletion. If a key is set for deletion, it can
+// be prevented from getting deleted by unsetting the key for deletion.
+// For more information refer to the Key Protect docs in the link below:
+//https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-dual-auth-keys#unset-key-deletion-api
+func (c *Client) CancelDualAuthDelete(ctx context.Context, id string) error {
+	_, err := c.doKeysAction(ctx, id, "unsetKeyForDeletion", nil)
 	return err
 }
 
