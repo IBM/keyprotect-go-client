@@ -17,6 +17,7 @@ package kp
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -353,6 +354,10 @@ func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
 	_, err = c.do(ctx, req, &policyresponse)
 	if err != nil {
 		return nil, err
+	}
+
+	if policyresponse.Policies == nil {
+		return nil, errors.New("No policies")
 	}
 
 	return &policyresponse.Policies[0], nil

@@ -63,7 +63,7 @@ func NewTestClient(t *testing.T, c *ClientConfig) (*API, context.Context, error)
 	return api, context.Background(), err
 }
 
-// MockAuthURL mocks an api endpoint.
+// MockURL mocks an api endpoint.
 //
 func MockURL(url string, status int, json interface{}) *gock.Response {
 	return gock.New(url).Reply(status).JSON(json)
