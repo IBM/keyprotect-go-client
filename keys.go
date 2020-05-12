@@ -41,24 +41,25 @@ type PreferReturn int
 
 // Key represents a key as returned by the KP API.
 type Key struct {
-	ID                  string     `json:"id,omitempty"`
-	Name                string     `json:"name,omitempty"`
-	Description         string     `json:"description,omitempty"`
-	Type                string     `json:"type,omitempty"`
-	Tags                []string   `json:"Tags,omitempty"`
-	AlgorithmType       string     `json:"algorithmType,omitempty"`
-	CreatedBy           string     `json:"createdBy,omitempty"`
-	CreationDate        *time.Time `json:"creationDate,omitempty"`
-	LastUpdateDate      *time.Time `json:"lastUpdateDate,omitempty"`
-	LastRotateDate      *time.Time `json:"lastRotateDate,omitempty"`
-	Extractable         bool       `json:"extractable"`
-	Expiration          *time.Time `json:"expirationDate,omitempty"`
-	Payload             string     `json:"payload,omitempty"`
-	State               int        `json:"state,omitempty"`
-	EncryptionAlgorithm string     `json:"encryptionAlgorithm,omitempty"`
-	CRN                 string     `json:"crn,omitempty"`
-	EncryptedNonce      string     `json:"encryptedNonce,omitempty"`
-	IV                  string     `json:"iv,omitempty"`
+	ID                  string      `json:"id,omitempty"`
+	Name                string      `json:"name,omitempty"`
+	Description         string      `json:"description,omitempty"`
+	Type                string      `json:"type,omitempty"`
+	Tags                []string    `json:"Tags,omitempty"`
+	AlgorithmType       string      `json:"algorithmType,omitempty"`
+	CreatedBy           string      `json:"createdBy,omitempty"`
+	CreationDate        *time.Time  `json:"creationDate,omitempty"`
+	LastUpdateDate      *time.Time  `json:"lastUpdateDate,omitempty"`
+	LastRotateDate      *time.Time  `json:"lastRotateDate,omitempty"`
+	KeyVersion          *KeyVersion `json:"keyVersion,omitempty" mapstructure:keyVersion`
+	Extractable         bool        `json:"extractable"`
+	Expiration          *time.Time  `json:"expirationDate,omitempty"`
+	Payload             string      `json:"payload,omitempty"`
+	State               int         `json:"state,omitempty"`
+	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
+	CRN                 string      `json:"crn,omitempty"`
+	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
+	IV                  string      `json:"iv,omitempty"`
 }
 
 // KeysMetadata represents the metadata of a collection of keys.
@@ -80,6 +81,11 @@ type KeysActionRequest struct {
 	AAD        []string `json:"aad,omitempty"`
 	CipherText string   `json:"ciphertext,omitempty"`
 	Payload    string   `json:"payload,omitempty"`
+}
+
+type KeyVersion struct {
+	ID           string     `json:"id,omitempty"`
+	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
 // CreateKey creates a new KP key.
