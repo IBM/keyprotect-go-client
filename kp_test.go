@@ -672,32 +672,6 @@ func TestKeys(t *testing.T) {
 
 			},
 		},
-                {
-                        "Set Key For Deletion",
-                        func(t *testing.T, api *API, ctx context.Context) error {
-                                MockAuthURL(keyURL, http.StatusOK, testKeys)
-                                MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
-
-                                err = api.SetKeyForDeletion(ctx, "test")
-                                assert.NoError(t, err)
-
-                                return nil
-
-                        },
-                },
-                {
-                        "Unset Key For Deletion",
-                        func(t *testing.T, api *API, ctx context.Context) error {
-                                MockAuthURL(keyURL, http.StatusOK, testKeys)
-                                MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
-
-                                err = api.unSetKeyForDeletion(ctx, "test")
-                                assert.NoError(t, err)
-
-                                return nil
-
-                        },
-                },
 		{
 			"Get Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
@@ -721,7 +695,6 @@ func TestKeys(t *testing.T) {
 				return nil
 			},
 		},
-
 		{
 			"Wrap Unwrap",
 			func(t *testing.T, api *API, ctx context.Context) error {
@@ -1534,4 +1507,36 @@ func TestRestoreKey(t *testing.T) {
 	assert.Equal(t, key.State, 1)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestSetKey_ForDeletion(t *testing.T) {
+        defer gock.Off()
+
+        gock.New("http://example.com").
+                Reply(204)
+
+        c, _, err := NewTestClient(t, nil)
+        gock.InterceptClient(&c.HttpClient)
+        defer gock.RestoreClient(&c.HttpClient)
+        c.tokenSource = &FakeTokenSource{}
+
+        err = c.SetKeyForDeletion(context.Background(), "keyID")
+
+        assert.Nil(t, err)
+}
+
+func TestUnsetKey_ForDeletion(t *testing.T) {
+        defer gock.Off()
+
+        gock.New("http://example.com").
+                Reply(204)
+
+        c, _, err := NewTestClient(t, nil)
+        gock.InterceptClient(&c.HttpClient)
+        defer gock.RestoreClient(&c.HttpClient)
+        c.tokenSource = &FakeTokenSource{}
+
+        err = c.UnsetKeyForDeletion(context.Background(), "keyID")
+
+        assert.Nil(t, err)
 }
