@@ -1293,3 +1293,176 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
+
+func TestRegistrationsList(t *testing.T) {
+	defer gock.Off()
+	testKey := ""
+	testCRN := ""
+	allRegsResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 3
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-env:dummy-service:global:a/dummy-details5:dummy-bucket3:dummy-reg2",
+			"creationDate": "2020-04-23T17:17:18Z",
+			"lastUpdated": "2020-04-23T17:17:18Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfKeyResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-env:dummy-service:global:a/dummy-details5:dummy-bucket3:dummy-reg2",
+			"creationDate": "2020-04-23T17:17:18Z",
+			"lastUpdated": "2020-04-23T17:17:18Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfCRNResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfKeyAndCRNResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allRegsResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	allRegs, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, allRegs)
+
+	testKey = "3c44b-f03e6-4y9a5-b859b"
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfKeyResponse))
+
+	regsOfKey, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfKey)
+	for _, reg := range (*regsOfKey).Registrations {
+		assert.Equal(t, testKey, reg.KeyID)
+	}
+
+	testKey = "2n4y2-4ko2n-4m23f-23j3r"
+	testCRN = "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg"
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfKeyAndCRNResponse))
+
+	regsOfKeyAndCrn, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfKeyAndCrn)
+	for _, reg := range (*regsOfKeyAndCrn).Registrations {
+		assert.Equal(t, testKey, reg.KeyID)
+		assert.Equal(t, testCRN, reg.ResourceCrn)
+	}
+
+	testKey = ""
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfCRNResponse))
+
+	regsOfCRN, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfCRN)
+	for _, reg := range (*regsOfCRN).Registrations {
+		assert.Equal(t, testCRN, reg.ResourceCrn)
+	}
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
