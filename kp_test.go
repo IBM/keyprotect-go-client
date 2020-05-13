@@ -1552,6 +1552,42 @@ func TestGetKeyPolicies(t *testing.T) {
 		]
 	}`)
 
+	rotationPolicyResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+				"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+		}]
+	}`)
+
+	dualAuthPolicyResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":false
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+		}]
+	}`)
+
 	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getPoliciesResponse))
 
 	c, _, err := NewTestClient(t, nil)
@@ -1559,11 +1595,31 @@ func TestGetKeyPolicies(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	policies, err := c.GetPolicy(context.Background(), testKey)
+	policies, err := c.GetPolicy(context.Background(), testKey, "")
 
 	assert.Nil(t, err)
 	assert.NotNil(t, policies)
 	assert.Equal(t, len(policies), 2)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	rotationPolicy, err := c.GetPolicy(context.Background(), testKey, RotationPolicy)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.Equal(t, len(rotationPolicy), 1)
+	assert.NotNil(t, rotationPolicy[0].Rotation)
+	assert.Nil(t, rotationPolicy[0].DualAuth)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
+
+	dualAuthPolicy, err := c.GetPolicy(context.Background(), testKey, DualAuthDelete)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, dualAuthPolicy)
+	assert.Equal(t, len(dualAuthPolicy), 1)
+	assert.NotNil(t, dualAuthPolicy[0].DualAuth)
+	assert.Nil(t, dualAuthPolicy[0].Rotation)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
