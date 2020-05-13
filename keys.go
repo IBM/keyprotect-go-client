@@ -239,6 +239,46 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 	return nil, nil
 }
 
+// RestoreKey restores a deleted imported root key by specifying the ID of the key
+func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv string) (*Key, error) {
+
+	if payload == "" {
+		return nil, fmt.Errorf("Please provide payload to restore the key")
+	}
+
+	key := Key{
+		Payload:        payload,
+		IV:             iv,
+		EncryptedNonce: encryptedNonce,
+	}
+
+	keysRequest := Keys{
+		Metadata: KeysMetadata{
+			CollectionType: keyType,
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{key},
+	}
+
+	v := url.Values{}
+	v.Set("action", "restore")
+
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s", id), &keysRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	req.URL.RawQuery = v.Encode()
+
+	keysResponse := Keys{}
+
+	if _, err := c.do(ctx, req, &keysResponse); err != nil {
+		return nil, err
+	}
+
+	return &keysResponse.Keys[0], nil
+}
+
 // Wrap calls the wrap action with the given plain text.
 func (c *Client) Wrap(ctx context.Context, id string, plainText []byte, additionalAuthData *[]string) ([]byte, error) {
 	_, ct, err := c.wrap(ctx, id, plainText, additionalAuthData)

@@ -1466,3 +1466,46 @@ func TestRegistrationsList(t *testing.T) {
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
+
+// Tests the Key restore functionality
+func TestRestoreKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	restoreKeyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.key+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"type":"keys",
+				"id":"2n4y2-4ko2n-4m23f-23j3r",
+				"name":"test secret",
+				"description":"a testing thing",
+				"state":1,
+				"extractable":false,
+				"imported":true,
+				"deleted":false,
+				"deletionDate":"2020-05-06T16:48:51Z",
+				"deletedBy":"user_xyz"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").Reply(201).Body(bytes.NewReader(restoreKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.RestoreKey(context.Background(), testKey, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, testKey, key.ID)
+	assert.False(t, key.Extractable)
+	assert.Equal(t, key.State, 1)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
