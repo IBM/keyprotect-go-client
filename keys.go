@@ -28,10 +28,7 @@ const (
 	ReturnMinimal        PreferReturn = 0
 	ReturnRepresentation PreferReturn = 1
 
-	keyType    = "application/vnd.ibm.kms.key+json"
-	policyType = "application/vnd.ibm.kms.policy+json"
-
-	RotationPolicy = "Rotation"
+	keyType = "application/vnd.ibm.kms.key+json"
 )
 
 var (
@@ -362,92 +359,6 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	}
 
 	return nil
-}
-
-// Policy represents a policy as returned by the KP API.
-type Policy struct {
-	Type      string     `json:"type,omitempty"`
-	CreatedBy string     `json:"createdBy,omitempty"`
-	CreatedAt *time.Time `json:"creationDate,omitempty"`
-	CRN       string     `json:"crn,omitempty"`
-	UpdatedAt *time.Time `json:"lastUpdateDate,omitempty"`
-	UpdatedBy string     `json:"updatedBy,omitempty"`
-	Rotation  *Rotation  `json:"rotation,omitempty"`
-	DualAuth  *DualAuth  `json:"dualAuthDelete,omitempty"`
-}
-
-type Rotation struct {
-	Interval int `json:"interval_month,omitempty"`
-}
-
-type DualAuth struct {
-	Enabled *bool `json:"enabled,omitempty"`
-}
-
-// PoliciesMetadata represents the metadata of a collection of keys.
-type PoliciesMetadata struct {
-	CollectionType   string `json:"collectionType"`
-	NumberOfPolicies int    `json:"collectionTotal"`
-}
-
-// Policies represents a collection of Policies.
-type Policies struct {
-	Metadata PoliciesMetadata `json:"metadata"`
-	Policies []Policy         `json:"resources"`
-}
-
-// GetPolicy retrieves a policy by Key ID.
-func (c *Client) GetPolicy(ctx context.Context, id string) ([]Policy, error) {
-	policyresponse := Policies{}
-
-	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/policies", id), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = c.do(ctx, req, &policyresponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return policyresponse.Policies, nil
-}
-
-// SetPolicy updates a policy resource by specifying the ID of the key and the rotation interval needed.
-func (c *Client) SetPolicy(ctx context.Context, id, policySetType string, rotationInterval int, dualAuthEnable bool) (*Policy, error) {
-
-	policy := Policy{
-		Type: policyType,
-	}
-
-	if policySetType == RotationPolicy {
-		policy.Rotation = new(Rotation)
-		policy.Rotation.Interval = rotationInterval
-	} else if policySetType == DualAuthDelete {
-		policy.DualAuth = new(DualAuth)
-		policy.DualAuth.Enabled = &dualAuthEnable
-	}
-
-	policyRequest := Policies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   policyType,
-			NumberOfPolicies: 1,
-		},
-		Policies: []Policy{policy},
-	}
-
-	policyresponse := Policies{}
-
-	req, err := c.newRequest("PUT", fmt.Sprintf("keys/%s/policies", id), &policyRequest)
-	if err != nil {
-		return nil, err
-	}
-	_, err = c.do(ctx, req, &policyresponse)
-	if err != nil {
-		return nil, err
-	}
-
-	return &policyresponse.Policies[0], nil
 }
 
 // doKeysAction calls the KP Client to perform an action on a key.
