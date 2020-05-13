@@ -363,7 +363,7 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 }
 
 // Set key for deletion.
-func (c *Client) SetKeyForDeletion(ctx context.Context, id string) error {
+func (c *Client) InitiateDualAuthDelete(ctx context.Context, id string) error {
 
         _, err := c.doKeysAction(ctx, id, "setKeyForDeletion", nil)
         if err != nil {
@@ -374,7 +374,7 @@ func (c *Client) SetKeyForDeletion(ctx context.Context, id string) error {
 }
 
 // Unset key for deletion.
-func (c *Client) UnsetKeyForDeletion(ctx context.Context, id string) error {
+func (c *Client) CancelDualAuthDelete(ctx context.Context, id string) error {
 
         _, err := c.doKeysAction(ctx, id, "unsetKeyForDeletion", nil)
         if err != nil {
