@@ -1510,35 +1510,35 @@ func TestRestoreKey(t *testing.T) {
 }
 
 func TestInitiate_DualAuthDelete(t *testing.T) {
-        defer gock.Off()
+	defer gock.Off()
 
-        gock.New("http://example.com").
-                MatchParam("action", "setKeyForDeletion").
-                Reply(204)
+	gock.New("http://example.com").
+		MatchParam("action", "setKeyForDeletion").
+		Reply(204)
 
-        c, _, err := NewTestClient(t, nil)
-        gock.InterceptClient(&c.HttpClient)
-        defer gock.RestoreClient(&c.HttpClient)
-        c.tokenSource = &FakeTokenSource{}
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
 
-        err = c.InitiateDualAuthDelete(context.Background(), "keyID")
+	err = c.InitiateDualAuthDelete(context.Background(), "keyID")
 
-        assert.Nil(t, err)
+	assert.Nil(t, err)
 }
 
 func TestCancel_DualAuthDelete(t *testing.T) {
-        defer gock.Off()
+	defer gock.Off()
 
-        gock.New("http://example.com").
-                MatchParam("action", "unsetKeyForDeletion")
-                Reply(204)
+	gock.New("http://example.com").
+		MatchParam("action", "unsetKeyForDeletion").
+		Reply(204)
 
-        c, _, err := NewTestClient(t, nil)
-        gock.InterceptClient(&c.HttpClient)
-        defer gock.RestoreClient(&c.HttpClient)
-        c.tokenSource = &FakeTokenSource{}
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
 
-        err = c.CancelDualAuthDelete(context.Background(), "keyID")
+	err = c.CancelDualAuthDelete(context.Background(), "keyID")
 
-        assert.Nil(t, err)
+	assert.Nil(t, err)
 }
