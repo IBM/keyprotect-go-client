@@ -362,6 +362,24 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
+// Disable a key
+func (c *Client) Disable(ctx context.Context, id string) error {
+	_, err := c.doKeysAction(ctx, id, "disable", nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Enable a key
+func (c *Client) Enable(ctx context.Context, id string) error {
+	_, err := c.doKeysAction(ctx, id, "enable", nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Policy represents a policy as returned by the KP API.
 type Policy struct {
 	Type      string     `json:"type,omitempty"`

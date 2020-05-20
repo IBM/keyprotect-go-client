@@ -1509,3 +1509,136 @@ func TestRestoreKey(t *testing.T) {
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
+
+// Tests the key disable functionality
+func TestDisableKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	getKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmBitSize": 256,
+				"algorithmMetadata": {
+					"bitLength": "256",
+					"mode": "CBC_PAD"
+				},
+				"algorithmMode": "CBC_PAD",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-05-20T15:22:25Z",
+				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
+				"deleted": false,
+				"deletedBy": "IBMid-50BE1MTM26",
+				"deletionDate": "2020-05-20T15:22:50Z",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": false,
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"imported": true,
+				"keyVersion": {
+					"creationDate": "2020-05-20T15:25:26Z",
+					"id": "2n4y2-4ko2n-4m23f-23j3r"
+				},
+				"lastUpdateDate": "2020-05-20T15:25:26Z",
+				"name": "import-root-test",
+				"state": 2,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		MatchParam("action", "disable").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.Disable(context.Background(), testKey)
+
+	assert.Nil(t, err)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getKeyResponse))
+
+	key, err := c.GetKey(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.State, 2)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// Tests the key enable functionality
+func TestEnableKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	getKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmBitSize": 256,
+				"algorithmMetadata": {
+					"bitLength": "256",
+					"mode": "CBC_PAD"
+				},
+				"algorithmMode": "CBC_PAD",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-05-20T15:22:25Z",
+				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
+				"deleted": false,
+				"deletedBy": "IBMid-50BE1MTM26",
+				"deletionDate": "2020-05-20T15:22:50Z",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": false,
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"imported": true,
+				"keyVersion": {
+					"creationDate": "2020-05-20T15:25:26Z",
+					"id": "2n4y2-4ko2n-4m23f-23j3r"
+				},
+				"lastUpdateDate": "2020-05-20T15:25:26Z",
+				"name": "import-root-test",
+				"state": 1,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}
+	`)
+
+	gock.New("http://example.com").
+		MatchParam("action", "enable").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.Enable(context.Background(), testKey)
+
+	assert.Nil(t, err)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getKeyResponse))
+
+	key, err := c.GetKey(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.State, 1)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
