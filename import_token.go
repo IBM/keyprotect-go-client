@@ -15,6 +15,7 @@
 package kp
 
 import (
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -131,6 +132,50 @@ func encryptNonce(key, value, iv string) (string, string, error) {
 	}
 	cipherText = aesgcm.Seal(nil, []byte(iv), nonce, nil)
 	return base64.StdEncoding.EncodeToString(cipherText), iv, nil
+}
+
+// EncryptNonceWithCBCPAD encrypts the nonce using the user's key-material
+// with CBC encrypter. It will also pad the nonce using pkcs7. This is needed
+// for Hyper Protect Crypto Services, since it supports only CBC Encryption.
+func EncryptNonceWithCBCPAD(key, value, iv string) (string, string, error) {
+	keyMat, err := base64.StdEncoding.DecodeString(key)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to decode Key: %s", err)
+	}
+
+	nonce, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return "", "", fmt.Errorf("Failed to decode Nonce: %s", err)
+	}
+
+	block, err := aes.NewCipher(keyMat)
+	if err != nil {
+		return "", "", err
+	}
+
+	// PKCS7 Padding
+	paddingLength := aes.BlockSize - (len(nonce) % aes.BlockSize)
+	paddingBytes := []byte{byte(paddingLength)}
+	paddingText := bytes.Repeat(paddingBytes, paddingLength)
+	nonce = append(nonce, paddingText...)
+
+	var newIv []byte
+	if iv != "" {
+		newIv = []byte(iv)
+	} else {
+		newIv = make([]byte, aes.BlockSize)
+		// Generate an IV to achieve semantic security
+		if _, err := io.ReadFull(rand.Reader, newIv); err != nil {
+			return "", "", fmt.Errorf("Failed to generate IV: %s", err)
+		}
+	}
+
+	cipherText := make([]byte, len(nonce))
+
+	mode := cipher.NewCBCEncrypter(block, newIv)
+	mode.CryptBlocks(cipherText, nonce)
+
+	return base64.StdEncoding.EncodeToString(cipherText), base64.StdEncoding.EncodeToString(newIv), nil
 }
 
 func encryptKey(key, pubKey string) (string, error) {
