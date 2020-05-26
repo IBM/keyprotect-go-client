@@ -363,21 +363,21 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 }
 
 // Disable a key
-func (c *Client) Disable(ctx context.Context, id string) error {
+func (c *Client) DisableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "disable", nil)
 	if err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 // Enable a key
-func (c *Client) Enable(ctx context.Context, id string) error {
+func (c *Client) EnableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "enable", nil)
 	if err != nil {
 		return err
 	}
-	return nil
+	return err
 }
 
 // Policy represents a policy as returned by the KP API.
