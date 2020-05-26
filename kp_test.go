@@ -1523,6 +1523,8 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 
 	err = c.InitiateDualAuthDelete(context.Background(), "keyID")
 
+	assert.Nil(t, err)
+	
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
@@ -1540,5 +1542,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 
 	err = c.CancelDualAuthDelete(context.Background(), "keyID")
 
+	assert.Nil(t, err)
+	
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
