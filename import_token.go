@@ -21,11 +21,13 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"hash"
 	"io"
 	"time"
 )
@@ -178,7 +180,17 @@ func EncryptNonceWithCBCPAD(key, value, iv string) (string, string, error) {
 	return base64.StdEncoding.EncodeToString(cipherText), base64.StdEncoding.EncodeToString(newIv), nil
 }
 
+// encryptKey uses sha256 to encrypt the key
 func encryptKey(key, pubKey string) (string, error) {
+	return encryptKeyWithSHA(key, pubKey, sha256.New())
+}
+
+// EncryptKeyWithSHA1 uses sha1 to encrypt the key
+func EncryptKeyWithSHA1(key, pubKey string) (string, error) {
+	return encryptKeyWithSHA(key, pubKey, sha1.New())
+}
+
+func encryptKeyWithSHA(key, pubKey string, sha hash.Hash) (string, error) {
 	decodedPubKey, err := base64.StdEncoding.DecodeString(pubKey)
 	if err != nil {
 		return "", fmt.Errorf("Failed to decode public key: %s", err)
@@ -199,7 +211,7 @@ func encryptKey(key, pubKey string) (string, error) {
 	if !isRSAPublicKey {
 		return "", fmt.Errorf("invalid public key")
 	}
-	encryptedKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, keyMat, []byte(""))
+	encryptedKey, err := rsa.EncryptOAEP(sha, rand.Reader, publicKey, keyMat, []byte(""))
 	if err != nil {
 		return "", fmt.Errorf("Failed to encrypt key: %s", err)
 	}
