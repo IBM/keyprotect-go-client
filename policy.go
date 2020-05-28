@@ -81,12 +81,14 @@ func (c *Client) SetPolicy(ctx context.Context, id string, prefer PreferReturn, 
 
 	policy := Policy{
 		Type: policyType,
+		Rotation: &Rotation{
+			Interval: rotationInterval,
+		},
 	}
-	policy.Rotation.Interval = rotationInterval
 
 	policyRequest := Policies{
 		Metadata: PoliciesMetadata{
-			CollectionType:   keyType,
+			CollectionType:   policyType,
 			NumberOfPolicies: 1,
 		},
 		Policies: []Policy{policy},
