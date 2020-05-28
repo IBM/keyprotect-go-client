@@ -1561,7 +1561,7 @@ func TestDisableKey(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.Disable(context.Background(), testKey)
+	err = c.DisableKey(context.Background(), testKey)
 
 	assert.Nil(t, err)
 
@@ -1628,7 +1628,7 @@ func TestEnableKey(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.Enable(context.Background(), testKey)
+	err = c.EnableKey(context.Background(), testKey)
 
 	assert.Nil(t, err)
 
