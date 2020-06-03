@@ -120,12 +120,6 @@ func (c *Client) GetPolicies(ctx context.Context, id string) ([]Policy, error) {
 		return nil, err
 	}
 
-	if policyType != "" && (policyType == RotationPolicy || policyType == DualAuthDelete) {
-		v := url.Values{}
-		v.Set("policy", policyType)
-		req.URL.RawQuery = v.Encode()
-	}
-
 	_, err = c.do(ctx, req, &policyresponse)
 	if err != nil {
 		return nil, err
