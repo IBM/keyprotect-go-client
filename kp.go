@@ -191,7 +191,7 @@ type reason struct {
 
 func (r reason) String() string {
 	if r.MoreInfo != "" {
-		return fmt.Sprintf("%s: %s, FOR_MORE_INFO_REFER: %s", r.Code, r.Message, r.MoreInfo)
+		return fmt.Sprintf("%s: %s - FOR_MORE_INFO_REFER: %s", r.Code, r.Message, r.MoreInfo)
 	}
 	return fmt.Sprintf("%s: %s", r.Code, r.Message)
 }
