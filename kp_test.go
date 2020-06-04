@@ -1569,7 +1569,7 @@ func TestDisableKey(t *testing.T) {
 
 	key, err := c.GetKey(context.Background(), testKey)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, key)
 	assert.Equal(t, key.State, 2)
 
