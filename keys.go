@@ -362,26 +362,32 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
-// Set key for deletion.
+// InitiateDualAuthDelete sets a key for deletion. The key must be configured with a DualAuthDelete policy.
+// After the key is set to deletion it can be deleted by another user who has Manager access.
+// For more information refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-dual-auth-keys#set-key-deletion-api
 func (c *Client) InitiateDualAuthDelete(ctx context.Context, id string) error {
 
-        _, err := c.doKeysAction(ctx, id, "setKeyForDeletion", nil)
-        if err != nil {
-                return err
-        }
+	_, err := c.doKeysAction(ctx, id, "setKeyForDeletion", nil)
+	if err != nil {
+		return err
+	}
 
-        return nil
+	return err
 }
 
-// Unset key for deletion.
+// CancelDualAuthDelete unsets the key for deletion. If a key is set for deletion, it can
+// be prevented from getting deleted by unsetting the key for deletion.
+// For more information refer to the Key Protect docs in the link below:
+//https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-dual-auth-keys#unset-key-deletion-api
 func (c *Client) CancelDualAuthDelete(ctx context.Context, id string) error {
 
-        _, err := c.doKeysAction(ctx, id, "unsetKeyForDeletion", nil)
-        if err != nil {
-                return err
-        }
+	_, err := c.doKeysAction(ctx, id, "unsetKeyForDeletion", nil)
+	if err != nil {
+		return err
+	}
 
-        return nil
+	return err
 }
 
 // Policy represents a policy as returned by the KP API.
