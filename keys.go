@@ -362,7 +362,10 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
-// Disable a key
+// Disable a key. The key will not be deleted but it will not be active
+// and key operations cannot be performed on a disabled key.
+// For more information can refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-disable-keys
 func (c *Client) DisableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "disable", nil)
 	if err != nil {
@@ -371,7 +374,11 @@ func (c *Client) DisableKey(ctx context.Context, id string) error {
 	return err
 }
 
-// Enable a key
+// Enable a key. Only disabled keys can be enabled. After enable
+// the key becomes active and key operations can be performed on it.
+// Note: This does not recover Deleted keys.
+// For more information can refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-disable-keys#enable-api
 func (c *Client) EnableKey(ctx context.Context, id string) error {
 	_, err := c.doKeysAction(ctx, id, "enable", nil)
 	if err != nil {
