@@ -1630,7 +1630,7 @@ func TestEnableKey(t *testing.T) {
 
 	err = c.EnableKey(context.Background(), testKey)
 
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getKeyResponse))
 
