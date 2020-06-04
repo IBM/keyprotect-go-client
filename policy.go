@@ -59,7 +59,11 @@ type Policies struct {
 	Policies []Policy         `json:"resources"`
 }
 
-// GetPolicy retrieves a policy by Key ID.
+// GetPolicy retrieves a policy by Key ID. This function is
+// deprecated, as it only returns one policy and does not let you
+// select which policy set it will return. It is kept for backward
+// compatibility on keys with only one rotation policy. Please update
+// to use the new GetPolicies or Get<type>Policy functions.
 func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
 	policyresponse := Policies{}
 
@@ -76,7 +80,10 @@ func (c *Client) GetPolicy(ctx context.Context, id string) (*Policy, error) {
 	return &policyresponse.Policies[0], nil
 }
 
-// SetPolicy updates a policy resource by specifying the ID of the key and the rotation interval needed.
+// SetPolicy updates a policy resource by specifying the ID of the key and
+// the rotation interval needed. This function is deprecated as it will only
+// let you set key rotation  policies. To set dual auth and other newer policies
+// on a key, please use the new SetPolicies of Set<type>Policy functions.
 func (c *Client) SetPolicy(ctx context.Context, id string, prefer PreferReturn, rotationInterval int) (*Policy, error) {
 
 	policy := Policy{
