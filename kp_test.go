@@ -1286,7 +1286,7 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 
 	deleteErr := err.(*Error)
 	assert.Nil(t, key)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, deleteErr.Reasons[0].Code, "PROTECTED_RESOURCE_ERR")
 	assert.Equal(t, deleteErr.Reasons[0].Message, "Key is protecting one or more cloud resources")
 	assert.NotEqual(t, deleteErr.Reasons[0].MoreInfo, "")
@@ -1302,7 +1302,7 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 	forceDeleteErr := err.(*Error)
 
 	assert.Nil(t, key)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, forceDeleteErr.Reasons[0].Code, "PREV_KEY_DEL_ERR")
 	assert.Equal(t, forceDeleteErr.Reasons[0].Message, "The key cannot be deleted because it's protecting a cloud resource that has a retention policy. Before you delete this key, contact an account owner to remove the retention policy on each resource that is associated with the key.")
 	assert.NotEqual(t, forceDeleteErr.Reasons[0].MoreInfo, "")
