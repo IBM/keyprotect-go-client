@@ -1234,6 +1234,84 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
+func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
+	defer gock.Off()
+
+	errorDeleteKeyWithRegistrations := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Conflict: Action could not be performed on key. Please see reasons for more details.",
+				"reasons": [
+					{
+						"code": "PROTECTED_RESOURCE_ERR",
+						"message": "Key is protecting one or more cloud resources",
+						"moreInfo": "https://cloud.ibm.com/docs/key-protect?topic=key-protect-troubleshooting#unable-to-delete-keys"
+					}
+				]
+			}
+		]
+	}`)
+
+	errorForceDeleteKeyWithRegistrations := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Conflict: Action could not be performed on key. Please see reasons for more details.",
+				"reasons": [
+					{
+						"code": "PREV_KEY_DEL_ERR",
+						"message": "The key cannot be deleted because it's protecting a cloud resource that has a retention policy. Before you delete this key, contact an account owner to remove the retention policy on each resource that is associated with the key.",
+						"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+					}
+				]
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").Reply(409).Body(bytes.NewReader(errorDeleteKeyWithRegistrations))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.DeleteKey(context.Background(), "abcd-2345", ReturnRepresentation)
+
+	deleteErr := err.(*Error)
+	assert.Nil(t, key)
+	assert.NotNil(t, err)
+	assert.Equal(t, deleteErr.Reasons[0].Code, "PROTECTED_RESOURCE_ERR")
+	assert.Equal(t, deleteErr.Reasons[0].Message, "Key is protecting one or more cloud resources")
+	assert.NotEqual(t, deleteErr.Reasons[0].MoreInfo, "")
+	assert.Equal(t, deleteErr.Reasons[0].MoreInfo, "https://cloud.ibm.com/docs/key-protect?topic=key-protect-troubleshooting#unable-to-delete-keys")
+
+	gock.New("http://example.com").
+		MatchParam("force", "true").
+		Reply(409).
+		Body(bytes.NewReader(errorForceDeleteKeyWithRegistrations))
+
+	key, err = c.DeleteKey(context.Background(), "efgh-0987", ReturnRepresentation, ForceOpt{true})
+
+	forceDeleteErr := err.(*Error)
+
+	assert.Nil(t, key)
+	assert.NotNil(t, err)
+	assert.Equal(t, forceDeleteErr.Reasons[0].Code, "PREV_KEY_DEL_ERR")
+	assert.Equal(t, forceDeleteErr.Reasons[0].Message, "The key cannot be deleted because it's protecting a cloud resource that has a retention policy. Before you delete this key, contact an account owner to remove the retention policy on each resource that is associated with the key.")
+	assert.NotEqual(t, forceDeleteErr.Reasons[0].MoreInfo, "")
+	assert.Equal(t, forceDeleteErr.Reasons[0].MoreInfo, "https://cloud.ibm.com/apidocs/key-protect")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+
+}
+
 func TestRegistrationsList(t *testing.T) {
 	defer gock.Off()
 	testKey := ""
