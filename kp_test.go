@@ -769,132 +769,6 @@ func TestMisc(t *testing.T) {
 	cases.Run(t)
 }
 
-// Tests the API methods for instance policies.
-//
-func TestInstancePolicies(t *testing.T) {
-	False := false
-	True := true
-	testGetPolicies := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 2,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "dualAuthDelete",
-				PolicyData: PolicyData{
-					Enabled: &False,
-				},
-			},
-			InstancePolicy{
-				PolicyType: "allowedNetwork",
-				PolicyData: PolicyData{
-					Enabled: &True,
-					Attributes: Attributes{
-						AllowedNetwork: "public-and-private",
-					},
-				},
-			},
-		},
-	}
-
-	testDualAuthPolicy := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 1,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "dualAuthDelete",
-				PolicyData: PolicyData{
-					Enabled: &True,
-				},
-			},
-		},
-	}
-
-	testAllowedNetworkPolicy := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 1,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "allowedNetwork",
-				PolicyData: PolicyData{
-					Enabled: &True,
-					Attributes: Attributes{
-						AllowedNetwork: "public-and-private",
-					},
-				},
-			},
-		},
-	}
-	instanceURL := NewTestURL("/api/v2/instance/policies")
-
-	cases := TestCases{
-		{
-			"Dual Auth Delete Policy Replace",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusNoContent, nil)
-				MockAuthURL(instanceURL, http.StatusOK, testDualAuthPolicy)
-
-				err := api.SetInstancePolicies(ctx, true, "", "dualAuthDelete")
-				assert.NoError(t, err)
-
-				p, err := api.GetInstancePolicies(ctx)
-				for i, _ := range p {
-					if p[i].PolicyType == "dualAuthDelete" {
-						assert.True(t, *(p[i].PolicyData.Enabled))
-					}
-				}
-				return nil
-			},
-		},
-		{
-			"Allowed Network Policy Replace",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusNoContent, nil)
-				MockAuthURL(instanceURL, http.StatusOK, testAllowedNetworkPolicy)
-
-				err := api.SetInstancePolicies(ctx, true, "public-and-private", "allowedNetwork")
-				assert.NoError(t, err)
-
-				p, err := api.GetInstancePolicies(ctx)
-				for i, _ := range p {
-					if p[i].PolicyType == "allowedNetwork" {
-						assert.True(t, *(p[i].PolicyData.Enabled))
-						assert.Equal(t, p[i].PolicyData.Attributes.AllowedNetwork, "public-and-private")
-					}
-				}
-				return nil
-			},
-		},
-		{
-			"Policy Get",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusOK, testGetPolicies)
-
-				policies, err := api.GetInstancePolicies(ctx)
-				assert.NoError(t, err)
-				for _, p := range policies {
-					if p.PolicyType == "dualAuthDelete" {
-						assert.False(t, *(p.PolicyData.Enabled))
-					}
-					if p.PolicyType == "allowedNetwork" {
-						assert.True(t, *(p.PolicyData.Enabled))
-						assert.Equal(t, p.PolicyData.Attributes.AllowedNetwork, "public-and-private")
-					}
-				}
-
-				return nil
-			},
-		},
-	}
-	cases.Run(t)
-
-}
-
 // Tests the API methods for ImportTokens.
 //
 func TestImportTokens(t *testing.T) {
@@ -1528,7 +1402,136 @@ func TestRestoreKey(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-// TestSetKeyPolicies tests the method SetPolicy which makes a request to Key Protect API to set Policies for a key
+// TestSetInstancePolicies tests the methods that set and get instance policies
+func TestSetAndGetInstancePolicies(t *testing.T) {
+	defer gock.Off()
+	allpolicies := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":2
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:14:29Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "allowedNetwork",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_network": "private-only"
+				}
+				}
+			},
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:16:23Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {}
+				}
+			}
+		]
+	}`)
+	dualAuthPolicy := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:16:23Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": false,
+				"attributes": {}
+				}
+			}
+		]
+	}`)
+	allowedNetworkPolicy := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:14:29Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "allowedNetwork",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_network": "public-and-private"
+				}
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetInstancePolicies(context.Background(), true, true, true, true, "private-only")
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allpolicies))
+
+	allP, err := c.GetInstancePolicies(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, allP)
+	assert.True(t, len(allP) >= 0)
+
+	gock.New("http://example.com").Reply(204)
+
+	err = c.SetDualAuthInstancePolicy(context.Background(), false)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(dualAuthPolicy))
+
+	dap, err := c.GetDualAuthInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, dap)
+	assert.Equal(t, dap.PolicyType, DualAuthDelete)
+	assert.False(t, *(dap.PolicyData.Enabled))
+
+	gock.New("http://example.com").Reply(204)
+
+	err = c.SetAllowedNetworkInstancePolicy(context.Background(), true, "public-and-private")
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allowedNetworkPolicy))
+
+	ap, err := c.GetAllowedNetworkPolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ap)
+	assert.Equal(t, ap.PolicyType, AllowedNetwork)
+	assert.True(t, *(ap.PolicyData.Enabled))
+	assert.Equal(t, ap.PolicyData.Attributes.AllowedNetwork, "public-and-private")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetKeyPolicies tests the methods that set key policy which makes a request to Key Protect API to set Policies for a key
 func TestSetKeyPolicies(t *testing.T) {
 	defer gock.Off()
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
@@ -1645,7 +1648,7 @@ func TestSetKeyPolicies(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-// TestGetKeyPolicies tests the GetPolicy method which makes a request to Key Protect end point to retrieve key policies
+// TestGetKeyPolicies tests the methods that get key policy method which makes a request to Key Protect end point to retrieve key policies
 func TestGetKeyPolicies(t *testing.T) {
 	defer gock.Off()
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
