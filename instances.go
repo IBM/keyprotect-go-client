@@ -16,7 +16,7 @@ package kp
 
 import (
 	"context"
-	"strings"
+	"net/url"
 	"time"
 )
 
@@ -56,6 +56,55 @@ type InstancePolicies struct {
 	Policies []InstancePolicy `json:"resources"`
 }
 
+// GetDualAuthInstancePolicy retrieves the dual auth delete policy details associated with the instance
+func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	req, err := c.newRequest("GET", "instance/policies", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	v := url.Values{}
+	v.Set("policy", "dualAuthDelete")
+	req.URL.RawQuery = v.Encode()
+
+	_, err = c.do(ctx, req, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+	return &policyResponse.Policies[0], nil
+}
+
+// GetAllowedNetworkPolicy retrieves the allowed network policy details associated with the instance.
+func (c *Client) GetAllowedNetworkPolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	req, err := c.newRequest("GET", "instance/policies", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	v := url.Values{}
+	v.Set("policy", "allowedNetwork")
+	req.URL.RawQuery = v.Encode()
+
+	_, err = c.do(ctx, req, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+
+	return &policyResponse.Policies[0], nil
+}
+
 // GetInstancePolicies retrieves all policies of an Instance.
 func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, error) {
 	policyresponse := InstancePolicies{}
@@ -73,23 +122,97 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 	return policyresponse.Policies, nil
 }
 
-// SetInstancePolicies updates a policy resource of an instance to either allowed network or dual auth or both .
-func (c *Client) SetInstancePolicies(ctx context.Context, enable bool, networkType, setType string) error {
+// SetDualAuthInstancePolicy updates the dual auth delete policy details associated with an instance
+func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) error {
+	policy := InstancePolicy{
+		PolicyType: DualAuthDelete,
+		PolicyData: PolicyData{
+			Enabled: &enable,
+		},
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", "dualAuthDelete")
+	req.URL.RawQuery = v.Encode()
+
+	policiesResponse := Policies{}
+	_, err = c.do(ctx, req, &policiesResponse)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetAllowedNetWorkInstancePolicy updated the allowed network policy associated with an instance
+func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable bool, networkType string) error {
+	policy := InstancePolicy{
+		PolicyType: AllowedNetwork,
+		PolicyData: PolicyData{
+			Enabled:    &enable,
+			Attributes: Attributes{},
+		},
+	}
+	if networkType != "" {
+		policy.PolicyData.Attributes.AllowedNetwork = networkType
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", "allowedNetwork")
+	req.URL.RawQuery = v.Encode()
+
+	policiesResponse := Policies{}
+	_, err = c.do(ctx, req, &policiesResponse)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetInstancePolicies updates single or multiple policy details of an instance.
+func (c *Client) SetInstancePolicies(ctx context.Context, setDualAuth, dualAuthEnable bool, setAllowedNetwork, allowedNetworkEnable bool, networkType string) error {
 	var policies []InstancePolicy
 
-	if strings.Compare(setType, DualAuthDelete) == 0 {
+	if setDualAuth {
 		policy := InstancePolicy{
 			PolicyType: DualAuthDelete,
 		}
-		policy.PolicyData.Enabled = &enable
+		policy.PolicyData.Enabled = &dualAuthEnable
 		policies = append(policies, policy)
 	}
 
-	if strings.Compare(setType, AllowedNetwork) == 0 {
+	if setAllowedNetwork {
 		policy := InstancePolicy{
 			PolicyType: AllowedNetwork,
 			PolicyData: PolicyData{
-				Enabled:    &enable,
+				Enabled:    &allowedNetworkEnable,
 				Attributes: Attributes{},
 			},
 		}
