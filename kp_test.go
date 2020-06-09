@@ -1478,7 +1478,9 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		]
 	}`)
 
-	gock.New("http://example.com").Reply(204)
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1489,7 +1491,10 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allpolicies))
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		Reply(200).
+		Body(bytes.NewReader(allpolicies))
 
 	allP, err := c.GetInstancePolicies(context.Background())
 
@@ -1497,13 +1502,18 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.NotNil(t, allP)
 	assert.True(t, len(allP) >= 0)
 
-	gock.New("http://example.com").Reply(204)
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		Reply(204)
 
 	err = c.SetDualAuthInstancePolicy(context.Background(), false)
 
 	assert.NoError(t, err)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(dualAuthPolicy))
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		Reply(200).
+		Body(bytes.NewReader(dualAuthPolicy))
 
 	dap, err := c.GetDualAuthInstancePolicy(context.Background())
 
@@ -1512,13 +1522,18 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.Equal(t, dap.PolicyType, DualAuthDelete)
 	assert.False(t, *(dap.PolicyData.Enabled))
 
-	gock.New("http://example.com").Reply(204)
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		Reply(204)
 
 	err = c.SetAllowedNetworkInstancePolicy(context.Background(), true, "public-and-private")
 
 	assert.NoError(t, err)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allowedNetworkPolicy))
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		Reply(200).
+		Body(bytes.NewReader(allowedNetworkPolicy))
 
 	ap, err := c.GetAllowedNetworkPolicy(context.Background())
 
