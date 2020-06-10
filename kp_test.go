@@ -1092,6 +1092,7 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 	defer gock.Off()
 
 	gock.New("http://example.com").
+		Delete("/api/v2/keys/abcd-1234").
 		MatchParam("force", "true").
 		Reply(204)
 
@@ -1149,7 +1150,9 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 		]
 	}`)
 
-	gock.New("http://example.com").Reply(409).Body(bytes.NewReader(errorDeleteKeyWithRegistrations))
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/abcd-2345").
+		Reply(409).Body(bytes.NewReader(errorDeleteKeyWithRegistrations))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1167,6 +1170,7 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 	assert.Equal(t, deleteErr.Reasons[0].MoreInfo, "https://cloud.ibm.com/docs/key-protect?topic=key-protect-troubleshooting#unable-to-delete-keys")
 
 	gock.New("http://example.com").
+		Delete("/api/v2/keys/efgh-0987").
 		MatchParam("force", "true").
 		Reply(409).
 		Body(bytes.NewReader(errorForceDeleteKeyWithRegistrations))
@@ -1306,7 +1310,9 @@ func TestRegistrationsList(t *testing.T) {
 		]
 	  }`)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allRegsResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/registrations").
+		Reply(200).Body(bytes.NewReader(allRegsResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1320,7 +1326,9 @@ func TestRegistrationsList(t *testing.T) {
 
 	testKey = "3c44b-f03e6-4y9a5-b859b"
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfKeyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/registrations").
+		Reply(200).Body(bytes.NewReader(RegsOfKeyResponse))
 
 	regsOfKey, err := c.ListRegistrations(context.Background(), testKey, testCRN)
 
@@ -1333,7 +1341,10 @@ func TestRegistrationsList(t *testing.T) {
 	testKey = "2n4y2-4ko2n-4m23f-23j3r"
 	testCRN = "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg"
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfKeyAndCRNResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/registrations").
+		MatchParam("urlEncodedResourceCRNQuery", testCRN).
+		Reply(200).Body(bytes.NewReader(RegsOfKeyAndCRNResponse))
 
 	regsOfKeyAndCrn, err := c.ListRegistrations(context.Background(), testKey, testCRN)
 
@@ -1346,7 +1357,10 @@ func TestRegistrationsList(t *testing.T) {
 
 	testKey = ""
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(RegsOfCRNResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/registrations").
+		MatchParam("urlEncodedResourceCRNQuery", testCRN).
+		Reply(200).Body(bytes.NewReader(RegsOfCRNResponse))
 
 	regsOfCRN, err := c.ListRegistrations(context.Background(), testKey, testCRN)
 
@@ -1384,7 +1398,10 @@ func TestRestoreKey(t *testing.T) {
 		]
 	}`)
 
-	gock.New("http://example.com").Reply(201).Body(bytes.NewReader(restoreKeyResponse))
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
+		MatchParam("action", "restore").
+		Reply(201).Body(bytes.NewReader(restoreKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1504,6 +1521,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
 		Reply(204)
 
 	err = c.SetDualAuthInstancePolicy(context.Background(), false)
@@ -1512,6 +1530,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
 		Reply(200).
 		Body(bytes.NewReader(dualAuthPolicy))
 
@@ -1524,6 +1543,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		MatchParam("policy", "allowedNetwork").
 		Reply(204)
 
 	err = c.SetAllowedNetworkInstancePolicy(context.Background(), true, "public-and-private")
@@ -1532,10 +1552,11 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
+		MatchParam("policy", "allowedNetwork").
 		Reply(200).
 		Body(bytes.NewReader(allowedNetworkPolicy))
 
-	ap, err := c.GetAllowedNetworkPolicy(context.Background())
+	ap, err := c.GetAllowedNetworkInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
@@ -1620,7 +1641,10 @@ func TestSetKeyPolicies(t *testing.T) {
 		]
 	}`)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1633,7 +1657,10 @@ func TestSetKeyPolicies(t *testing.T) {
 	assert.NotNil(t, dualAuthPolicy)
 	assert.True(t, *(dualAuthPolicy.DualAuth.Enabled))
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "rotation").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
 
 	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 4)
 
@@ -1641,7 +1668,9 @@ func TestSetKeyPolicies(t *testing.T) {
 	assert.NotNil(t, rotationPolicy)
 	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(allPoliciesResponse))
+	gock.New("http://example.com").
+		Put("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(allPoliciesResponse))
 
 	allpolicies, err := c.SetPolicies(context.Background(), testKey, true, 6, true, true)
 
@@ -1652,7 +1681,9 @@ func TestSetKeyPolicies(t *testing.T) {
 
 	// Old rotation policy set
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+	gock.New("http://example.com").
+		Put("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
 
 	policy, err := c.SetPolicy(context.Background(), testKey, ReturnRepresentation, 6)
 
@@ -1734,7 +1765,9 @@ func TestGetKeyPolicies(t *testing.T) {
 		}]
 	}`)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getPoliciesResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(getPoliciesResponse))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -1747,7 +1780,10 @@ func TestGetKeyPolicies(t *testing.T) {
 	assert.NotNil(t, policies)
 	assert.Equal(t, len(policies), 2)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "rotation").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
 
 	rotationPolicy, err := c.GetRotationPolicy(context.Background(), testKey)
 
@@ -1756,7 +1792,10 @@ func TestGetKeyPolicies(t *testing.T) {
 	assert.NotNil(t, (*rotationPolicy).Rotation)
 	assert.Nil(t, (*rotationPolicy).DualAuth)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	dualAuthPolicy, err := c.GetDualAuthDeletePolicy(context.Background(), testKey)
 
@@ -1767,7 +1806,10 @@ func TestGetKeyPolicies(t *testing.T) {
 
 	// Old rotation policy get
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
 	policy, err := c.GetPolicy(context.Background(), testKey)
 
 	assert.Nil(t, err)
@@ -1820,6 +1862,7 @@ func TestDisableKey(t *testing.T) {
 	}`)
 
 	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
 		MatchParam("action", "disable").
 		Reply(204)
 
@@ -1832,7 +1875,9 @@ func TestDisableKey(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getKeyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey).
+		Reply(200).Body(bytes.NewReader(getKeyResponse))
 
 	key, err := c.GetKey(context.Background(), testKey)
 
@@ -1887,6 +1932,7 @@ func TestEnableKey(t *testing.T) {
 	`)
 
 	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
 		MatchParam("action", "enable").
 		Reply(204)
 
@@ -1899,7 +1945,9 @@ func TestEnableKey(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	gock.New("http://example.com").Reply(200).Body(bytes.NewReader(getKeyResponse))
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey).
+		Reply(200).Body(bytes.NewReader(getKeyResponse))
 
 	key, err := c.GetKey(context.Background(), testKey)
 
@@ -1912,8 +1960,10 @@ func TestEnableKey(t *testing.T) {
 
 func TestInitiate_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
+	keyID := "4309-akld"
 
 	gock.New("http://example.com").
+		Post("/api/v2/keys/"+keyID).
 		MatchParam("action", "setKeyForDeletion").
 		Reply(204)
 
@@ -1922,7 +1972,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.InitiateDualAuthDelete(context.Background(), "keyID")
+	err = c.InitiateDualAuthDelete(context.Background(), keyID)
 
 	assert.Nil(t, err)
 
@@ -1931,8 +1981,9 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 
 func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
-
+	keyID := "4839-adhf"
 	gock.New("http://example.com").
+		Post("/api/v2/keys/"+keyID).
 		MatchParam("action", "unsetKeyForDeletion").
 		Reply(204)
 
@@ -1941,7 +1992,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.CancelDualAuthDelete(context.Background(), "keyID")
+	err = c.CancelDualAuthDelete(context.Background(), keyID)
 
 	assert.Nil(t, err)
 

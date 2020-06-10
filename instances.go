@@ -73,10 +73,10 @@ func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy
 	return &policyResponse.Policies[0], nil
 }
 
-// GetAllowedNetworkPolicy retrieves the allowed network policy details associated with the instance.
+// GetAllowedNetworkInstancePolicy retrieves the allowed network policy details associated with the instance.
 // For more information can refer the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
-func (c *Client) GetAllowedNetworkPolicy(ctx context.Context) (*InstancePolicy, error) {
+func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
 	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
