@@ -57,19 +57,12 @@ type InstancePolicies struct {
 }
 
 // GetDualAuthInstancePolicy retrieves the dual auth delete policy details associated with the instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
 func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	req, err := c.newRequest("GET", "instance/policies", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	v := url.Values{}
-	v.Set("policy", "dualAuthDelete")
-	req.URL.RawQuery = v.Encode()
-
-	_, err = c.do(ctx, req, &policyResponse)
+	err := c.getInstancePolicy(ctx, DualAuthDelete, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -81,19 +74,12 @@ func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy
 }
 
 // GetAllowedNetworkPolicy retrieves the allowed network policy details associated with the instance.
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
 func (c *Client) GetAllowedNetworkPolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	req, err := c.newRequest("GET", "instance/policies", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	v := url.Values{}
-	v.Set("policy", "allowedNetwork")
-	req.URL.RawQuery = v.Encode()
-
-	_, err = c.do(ctx, req, &policyResponse)
+	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +89,23 @@ func (c *Client) GetAllowedNetworkPolicy(ctx context.Context) (*InstancePolicy, 
 	}
 
 	return &policyResponse.Policies[0], nil
+}
+
+func (c *Client) getInstancePolicy(ctx context.Context, policyType string, policyResponse *InstancePolicies) error {
+	req, err := c.newRequest("GET", "instance/policies", nil)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", policyType)
+	req.URL.RawQuery = v.Encode()
+
+	_, err = c.do(ctx, req, &policyResponse)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 // GetInstancePolicies retrieves all policies of an Instance.
@@ -122,7 +125,27 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 	return policyresponse.Policies, nil
 }
 
+func (c *Client) setInstancePolicy(ctx context.Context, policyType string, policyRequest InstancePolicies) error {
+	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", policyType)
+	req.URL.RawQuery = v.Encode()
+
+	policiesResponse := Policies{}
+	_, err = c.do(ctx, req, &policiesResponse)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
 // SetDualAuthInstancePolicy updates the dual auth delete policy details associated with an instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
 func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) error {
 	policy := InstancePolicy{
 		PolicyType: DualAuthDelete,
@@ -139,17 +162,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 		Policies: []InstancePolicy{policy},
 	}
 
-	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
-	if err != nil {
-		return err
-	}
-
-	v := url.Values{}
-	v.Set("policy", "dualAuthDelete")
-	req.URL.RawQuery = v.Encode()
-
-	policiesResponse := Policies{}
-	_, err = c.do(ctx, req, &policiesResponse)
+	err := c.setInstancePolicy(ctx, DualAuthDelete, policyRequest)
 	if err != nil {
 		return err
 	}
@@ -157,7 +170,9 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	return err
 }
 
-// SetAllowedNetWorkInstancePolicy updated the allowed network policy associated with an instance
+// SetAllowedNetWorkInstancePolicy updates the allowed network policy details associated with an instance
+// For more information can refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
 func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable bool, networkType string) error {
 	policy := InstancePolicy{
 		PolicyType: AllowedNetwork,
@@ -178,17 +193,7 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 		Policies: []InstancePolicy{policy},
 	}
 
-	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
-	if err != nil {
-		return err
-	}
-
-	v := url.Values{}
-	v.Set("policy", "allowedNetwork")
-	req.URL.RawQuery = v.Encode()
-
-	policiesResponse := Policies{}
-	_, err = c.do(ctx, req, &policiesResponse)
+	err := c.setInstancePolicy(ctx, AllowedNetwork, policyRequest)
 	if err != nil {
 		return err
 	}
