@@ -41,8 +41,8 @@ type InstancePolicy struct {
 
 // PolicyData contains the details of the policy type
 type PolicyData struct {
-	Enabled    *bool      `json:"enabled,omitempty"`
-	Attributes Attributes `json:"attributes,omitempty"`
+	Enabled    *bool       `json:"enabled,omitempty"`
+	Attributes *Attributes `json:"attributes,omitempty"`
 }
 
 // Attributes contains the detals of allowed network policy type
@@ -178,7 +178,7 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 		PolicyType: AllowedNetwork,
 		PolicyData: PolicyData{
 			Enabled:    &enable,
-			Attributes: Attributes{},
+			Attributes: &Attributes{},
 		},
 	}
 	if networkType != "" {
@@ -218,7 +218,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, setDualAuth, dualAuthE
 			PolicyType: AllowedNetwork,
 			PolicyData: PolicyData{
 				Enabled:    &allowedNetworkEnable,
-				Attributes: Attributes{},
+				Attributes: &Attributes{},
 			},
 		}
 		if networkType != "" {
