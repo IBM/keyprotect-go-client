@@ -1178,7 +1178,6 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 	key, err = c.DeleteKey(context.Background(), "efgh-0987", ReturnRepresentation, ForceOpt{true})
 
 	forceDeleteErr := err.(*Error)
-
 	assert.Nil(t, key)
 	assert.Error(t, err)
 	assert.Equal(t, forceDeleteErr.Reasons[0].Code, "PREV_KEY_DEL_ERR")
@@ -1565,6 +1564,49 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.Equal(t, ap.PolicyData.Attributes.AllowedNetwork, "public-and-private")
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+//TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
+func TestSetInstanceDualAuthPolicyError(t *testing.T) {
+	defer gock.Off()
+	errorResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Bad Request: Instance policy could not be created. Please see reasons for more details.",
+				"reasons": [
+							{
+								"code":"BAD_BODY_ERR",
+								"message":"Invalid body data was passed. Please ensure the data passed had valid formatting with no invalid characters: json: unknown field \"attributes\"%!(EXTRA []string=[])",
+								"moreInfo":"https://cloud.ibm.com/apidocs/key-protect"
+							}
+						]
+					}
+				]
+			}`)
+
+	gock.New("http://example.com").
+		Put("/api/v2/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(400).
+		Body(bytes.NewReader(errorResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetDualAuthInstancePolicy(context.Background(), true)
+
+	badRequestErr := err.(*Error)
+	assert.Error(t, err)
+	assert.Equal(t, badRequestErr.Reasons[0].Code, "BAD_BODY_ERR")
+	assert.Equal(t, badRequestErr.Reasons[0].Message, "Invalid body data was passed. Please ensure the data passed had valid formatting with no invalid characters: json: unknown field \"attributes\"%!(EXTRA []string=[])")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
 // TestSetKeyPolicies tests the methods that set key policy which makes a request to Key Protect API to set Policies for a key
