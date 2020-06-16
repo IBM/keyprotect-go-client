@@ -246,9 +246,10 @@ func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv
 	}
 
 	key := Key{
-		Payload:        payload,
-		IV:             iv,
-		EncryptedNonce: encryptedNonce,
+		Payload:             payload,
+		IV:                  iv,
+		EncryptedNonce:      encryptedNonce,
+		EncryptionAlgorithm: importTokenEncAlgo,
 	}
 
 	keysRequest := Keys{
