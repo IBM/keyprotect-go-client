@@ -84,6 +84,10 @@ func TestWrapUnwrap(t *testing.T) {
 	assert.NoError(err)
 	t.Logf("CRK created successfully: id=%s\n", crk.ID)
 
+	metadata, err := c.GetKeyMetadata(ctx, crk.ID)
+	assert.NoError(err)
+	assert.False(t, metadata.Deleted)
+
 	ptDek, wdek, err := c.WrapCreateDEK(ctx, crk.ID, nil)
 	assert.NoError(err)
 

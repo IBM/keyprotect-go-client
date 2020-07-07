@@ -695,7 +695,29 @@ func TestKeys(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			"Get Key Metadata",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				// Successful call
+				MockAuthURL(keyURL, http.StatusOK, testKeys)
+				key, err := api.GetKeyMetadata(ctx, testKey)
+				assert.NoError(t, err)
+				assert.Equal(t, testKey, key.ID)
 
+				// Set it up to fail twice, with one retry
+				RetryMax = 1
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
+				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
+				key, err = api.GetKeyMetadata(ctx, testKey)
+				assert.Error(t, err)
+
+				// Validate that the error we get back has the status and message from the retry
+				assert.Equal(t, http.StatusBadGateway, err.(*Error).StatusCode)
+				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
+				assert.NotEmpty(t, err.(*Error).CorrelationID)
+				return nil
+			},
+		},
 		{
 			"Wrap Unwrap",
 			func(t *testing.T, api *API, ctx context.Context) error {
