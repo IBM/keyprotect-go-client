@@ -41,24 +41,39 @@ type PreferReturn int
 
 // Key represents a key as returned by the KP API.
 type Key struct {
-	ID                  string     `json:"id,omitempty"`
-	Name                string     `json:"name,omitempty"`
-	Description         string     `json:"description,omitempty"`
-	Type                string     `json:"type,omitempty"`
-	Tags                []string   `json:"Tags,omitempty"`
-	AlgorithmType       string     `json:"algorithmType,omitempty"`
-	CreatedBy           string     `json:"createdBy,omitempty"`
-	CreationDate        *time.Time `json:"creationDate,omitempty"`
-	LastUpdateDate      *time.Time `json:"lastUpdateDate,omitempty"`
-	LastRotateDate      *time.Time `json:"lastRotateDate,omitempty"`
-	Extractable         bool       `json:"extractable"`
-	Expiration          *time.Time `json:"expirationDate,omitempty"`
-	Payload             string     `json:"payload,omitempty"`
-	State               int        `json:"state,omitempty"`
-	EncryptionAlgorithm string     `json:"encryptionAlgorithm,omitempty"`
-	CRN                 string     `json:"crn,omitempty"`
-	EncryptedNonce      string     `json:"encryptedNonce,omitempty"`
-	IV                  string     `json:"iv,omitempty"`
+	ID                  string      `json:"id,omitempty"`
+	Name                string      `json:"name,omitempty"`
+	Description         string      `json:"description,omitempty"`
+	Type                string      `json:"type,omitempty"`
+	Tags                []string    `json:"Tags,omitempty"`
+	AlgorithmType       string      `json:"algorithmType,omitempty"`
+	CreatedBy           string      `json:"createdBy,omitempty"`
+	CreationDate        *time.Time  `json:"creationDate,omitempty"`
+	LastUpdateDate      *time.Time  `json:"lastUpdateDate,omitempty"`
+	LastRotateDate      *time.Time  `json:"lastRotateDate,omitempty"`
+	Extractable         bool        `json:"extractable"`
+	Expiration          *time.Time  `json:"expirationDate,omitempty"`
+	Payload             string      `json:"payload,omitempty"`
+	State               int         `json:"state,omitempty"`
+	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
+	CRN                 string      `json:"crn,omitempty"`
+	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
+	IV                  string      `json:"iv,omitempty"`
+	Deleted             *bool       `json:"deleted,omitempty"`
+	DeletedBy           *string     `json:"deletedBy,omitempty"`
+	DeletionDate        *time.Time  `json:"deletionDate,omitempty"`
+	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
+	Version             *KeyVersion `json:"keyVersion,omitempty"`
+}
+
+// DualAuth represents the status of a dual authorization policy.
+type DualAuth struct {
+	Enabled bool `json:"enabled"`
+}
+
+// KeyVersion represents the version of the key.
+type KeyVersion struct {
+	ID string `json:"id,omitempty"`
 }
 
 // KeysMetadata represents the metadata of a collection of keys.
