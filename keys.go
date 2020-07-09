@@ -59,6 +59,10 @@ type Key struct {
 	CRN                 string      `json:"crn,omitempty"`
 	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
 	IV                  string      `json:"iv,omitempty"`
+	Deleted             *bool       `json:"deleted,omitempty"`
+	DeletedBy           *string     `json:"deletedBy,omitempty"`
+	DeletionDate        *time.Time  `json:"deletionDate,omitempty"`
+	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
 }
 
 // KeysMetadata represents the metadata of a collection of keys.
@@ -183,9 +187,23 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 
 // GetKey retrieves a key by ID.
 func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
+	return c.getKey(ctx, id, "keys/%s")
+}
+
+// GetKeyMetadata retrieves the metadata of a Key.
+// Note that the "/api/v2/keys/{id}/metadata" API does not return the payload,
+// therefore the payload attribute in the Key pointer will always be empty.
+// If you need the payload, you need to use the GetKey() function with the
+// correct service access role.
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-access#service-access-roles
+func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
+	return c.getKey(ctx, id, "keys/%s/metadata")
+}
+
+func (c *Client) getKey(ctx context.Context, id string, path string) (*Key, error) {
 	keys := Keys{}
 
-	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s", id), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf(path, id), nil)
 	if err != nil {
 		return nil, err
 	}
