@@ -695,7 +695,29 @@ func TestKeys(t *testing.T) {
 				return nil
 			},
 		},
+		{
+			"Get Key Metadata",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				// Successful call
+				MockAuthURL(keyURL, http.StatusOK, testKeys)
+				key, err := api.GetKeyMetadata(ctx, testKey)
+				assert.NoError(t, err)
+				assert.Equal(t, testKey, key.ID)
 
+				// Set it up to fail twice, with one retry
+				RetryMax = 1
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
+				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
+				key, err = api.GetKeyMetadata(ctx, testKey)
+				assert.Error(t, err)
+
+				// Validate that the error we get back has the status and message from the retry
+				assert.Equal(t, http.StatusBadGateway, err.(*Error).StatusCode)
+				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
+				assert.NotEmpty(t, err.(*Error).CorrelationID)
+				return nil
+			},
+		},
 		{
 			"Wrap Unwrap",
 			func(t *testing.T, api *API, ctx context.Context) error {
@@ -767,192 +789,6 @@ func TestMisc(t *testing.T) {
 		},
 	}
 	cases.Run(t)
-}
-
-// Tests the API methods for policies.
-//
-func TestPolicies(t *testing.T) {
-	testKey := "2n4y2-4ko2n-4m23f-23j3r"
-	testKeys := &Keys{
-		Metadata: KeysMetadata{
-			CollectionType: "json",
-			NumberOfKeys:   2,
-		},
-		Keys: []Key{
-			Key{
-				ID:          testKey,
-				Name:        "Key1",
-				Extractable: false,
-			},
-			Key{
-				ID:          "5ngy2-kko9n-4mj5f-w3jer",
-				Name:        "Key2",
-				Extractable: true,
-			},
-		},
-	}
-	keyURL := NewTestURL("/api/v2/keys")
-
-	cases := TestCases{
-		{
-			"Policy Replace",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
-
-				_, err := api.SetPolicy(ctx, testKey, ReturnMinimal, 3)
-				assert.NoError(t, err)
-
-				_, err = api.SetPolicy(ctx, "", ReturnMinimal, 3)
-				assert.Error(t, err)
-
-				return nil
-			},
-		},
-		{
-			"Policy Get",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				MockAuthURL("/api/v2/keys/"+testKey+"/policies", http.StatusOK, testKeys)
-
-				_, err := api.GetPolicy(ctx, testKey)
-				assert.NoError(t, err)
-
-				_, err = api.GetPolicy(ctx, "")
-				assert.Error(t, err)
-
-				return nil
-			},
-		},
-	}
-	cases.Run(t)
-
-}
-
-// Tests the API methods for instance policies.
-//
-func TestInstancePolicies(t *testing.T) {
-	False := false
-	True := true
-	testGetPolicies := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 2,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "dualAuthDelete",
-				PolicyData: PolicyData{
-					Enabled: &False,
-				},
-			},
-			InstancePolicy{
-				PolicyType: "allowedNetwork",
-				PolicyData: PolicyData{
-					Enabled: &True,
-					Attributes: Attributes{
-						AllowedNetwork: "public-and-private",
-					},
-				},
-			},
-		},
-	}
-
-	testDualAuthPolicy := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 1,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "dualAuthDelete",
-				PolicyData: PolicyData{
-					Enabled: &True,
-				},
-			},
-		},
-	}
-
-	testAllowedNetworkPolicy := &InstancePolicies{
-		Metadata: PoliciesMetadata{
-			CollectionType:   "json",
-			NumberOfPolicies: 1,
-		},
-		Policies: []InstancePolicy{
-			InstancePolicy{
-				PolicyType: "allowedNetwork",
-				PolicyData: PolicyData{
-					Enabled: &True,
-					Attributes: Attributes{
-						AllowedNetwork: "public-and-private",
-					},
-				},
-			},
-		},
-	}
-	instanceURL := NewTestURL("/api/v2/instance/policies")
-
-	cases := TestCases{
-		{
-			"Dual Auth Delete Policy Replace",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusNoContent, nil)
-				MockAuthURL(instanceURL, http.StatusOK, testDualAuthPolicy)
-
-				err := api.SetInstancePolicies(ctx, true, "", "dualAuthDelete")
-				assert.NoError(t, err)
-
-				p, err := api.GetInstancePolicies(ctx)
-				for i, _ := range p {
-					if p[i].PolicyType == "dualAuthDelete" {
-						assert.True(t, *(p[i].PolicyData.Enabled))
-					}
-				}
-				return nil
-			},
-		},
-		{
-			"Allowed Network Policy Replace",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusNoContent, nil)
-				MockAuthURL(instanceURL, http.StatusOK, testAllowedNetworkPolicy)
-
-				err := api.SetInstancePolicies(ctx, true, "public-and-private", "allowedNetwork")
-				assert.NoError(t, err)
-
-				p, err := api.GetInstancePolicies(ctx)
-				for i, _ := range p {
-					if p[i].PolicyType == "allowedNetwork" {
-						assert.True(t, *(p[i].PolicyData.Enabled))
-						assert.Equal(t, p[i].PolicyData.Attributes.AllowedNetwork, "public-and-private")
-					}
-				}
-				return nil
-			},
-		},
-		{
-			"Policy Get",
-			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(instanceURL, http.StatusOK, testGetPolicies)
-
-				policies, err := api.GetInstancePolicies(ctx)
-				assert.NoError(t, err)
-				for _, p := range policies {
-					if p.PolicyType == "dualAuthDelete" {
-						assert.False(t, *(p.PolicyData.Enabled))
-					}
-					if p.PolicyType == "allowedNetwork" {
-						assert.True(t, *(p.PolicyData.Enabled))
-						assert.Equal(t, p.PolicyData.Attributes.AllowedNetwork, "public-and-private")
-					}
-				}
-
-				return nil
-			},
-		},
-	}
-	cases.Run(t)
-
 }
 
 // Tests the API methods for ImportTokens.
@@ -1278,6 +1114,7 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 	defer gock.Off()
 
 	gock.New("http://example.com").
+		Delete("/api/v2/keys/abcd-1234").
 		MatchParam("force", "true").
 		Reply(204)
 
@@ -1289,6 +1126,979 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 	key, err := c.DeleteKey(context.Background(), "abcd-1234", ReturnMinimal, ForceOpt{true})
 
 	assert.Nil(t, key)
+	assert.Nil(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
+	defer gock.Off()
+
+	errorDeleteKeyWithRegistrations := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Conflict: Action could not be performed on key. Please see reasons for more details.",
+				"reasons": [
+					{
+						"code": "PROTECTED_RESOURCE_ERR",
+						"message": "Key is protecting one or more cloud resources",
+						"moreInfo": "https://cloud.ibm.com/docs/key-protect?topic=key-protect-troubleshooting#unable-to-delete-keys"
+					}
+				]
+			}
+		]
+	}`)
+
+	errorForceDeleteKeyWithRegistrations := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.error+json",
+			"collectionTotal": 1
+		},
+		"resources": [
+			{
+				"errorMsg": "Conflict: Action could not be performed on key. Please see reasons for more details.",
+				"reasons": [
+					{
+						"code": "PREV_KEY_DEL_ERR",
+						"message": "The key cannot be deleted because it's protecting a cloud resource that has a retention policy. Before you delete this key, contact an account owner to remove the retention policy on each resource that is associated with the key.",
+						"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+					}
+				]
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/abcd-2345").
+		Reply(409).Body(bytes.NewReader(errorDeleteKeyWithRegistrations))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.DeleteKey(context.Background(), "abcd-2345", ReturnRepresentation)
+
+	deleteErr := err.(*Error)
+	assert.Nil(t, key)
+	assert.Error(t, err)
+	assert.Equal(t, deleteErr.Reasons[0].Code, "PROTECTED_RESOURCE_ERR")
+	assert.Equal(t, deleteErr.Reasons[0].Message, "Key is protecting one or more cloud resources")
+	assert.NotEqual(t, deleteErr.Reasons[0].MoreInfo, "")
+	assert.Equal(t, deleteErr.Reasons[0].MoreInfo, "https://cloud.ibm.com/docs/key-protect?topic=key-protect-troubleshooting#unable-to-delete-keys")
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/efgh-0987").
+		MatchParam("force", "true").
+		Reply(409).
+		Body(bytes.NewReader(errorForceDeleteKeyWithRegistrations))
+
+	key, err = c.DeleteKey(context.Background(), "efgh-0987", ReturnRepresentation, ForceOpt{true})
+
+	forceDeleteErr := err.(*Error)
+	assert.Nil(t, key)
+	assert.Error(t, err)
+	assert.Equal(t, forceDeleteErr.Reasons[0].Code, "PREV_KEY_DEL_ERR")
+	assert.Equal(t, forceDeleteErr.Reasons[0].Message, "The key cannot be deleted because it's protecting a cloud resource that has a retention policy. Before you delete this key, contact an account owner to remove the retention policy on each resource that is associated with the key.")
+	assert.NotEqual(t, forceDeleteErr.Reasons[0].MoreInfo, "")
+	assert.Equal(t, forceDeleteErr.Reasons[0].MoreInfo, "https://cloud.ibm.com/apidocs/key-protect")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+
+}
+
+func TestRegistrationsList(t *testing.T) {
+	defer gock.Off()
+	testKey := ""
+	testCRN := ""
+	allRegsResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 3
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-env:dummy-service:global:a/dummy-details5:dummy-bucket3:dummy-reg2",
+			"creationDate": "2020-04-23T17:17:18Z",
+			"lastUpdated": "2020-04-23T17:17:18Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfKeyResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-env:dummy-service:global:a/dummy-details5:dummy-bucket3:dummy-reg2",
+			"creationDate": "2020-04-23T17:17:18Z",
+			"lastUpdated": "2020-04-23T17:17:18Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfCRNResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+		  {
+			"keyId": "3c44b-f03e6-4y9a5-b859b",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-04-23T17:17:58Z",
+			"lastUpdated": "2020-04-23T17:17:58Z",
+			"keyVersion": {
+			  "id": "3c44b-f03e6-4y9a5-b859b",
+			  "creationDate": "2020-03-31T16:34:43Z"
+			}
+		  },
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	RegsOfKeyAndCRNResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.registration+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"keyId": "2n4y2-4ko2n-4m23f-23j3r",
+			"resourceCrn": "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg",
+			"creationDate": "2020-03-31T16:37:05Z",
+			"lastUpdated": "2020-03-31T16:37:05Z",
+			"keyVersion": {
+			  "id": "2n4y2-4ko2n-4m23f-23j3r",
+			  "creationDate": "2020-03-31T16:17:39Z"
+			}
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/registrations").
+		Reply(200).Body(bytes.NewReader(allRegsResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	allRegs, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, allRegs)
+
+	testKey = "3c44b-f03e6-4y9a5-b859b"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/registrations").
+		Reply(200).Body(bytes.NewReader(RegsOfKeyResponse))
+
+	regsOfKey, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfKey)
+	for _, reg := range (*regsOfKey).Registrations {
+		assert.Equal(t, testKey, reg.KeyID)
+	}
+
+	testKey = "2n4y2-4ko2n-4m23f-23j3r"
+	testCRN = "crn:v1:dummy-ennv:dummy-service:global:a/dummy-details:dummy-bucket:dummy-reg"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/registrations").
+		MatchParam("urlEncodedResourceCRNQuery", testCRN).
+		Reply(200).Body(bytes.NewReader(RegsOfKeyAndCRNResponse))
+
+	regsOfKeyAndCrn, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfKeyAndCrn)
+	for _, reg := range (*regsOfKeyAndCrn).Registrations {
+		assert.Equal(t, testKey, reg.KeyID)
+		assert.Equal(t, testCRN, reg.ResourceCrn)
+	}
+
+	testKey = ""
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/registrations").
+		MatchParam("urlEncodedResourceCRNQuery", testCRN).
+		Reply(200).Body(bytes.NewReader(RegsOfCRNResponse))
+
+	regsOfCRN, err := c.ListRegistrations(context.Background(), testKey, testCRN)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, regsOfCRN)
+	for _, reg := range (*regsOfCRN).Registrations {
+		assert.Equal(t, testCRN, reg.ResourceCrn)
+	}
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// Tests the Key restore functionality
+func TestRestoreKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	restoreKeyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.key+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"type":"keys",
+				"id":"2n4y2-4ko2n-4m23f-23j3r",
+				"name":"test secret",
+				"description":"a testing thing",
+				"state":1,
+				"extractable":false,
+				"imported":true,
+				"deleted":false,
+				"deletionDate":"2020-05-06T16:48:51Z",
+				"deletedBy":"user_xyz"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
+		MatchParam("action", "restore").
+		Reply(201).Body(bytes.NewReader(restoreKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.RestoreKey(context.Background(), testKey, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, testKey, key.ID)
+	assert.False(t, key.Extractable)
+	assert.Equal(t, key.State, 1)
+
+	// restore key with encrypted nonce and iv
+
+	deletedKey := "alkd-r30lk-4323"
+	restoreKeyEcryptedNonceResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.key+json",
+			"collectionTotal":1
+			},
+		"resources":[
+			{
+				"type":"application/vnd.ibm.kms.key+json",
+				"id":"alkd-r30lk-4323",
+				"name":"new_imported_root_key",
+				"state":1,
+				"extractable":false,
+				"crn":"crn:v1:kms:public:dummy-region:a/dummy-account:dummy-instance:key:alkd-r30lk-4323",
+				"imported":true,
+				"deleted":false,
+				"deletionDate":"2020-06-16T21:32:57Z",
+				"deletedBy":"IBMid-50BE1MTM26"
+			}
+		]
+	}`)
+
+	gock.New("http://example/com").
+		Post("/api/v2/keys/"+deletedKey).
+		MatchParam("action", "restore").
+		Reply(201).Body(bytes.NewReader(restoreKeyEcryptedNonceResponse))
+
+	encryptedKey := "CB8+E6S551r2MxxTnP6oCX1e69UfLNugCD5e7SLSlRp+NCQHm+wKgfAGMY4Eq+kFTHkQxLaQTbtDvZyk/sNGI5wAtsk8+RU7J3WZeNIUU0wgYEMyPb1CGWDfAqGVa2shCkM4CYXFaUw5iI2StFFrxUdoaesd6Nt6MLmYqnKqCl7j8ueIcKulov6Pc9kMv5SUWBAX0yziKGXu74JmL/JFAq2tVFspy7tSXHZtJTVCFryzbnlXbjFiBKDkFlJ0MkFW+axB180nVRC2Fjx315MymbiaGwVGqodXYK+yqA+AIOhXsuPvK6A6Pw8oq0//mp7TJod1t+Bcja8xh2vXQdyM/q0hkCRzgcFYXgaVl12KzERz45U2QWNDj5cqJPx4PmCv6EHWmEjiVxhIkr9bhbosUBXnXhIyVcHxjjxEp8TgeBnvQSTFwfKu9pm9ifBK65CheyK32WXg6+6POZzmYVZpGxMQs2rr/QPwPelYjV4n6Y6SR/WuycYzT+x14bkp94yVTgt6UKwtg6NaRlwpst1xa3yShymmzPvLxhANI9y+ZHVL9Aoi+Fm982rrzy9N6kVn3dfo+Y8UgsfFar6VeieH9f1S5aACHyUW0uKEi9mFVO9sCCQ4PI3RKkvTinSN4THvfpQ4n1JTr7j75FbEl9xrfMWDD8cmgzu7IYQ8TdAlnR8="
+	encyrptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
+	iv := "KuOXnIEGnSPzUkQu"
+
+	key, err = c.RestoreKey(context.Background(), deletedKey, encryptedKey, encyrptedNonce, iv)
+
+	assert.NotNil(t, key)
+	assert.NoError(t, err)
+	assert.Equal(t, deletedKey, key.ID)
+	assert.False(t, key.Extractable)
+	assert.Equal(t, key.State, 1)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetInstancePolicies tests the methods that set and get instance policies
+func TestSetAndGetInstancePolicies(t *testing.T) {
+	defer gock.Off()
+	allpolicies := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":2
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:14:29Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "allowedNetwork",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_network": "private-only"
+				}
+				}
+			},
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:16:23Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {}
+				}
+			}
+		]
+	}`)
+	dualAuthPolicy := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:16:23Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": false,
+				"attributes": {}
+				}
+			}
+		]
+	}`)
+	allowedNetworkPolicy := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-04-22T15:14:29Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "IBMid-50BE1MTM26",
+				"policy_type": "allowedNetwork",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_network": "public-and-private"
+				}
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetInstancePolicies(context.Background(), true, true, true, true, "private-only")
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		Reply(200).
+		Body(bytes.NewReader(allpolicies))
+
+	allP, err := c.GetInstancePolicies(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, allP)
+	assert.True(t, len(allP) >= 0)
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(204)
+
+	err = c.SetDualAuthInstancePolicy(context.Background(), false)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(200).
+		Body(bytes.NewReader(dualAuthPolicy))
+
+	dap, err := c.GetDualAuthInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, dap)
+	assert.Equal(t, dap.PolicyType, DualAuthDelete)
+	assert.False(t, *(dap.PolicyData.Enabled))
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", "allowedNetwork").
+		Reply(204)
+
+	err = c.SetAllowedNetworkInstancePolicy(context.Background(), true, "public-and-private")
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", "allowedNetwork").
+		Reply(200).
+		Body(bytes.NewReader(allowedNetworkPolicy))
+
+	ap, err := c.GetAllowedNetworkInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ap)
+	assert.Equal(t, ap.PolicyType, AllowedNetwork)
+	assert.True(t, *(ap.PolicyData.Enabled))
+	assert.Equal(t, ap.PolicyData.Attributes.AllowedNetwork, "public-and-private")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+//TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
+func TestSetInstanceDualAuthPolicyError(t *testing.T) {
+	defer gock.Off()
+	errorResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Bad Request: Instance policy could not be created. Please see reasons for more details.",
+				"reasons": [
+							{
+								"code":"BAD_BODY_ERR",
+								"message":"Invalid body data was passed. Please ensure the data passed had valid formatting with no invalid characters: json: unknown field \"attributes\"%!(EXTRA []string=[])",
+								"moreInfo":"https://cloud.ibm.com/apidocs/key-protect"
+							}
+						]
+					}
+				]
+			}`)
+
+	gock.New("http://example.com").
+		Put("/api/v2/instance/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(400).
+		Body(bytes.NewReader(errorResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetDualAuthInstancePolicy(context.Background(), true)
+
+	badRequestErr := err.(*Error)
+	assert.Error(t, err)
+	assert.Equal(t, badRequestErr.Reasons[0].Code, "BAD_BODY_ERR")
+	assert.Equal(t, badRequestErr.Reasons[0].Message, "Invalid body data was passed. Please ensure the data passed had valid formatting with no invalid characters: json: unknown field \"attributes\"%!(EXTRA []string=[])")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+// TestSetKeyPolicies tests the methods that set key policy which makes a request to Key Protect API to set Policies for a key
+func TestSetKeyPolicies(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	allPoliciesResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":2
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+				"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			},
+			{
+				"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":true
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+			}
+		]
+	}`)
+
+	dualAuthPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":true
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+			}
+		]
+	}`)
+	rotationPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+					"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	dualAuthPolicy, err := c.SetDualAuthDeletePolicy(context.Background(), testKey, true)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, dualAuthPolicy)
+	assert.True(t, *(dualAuthPolicy.DualAuth.Enabled))
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "rotation").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 4)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(allPoliciesResponse))
+
+	allpolicies, err := c.SetPolicies(context.Background(), testKey, true, 6, true, true)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, allpolicies)
+	assert.Equal(t, 6, allpolicies[0].Rotation.Interval)
+	assert.True(t, *(allpolicies[1].DualAuth.Enabled))
+
+	// Old rotation policy set
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	policy, err := c.SetPolicy(context.Background(), testKey, ReturnRepresentation, 6)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, policy)
+	assert.Equal(t, 6, policy.Rotation.Interval)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestGetKeyPolicies tests the methods that get key policy method which makes a request to Key Protect end point to retrieve key policies
+func TestGetKeyPolicies(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	getPoliciesResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":2
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+				"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			},
+			{
+				"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":false
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+			}
+		]
+	}`)
+
+	rotationPolicyResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+				"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+		}]
+	}`)
+
+	dualAuthPolicyResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":false
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+		}]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(getPoliciesResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	policies, err := c.GetPolicies(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, policies)
+	assert.Equal(t, len(policies), 2)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "rotation").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	rotationPolicy, err := c.GetRotationPolicy(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.NotNil(t, (*rotationPolicy).Rotation)
+	assert.Nil(t, (*rotationPolicy).DualAuth)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", "dualAuthDelete").
+		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
+
+	dualAuthPolicy, err := c.GetDualAuthDeletePolicy(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, dualAuthPolicy)
+	assert.NotNil(t, (*dualAuthPolicy).DualAuth)
+	assert.Nil(t, (*dualAuthPolicy).Rotation)
+
+	// Old rotation policy get
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	policy, err := c.GetPolicy(context.Background(), testKey)
+
+	assert.Nil(t, err)
+	assert.NotNil(t, policy)
+	assert.NotNil(t, (*policy).Rotation)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// Tests the key disable functionality
+func TestDisableKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	getKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmBitSize": 256,
+				"algorithmMetadata": {
+					"bitLength": "256",
+					"mode": "CBC_PAD"
+				},
+				"algorithmMode": "CBC_PAD",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-05-20T15:22:25Z",
+				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
+				"deleted": false,
+				"deletedBy": "IBMid-50BE1MTM26",
+				"deletionDate": "2020-05-20T15:22:50Z",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": false,
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"imported": true,
+				"keyVersion": {
+					"creationDate": "2020-05-20T15:25:26Z",
+					"id": "2n4y2-4ko2n-4m23f-23j3r"
+				},
+				"lastUpdateDate": "2020-05-20T15:25:26Z",
+				"name": "import-root-test",
+				"state": 2,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
+		MatchParam("action", "disable").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.DisableKey(context.Background(), testKey)
+
+	assert.Nil(t, err)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey).
+		Reply(200).Body(bytes.NewReader(getKeyResponse))
+
+	key, err := c.GetKey(context.Background(), testKey)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.State, 2)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// Tests the key enable functionality
+func TestEnableKey(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	getKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmBitSize": 256,
+				"algorithmMetadata": {
+					"bitLength": "256",
+					"mode": "CBC_PAD"
+				},
+				"algorithmMode": "CBC_PAD",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-50BE1MTM26",
+				"creationDate": "2020-05-20T15:22:25Z",
+				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
+				"deleted": false,
+				"deletedBy": "IBMid-50BE1MTM26",
+				"deletionDate": "2020-05-20T15:22:50Z",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": false,
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"imported": true,
+				"keyVersion": {
+					"creationDate": "2020-05-20T15:25:26Z",
+					"id": "2n4y2-4ko2n-4m23f-23j3r"
+				},
+				"lastUpdateDate": "2020-05-20T15:25:26Z",
+				"name": "import-root-test",
+				"state": 1,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}
+	`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+testKey).
+		MatchParam("action", "enable").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.EnableKey(context.Background(), testKey)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + testKey).
+		Reply(200).Body(bytes.NewReader(getKeyResponse))
+
+	key, err := c.GetKey(context.Background(), testKey)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.State, 1)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestInitiate_DualAuthDelete(t *testing.T) {
+	defer gock.Off()
+	keyID := "4309-akld"
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+keyID).
+		MatchParam("action", "setKeyForDeletion").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.InitiateDualAuthDelete(context.Background(), keyID)
+
+	assert.Nil(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestCancel_DualAuthDelete(t *testing.T) {
+	defer gock.Off()
+	keyID := "4839-adhf"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/"+keyID).
+		MatchParam("action", "unsetKeyForDeletion").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.CancelDualAuthDelete(context.Background(), keyID)
+
 	assert.Nil(t, err)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")

@@ -16,7 +16,7 @@ package kp
 
 import (
 	"context"
-	"strings"
+	"net/url"
 	"time"
 )
 
@@ -41,8 +41,8 @@ type InstancePolicy struct {
 
 // PolicyData contains the details of the policy type
 type PolicyData struct {
-	Enabled    *bool      `json:"enabled,omitempty"`
-	Attributes Attributes `json:"attributes,omitempty"`
+	Enabled    *bool       `json:"enabled,omitempty"`
+	Attributes *Attributes `json:"attributes,omitempty"`
 }
 
 // Attributes contains the detals of allowed network policy type
@@ -54,6 +54,58 @@ type Attributes struct {
 type InstancePolicies struct {
 	Metadata PoliciesMetadata `json:"metadata"`
 	Policies []InstancePolicy `json:"resources"`
+}
+
+// GetDualAuthInstancePolicy retrieves the dual auth delete policy details associated with the instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
+func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, DualAuthDelete, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+	return &policyResponse.Policies[0], nil
+}
+
+// GetAllowedNetworkInstancePolicy retrieves the allowed network policy details associated with the instance.
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
+func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+
+	return &policyResponse.Policies[0], nil
+}
+
+func (c *Client) getInstancePolicy(ctx context.Context, policyType string, policyResponse *InstancePolicies) error {
+	req, err := c.newRequest("GET", "instance/policies", nil)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", policyType)
+	req.URL.RawQuery = v.Encode()
+
+	_, err = c.do(ctx, req, &policyResponse)
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 // GetInstancePolicies retrieves all policies of an Instance.
@@ -73,24 +125,100 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 	return policyresponse.Policies, nil
 }
 
-// SetInstancePolicies updates a policy resource of an instance to either allowed network or dual auth or both .
-func (c *Client) SetInstancePolicies(ctx context.Context, enable bool, networkType, setType string) error {
+func (c *Client) setInstancePolicy(ctx context.Context, policyType string, policyRequest InstancePolicies) error {
+	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	if err != nil {
+		return err
+	}
+
+	v := url.Values{}
+	v.Set("policy", policyType)
+	req.URL.RawQuery = v.Encode()
+
+	policiesResponse := Policies{}
+	_, err = c.do(ctx, req, &policiesResponse)
+	if err != nil {
+		return err
+	}
+	return err
+}
+
+// SetDualAuthInstancePolicy updates the dual auth delete policy details associated with an instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
+func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) error {
+	policy := InstancePolicy{
+		PolicyType: DualAuthDelete,
+		PolicyData: PolicyData{
+			Enabled: &enable,
+		},
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	err := c.setInstancePolicy(ctx, DualAuthDelete, policyRequest)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetAllowedNetWorkInstancePolicy updates the allowed network policy details associated with an instance
+// For more information can refer to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
+func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable bool, networkType string) error {
+	policy := InstancePolicy{
+		PolicyType: AllowedNetwork,
+		PolicyData: PolicyData{
+			Enabled:    &enable,
+			Attributes: &Attributes{},
+		},
+	}
+	if networkType != "" {
+		policy.PolicyData.Attributes.AllowedNetwork = networkType
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	err := c.setInstancePolicy(ctx, AllowedNetwork, policyRequest)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetInstancePolicies updates single or multiple policy details of an instance.
+func (c *Client) SetInstancePolicies(ctx context.Context, setDualAuth, dualAuthEnable bool, setAllowedNetwork, allowedNetworkEnable bool, networkType string) error {
 	var policies []InstancePolicy
 
-	if strings.Compare(setType, DualAuthDelete) == 0 {
+	if setDualAuth {
 		policy := InstancePolicy{
 			PolicyType: DualAuthDelete,
 		}
-		policy.PolicyData.Enabled = &enable
+		policy.PolicyData.Enabled = &dualAuthEnable
 		policies = append(policies, policy)
 	}
 
-	if strings.Compare(setType, AllowedNetwork) == 0 {
+	if setAllowedNetwork {
 		policy := InstancePolicy{
 			PolicyType: AllowedNetwork,
 			PolicyData: PolicyData{
-				Enabled:    &enable,
-				Attributes: Attributes{},
+				Enabled:    &allowedNetworkEnable,
+				Attributes: &Attributes{},
 			},
 		}
 		if networkType != "" {

@@ -150,3 +150,60 @@ func TestRotatedKeyHasLastUpdatedAndRotated(t *testing.T) {
 		}
 	}
 }
+
+// TestExtractableKey creates an extractable key.
+// It calls GetKey() to verify that the payload is not empty.
+// It also calls GetKeyMetadata() to verify that the payload
+// is empty.
+// Finally, it verifies that an extractable key can not be used
+// with wrap or unwrap actions.
+func TestExtractableKey(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	keys, err := c.GetKeys(ctx, 0, 0)
+	assert.NoError(err)
+
+	for _, key := range keys.Keys {
+		t.Logf("%+v\n", key)
+	}
+
+	crk, err := c.CreateKey(ctx, "kptest-extractable", nil, true)
+	assert.NoError(err)
+	t.Logf("CRK created successfully: id=%s\n", crk.ID)
+
+	key, err := c.GetKey(ctx, crk.ID)
+	if assert.NoError(err) {
+		assert.False(*key.Deleted)
+		assert.NotEmpty(key.Payload)
+	}
+
+	metadata, err := c.GetKeyMetadata(ctx, crk.ID)
+	if assert.NoError(err) {
+		assert.Empty(metadata.Payload)
+	}
+
+	_, _, err = c.WrapCreateDEK(ctx, crk.ID, nil)
+	assert.Error(err)
+
+	_, err = c.Unwrap(ctx, crk.ID, []byte("wdek"), nil)
+	assert.Error(err)
+
+	keys, err = c.GetKeys(context.Background(), 0, 0)
+	assert.NoError(err)
+
+	for _, key := range keys.Keys {
+		if key.Name == "kptest-exportable" {
+			_, err := c.DeleteKey(ctx, key.ID, 0)
+			if err != nil {
+				t.Logf("Error deleting key: %s\n", err)
+			} else {
+				t.Logf("Key deleted: id=%s\n", key.ID)
+			}
+		}
+	}
+}
