@@ -31,12 +31,15 @@ import (
 	"github.com/google/uuid"
 	rhttp "github.com/hashicorp/go-retryablehttp"
 
+	curl "github.com/IBM/go-curl"
 	"github.com/IBM/keyprotect-go-client/iam"
 )
 
 const (
 	// DefaultBaseURL ...
-	DefaultBaseURL = "https://us-south.kms.cloud.ibm.com"
+	DefaultBaseURL    = "https://us-south.kms.cloud.ibm.com"
+	DefaultBaseQSCURL = "https://qsc-stage.kms.test.cloud.ibm.com"
+
 	// DefaultTokenURL ..
 	DefaultTokenURL = iam.IAMTokenURL
 
@@ -72,6 +75,7 @@ type ClientConfig struct {
 	InstanceID    string  // The IBM Cloud (Bluemix) instance ID that identifies your Key Protect service instance.
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
+	AlgorithmID   string  // Algorithm ID for the QSC
 }
 
 // DefaultTransport ...
@@ -244,20 +248,27 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
 	req.Header.Set("correlation-id", corrId)
+	var response *http.Response
 
-	// set request up to be retryable on 500-level http codes and client errors
-	retryableClient := getRetryableClient(&c.HttpClient)
-	retryableRequest, err := rhttp.FromRequest(req)
-	if err != nil {
-		return nil, err
-	}
+	if c.Config.AlgorithmID == "" {
+		// set request up to be retryable on 500-level http codes and client errors
+		retryableClient := getRetryableClient(&c.HttpClient)
+		retryableRequest, err := rhttp.FromRequest(req)
+		if err != nil {
+			return nil, err
+		}
 
-	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
-	if err != nil {
-		return nil, &URLError{err, corrId}
+		response, err = retryableClient.Do(retryableRequest.WithContext(ctx))
+		if err != nil {
+			return nil, &URLError{err, corrId}
+		}
+	} else { // CURL
+		response, err = c.curlPerformWithRetry(req)
+		if err != nil {
+			return nil, &URLError{err, corrId}
+		}
 	}
 	defer response.Body.Close()
-
 	resBody, err := ioutil.ReadAll(response.Body)
 	redact := []string{c.Config.APIKey, req.Header.Get("authorization")}
 	c.Dump(req, response, []byte{}, resBody, c.Logger, redact)
@@ -292,9 +303,8 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 				reasons = kperr.Resources[0].Reasons
 			}
 		}
-
 		return nil, &Error{
-			URL:           response.Request.URL.String(),
+			URL:           req.URL.String(),
 			StatusCode:    response.StatusCode,
 			Message:       errMessage,
 			BodyContent:   resBody,
@@ -304,6 +314,150 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	}
 
 	return response, nil
+}
+func (c *Client) curlPerformWithRetry(req *http.Request) (*http.Response, error) {
+	easy := curl.EasyInit()
+	defer easy.Cleanup()
+
+	easy.Setopt(curl.OPT_SSLVERSION, curl.SSLVERSION_TLSv1_3)
+	easy.Setopt(curl.OPT_CURVES, c.Config.AlgorithmID)
+
+	if c.Config.Verbose > 0 {
+		easy.Setopt(curl.OPT_VERBOSE, true)
+	}
+
+	easy.Setopt(curl.OPT_URL, req.URL.String())
+
+	// read hearder into a map struct
+	headers := []string{}
+
+	for name, header := range req.Header {
+
+		// Fix me: header is an array, adding key with multiple values when header has more
+		// than one element.
+		for _, v := range header {
+			h := fmt.Sprintf("%s:%s", name, v)
+			headers = append(headers, h)
+		}
+	}
+
+	// set same headers to easycurl
+	easy.Setopt(curl.OPT_HTTPHEADER, headers)
+
+	// set Session Timeout
+	easy.Setopt(curl.OPT_TIMEOUT, int(c.Config.Timeout))
+
+	// set Method, Default is GET
+	if req.Method == "POST" {
+		easy.Setopt(curl.OPT_POST, true)
+	} else if req.Method == "DELETE" {
+		easy.Setopt(curl.OPT_CUSTOMREQUEST, "DELETE")
+	} else if req.Method == "PATCH" {
+		easy.Setopt(curl.OPT_CUSTOMREQUEST, "PATCH")
+	}
+	var curlresponse bytes.Buffer
+	retryCount := 1
+	//Note this func is invovked multiple times if data is larger than
+	// max size (16K)
+	easy.Setopt(curl.OPT_WRITEFUNCTION,
+		func(ptr []byte, userdata interface{}) bool {
+			dataSize := len(string(ptr))
+			if retryCount > 1 {
+				curlresponse.Reset()
+			}
+
+			if curlresponse.Cap() < (curlresponse.Len() + dataSize) {
+				curlresponse.Grow(dataSize)
+			}
+			writtenSize, err := curlresponse.Write(ptr)
+			if err != nil {
+				c.Logger.Info(" curl writefunc error writing data ", err.Error())
+				return false
+			}
+
+			if writtenSize != dataSize {
+				c.Logger.Info(" curl writefunc cannot write full response", writtenSize, dataSize)
+			}
+
+			return true
+		})
+
+	if req.Body != nil {
+		b, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			c.Logger.Info(err.Error())
+			return nil, err
+		}
+		easy.Setopt(curl.OPT_POSTFIELDS, string(b))
+		// Need to write Body back
+		req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	}
+	responseHdrs := map[string]string{}
+	easy.Setopt(curl.OPT_HEADERFUNCTION,
+		func(ptr []byte, userdata interface{}) bool {
+			result := strings.Split(string(ptr), ":")
+
+			if len(result) > 1 {
+				for i := range result {
+					responseHdrs[result[i]] = result[i+1]
+					break
+				}
+			}
+			return true
+		})
+	curlstatusCode := 0
+
+	for {
+		err := easy.Perform()
+		if err != nil {
+			if strings.Contains(err.Error(), "Timeout") {
+				// retry
+			} else {
+				c.Logger.Info("CURL perform error", err.Error())
+				return nil, err
+			}
+		}
+
+		curlCode, err := easy.Getinfo(curl.INFO_RESPONSE_CODE)
+		if err != nil {
+			c.Logger.Info("CURL failure getting response code error: ", err.Error())
+			return nil, err
+		}
+		curlstatusCode = curlCode.(int)
+		//c.Logger.Info("CURL statusCode: ", curlstatusCode)
+		// Retry on connection errors, 500+ errors (except 501 - not implemented), and 429 - too many requests
+		if !(curlstatusCode == 0 || curlstatusCode == 429 || (curlstatusCode >= 500 && curlstatusCode != 501)) {
+			break
+		}
+
+		if retryCount == RetryMax {
+			c.Logger.Info("CURL max retry exceeded, statusCode for last retry: ", curlstatusCode, retryCount, RetryMax)
+			break
+		}
+		retryCount++
+		c.Logger.Info("CURL performing retry due to statusCode: ", curlstatusCode)
+		time.Sleep(RetryWaitMax)
+	}
+
+	contentlen, err := easy.Getinfo(curl.INFO_CONTENT_LENGTH_DOWNLOAD)
+	if err != nil {
+		c.Logger.Info("CURL failed getting content length, error: ", err.Error())
+		return nil, err
+	}
+
+	response := &http.Response{
+		StatusCode:    curlstatusCode,
+		Proto:         "HTTP/1.1",
+		ContentLength: (int64)(contentlen.(float64)),
+		Body:          ioutil.NopCloser(bytes.NewBuffer(curlresponse.Bytes())),
+		Request:       req,
+		Header:        make(http.Header, 0),
+	}
+	for name, header := range responseHdrs {
+		response.Header.Set(name, header)
+	}
+
+	return response, err
 }
 
 // getRetryableClient returns a fully configured retryable HTTP client

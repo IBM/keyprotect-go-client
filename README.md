@@ -43,6 +43,28 @@ client := kp.New(cc, kp.DefaultTransport())
 keys, err := client.GetKeys(context.Background(), 0, 0)
 ```
 
+IBM Cloud Key Protect Service supports quantum safe crypto (QSC) endpoint as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
+
+Build a client with QSC config `ClientConfig` and `New`, then use the client to do some operations.
+```go
+import "github.com/IBM/keyprotect-go-client"
+
+// Use your IAM API Key and your KeyProtect Service Instance GUID/UUID to create a ClientConfig
+cc := kp.ClientConfig{
+  BaseURL:       kp.DefaultBaseQSCURL,
+  APIKey:        "......",
+  InstanceID:    "1234abcd-906d-438a-8a68-deadbeef1a2b3",
+  AlgorithmID:   "kyber768",
+}
+
+// Build a new client from the config
+client := kp.New(cc, kp.DefaultTransport())
+
+// List keys in your KeyProtect instance
+keys, err := client.GetKeys(context.Background(), 0, 0)
+```
+
+
 ### Migrating
 
 For users of the original `key-protect-client` that is now deprecated, this library is a drop in replacement. Updating the package reference to `github.com/IBM/keyprotect-go-client` should be the only change needed. If you are worried about new incompatible changes, version `v0.3.1` of `key-protect-client` is equivalent to version `v0.3.3` of `keyprotect-go-client`, so pinning `v0.3.3` of the new library should be sufficient to pull from the new repo with no new functional changes.

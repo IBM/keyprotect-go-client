@@ -45,6 +45,19 @@ func NewTestClientConfig() ClientConfig {
 	}
 }
 
+// NewTestClientConfig returns a new ClientConfig suitable for testing.
+//
+func NewTestClientConfigCurl() ClientConfig {
+	return ClientConfig{
+		BaseURL:     "http://www.google.com/",
+		InstanceID:  "test instance id",
+		APIKey:      "test api key",
+		TokenURL:    "https://iam.cloud.ibm.com/oidc/token",
+		AlgorithmID: "kyber768",
+		Verbose:     3,
+	}
+}
+
 // NewTestURL returns the shared, invalid url for tests.  Given paths are
 // joined to the base, separted with /.
 //
@@ -2102,4 +2115,268 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestCurl(t *testing.T) {
+	var l Logger
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	testKeys := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   2,
+		},
+		Keys: []Key{
+			Key{
+				ID:          testKey,
+				Name:        "Key1",
+				Extractable: false,
+			},
+			Key{
+				ID:          "5ngy2-kko9n-4mj5f-w3jer",
+				Name:        "Key2",
+				Extractable: true,
+			},
+		},
+	}
+
+	cases := TestCases{
+		{
+			"Curl bad response data",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				// Remove /api/v2 appended to the base url
+				u, err := url.Parse(tconfig.BaseURL)
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl Invalid URL",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl invalid algorithm",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+				tconfig.AlgorithmID = "kyber123"
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"curl valid algorithm",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.NoError(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl post request",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("POST", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.NoError(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl delete request",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("DELETE", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.NoError(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl patch request",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("PATCH", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.NoError(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl error from KP",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com/api/v2/keys")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl request with request body",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com/api/v2/keys")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.CreateStandardKey(context.Background(), "testingkeycreate", nil)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+		{
+			"Curl connection timeout retry test",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfigCurl()
+				tconfig.Timeout = 10
+
+				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+				RetryMax = 3
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com:444/api/v2/keys")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.Error(t, err)
+
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
+
 }

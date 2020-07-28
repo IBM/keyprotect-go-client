@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/IBM/keyprotect-go-client"
+	kp "github.com/IBM/keyprotect-go-client"
 )
 
 func getConfigAuthToken() kp.ClientConfig {
@@ -90,7 +90,7 @@ func rootKeyOperations(api *kp.API) {
 
 	fmt.Println("\nWrapping root key")
 	aad := []string{"string1", "string2", "string3"}
-	plaintext := []byte("This is my fav root key")
+	plaintext := []byte("NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs=")
 	ciphertext, err := api.Wrap(context.Background(), keyid, plaintext, &aad)
 	if err != nil {
 		fmt.Println("Error wrapping the key: ", err)
