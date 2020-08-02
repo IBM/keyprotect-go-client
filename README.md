@@ -7,6 +7,8 @@ keyprotect-go-client is a Go client library for interacting with the IBM KeyProt
 
 * [Questions / Support](#questions--support)
 * [Usage](#usage)
+  * [Usage with classic endpoint](#Usage-with-classic-endpoint)
+  * [Usage with quantum safe crypto endpoint](Usage-with-quantum-safe-crypto-endpoint)
   * [Migrating](#migrating)
   * [Authentication](#authentication)
   * [Finding Instance UUIDs](#finding-a-keyprotect-service-instances-uuid)
@@ -22,6 +24,8 @@ There are many channels for asking questions about KeyProtect and this client.
 - If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
 
 ## Usage
+
+### Usage with classic endpoint
 
 This client expects that you have an existing IBM Cloud Key Protect Service Instance. To get started, visit the [IBM KeyProtect Catalog Page](https://cloud.ibm.com/catalog/services/key-protect).
 
@@ -43,7 +47,22 @@ client := kp.New(cc, kp.DefaultTransport())
 keys, err := client.GetKeys(context.Background(), 0, 0)
 ```
 
+### Usage with quantum safe crypto endpoint
+
 IBM Cloud Key Protect Service supports quantum safe crypto (QSC) endpoint as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
+
+**Note**: Supported on Linux platform only at this time. Other platform support will be added in future.
+
+Process to build client with QSC support:
+
+1. Install oqs curl and openssl library compiled with QSC support. This installs needed libraries in */opt/oqssa/* directory.
+    1. dpkg -i qsc/oqs-curl-7.69.1_amd64.deb
+    1. dpkg -i qsc/oqs-openssl-1.1.1_amd64.deb
+1. Update env PATH to add /opt/oqssa directory
+    1. export PATH=/opt/oqssa/:$PATH
+1. Use 'quantum' tag to build client
+    1. CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig go build --tags=quantum
+
 
 Build a client with QSC config `ClientConfig` and `New`, then use the client to do some operations.
 ```go
