@@ -19,6 +19,7 @@ package kp
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -93,14 +94,15 @@ func curlPerformWithRetry(req *http.Request, c *Client, algoID string) (*http.Re
 	}
 	var curlresponse bytes.Buffer
 	retryCount := 1
-	//Note this func is invovked multiple times if data is larger than
-	// max size (16K)
+	dataTransferred := 0
+	// Note this func is invovked multiple times if data is larger than
+	// max size (16K). This functional always return true and errors are handled by checking data transferred.
+	// This is because of the way go-curl supports it.
+	// TODO: fix go-curl to return error on false. Currently even when false is returned, it returns success.
 	easy.Setopt(curl.OPT_WRITEFUNCTION,
 		func(ptr []byte, userdata interface{}) bool {
 			dataSize := len(string(ptr))
-			if retryCount > 1 {
-				curlresponse.Reset()
-			}
+			dataTransferred += dataSize
 
 			if curlresponse.Cap() < (curlresponse.Len() + dataSize) {
 				curlresponse.Grow(dataSize)
@@ -108,11 +110,12 @@ func curlPerformWithRetry(req *http.Request, c *Client, algoID string) (*http.Re
 			writtenSize, err := curlresponse.Write(ptr)
 			if err != nil {
 				c.Logger.Info(" curl writefunc error writing data ", err.Error())
-				return false
+				curlresponse.Reset()
 			}
 
 			if writtenSize != dataSize {
-				c.Logger.Info(" curl writefunc cannot write full response", writtenSize, dataSize)
+				c.Logger.Info(" curl writefunc cannot write full response", writtenSize, dataSize, curlresponse.Len())
+				curlresponse.Reset()
 			}
 
 			return true
@@ -154,6 +157,10 @@ func curlPerformWithRetry(req *http.Request, c *Client, algoID string) (*http.Re
 			}
 		}
 
+		if dataTransferred != curlresponse.Len() {
+			return nil, errors.New("response data transfer failed")
+		}
+
 		curlCode, err := easy.Getinfo(curl.INFO_RESPONSE_CODE)
 		if err != nil {
 			c.Logger.Info("CURL failure getting response code error: ", err.Error())
@@ -165,6 +172,10 @@ func curlPerformWithRetry(req *http.Request, c *Client, algoID string) (*http.Re
 		if !(curlstatusCode == 0 || curlstatusCode == 429 || (curlstatusCode >= 500 && curlstatusCode != 501)) {
 			break
 		}
+
+		// Reset buffer on retry
+		curlresponse.Reset()
+		dataTransferred = 0
 
 		if retryCount == RetryMax {
 			c.Logger.Info("CURL max retry exceeded, statusCode for last retry: ", curlstatusCode, retryCount, RetryMax)
