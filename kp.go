@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// keyprotect-go-client is a Go client library for interacting with the IBM KeyProtect service.
 package kp
 
 import (
