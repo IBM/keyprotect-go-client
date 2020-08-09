@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build !quantum
+// +build quantum
 
 package main
 
@@ -24,9 +24,15 @@ import (
 	kp "github.com/IBM/keyprotect-go-client"
 )
 
+func getQSCConfig() kp.ClientQSCConfig {
+	return kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER512,
+	}
+}
+
 func getConfigAuthToken() kp.ClientConfig {
 	return kp.ClientConfig{
-		BaseURL:       kp.DefaultBaseURL,
+		BaseURL:       kp.DefaultBaseQSCURL,
 		Authorization: "",
 		InstanceID:    "",
 		Verbose:       kp.VerboseFailOnly,
@@ -35,7 +41,7 @@ func getConfigAuthToken() kp.ClientConfig {
 
 func getConfigAPIKey() kp.ClientConfig {
 	return kp.ClientConfig{
-		BaseURL:    kp.DefaultBaseURL,
+		BaseURL:    kp.DefaultBaseQSCURL,
 		APIKey:     "",
 		TokenURL:   kp.DefaultTokenURL,
 		InstanceID: "",
@@ -155,10 +161,11 @@ func rootKeyOperations(api *kp.API) {
 }
 
 func main() {
-	options := getConfigAPIKey()
-	api, err := kp.New(options, kp.DefaultTransport())
+	options := getConfigAuthToken()
+	var l kp.Logger
+	api, err := kp.NewWithQSC(options, kp.DefaultTransport(), l, getQSCConfig())
 	if err != nil {
-		fmt.Println("Error creating kp client")
+		fmt.Println("Error creating kp client with QSC config")
 		return
 	}
 

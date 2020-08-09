@@ -31,12 +31,17 @@ import (
 //
 func NewTestClientConfig() ClientConfig {
 	return ClientConfig{
-		BaseURL:     "http://www.google.com/",
-		InstanceID:  "test instance id",
-		APIKey:      "test api key",
-		TokenURL:    "https://iam.cloud.ibm.com/oidc/token",
-		AlgorithmID: "kyber768",
-		Verbose:     3,
+		BaseURL:    "http://www.google.com/",
+		InstanceID: "test instance id",
+		APIKey:     "test api key",
+		TokenURL:   "https://iam.cloud.ibm.com/oidc/token",
+		Verbose:    3,
+	}
+}
+
+func getTestQSCConfig() ClientQSCConfig {
+	return ClientQSCConfig{
+		AlgorithmID: KP_QSC_ALGO_KYBER512,
 	}
 }
 
@@ -133,7 +138,7 @@ func TestCurl(t *testing.T) {
 			"Curl bad response data",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -157,7 +162,7 @@ func TestCurl(t *testing.T) {
 			"Curl Invalid URL",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 				req, err := testKpCli.newRequest("GET", "", nil)
@@ -175,8 +180,9 @@ func TestCurl(t *testing.T) {
 			"Curl invalid algorithm",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
-				tconfig.AlgorithmID = "kyber123"
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				tQscConfig := getTestQSCConfig()
+				tQscConfig.AlgorithmID = "kyber123"
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, tQscConfig)
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -200,7 +206,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -223,8 +229,9 @@ func TestCurl(t *testing.T) {
 			"curl no algorithm set",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
-				tconfig.AlgorithmID = ""
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				tQscConfig := getTestQSCConfig()
+				tQscConfig.AlgorithmID = ""
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, tQscConfig)
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -248,7 +255,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -272,7 +279,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -296,7 +303,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -320,7 +327,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -344,7 +351,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -368,7 +375,7 @@ func TestCurl(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
@@ -393,7 +400,7 @@ func TestCurl(t *testing.T) {
 				tconfig := NewTestClientConfig()
 				tconfig.Timeout = 10
 
-				testKpCli, err := NewWithLogger(tconfig, DefaultTransport(), l)
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, getTestQSCConfig())
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 				RetryMax = 3
@@ -410,6 +417,40 @@ func TestCurl(t *testing.T) {
 				_, err = testKpCli.do(ctx, req, &testKeys)
 				assert.Error(t, err)
 
+				return nil
+			},
+		},
+		{
+			"Curl nil request",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfig()
+				tQscConfig := getTestQSCConfig()
+				tQscConfig.AlgorithmID = "kyber123"
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, tQscConfig)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				_, err = tQscConfig.processRequest(context.Background(), testKpCli, nil)
+				assert.Error(t, err)
+				return nil
+			},
+		},
+		{
+			"Curl nil qsc config",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfig()
+				tQscConfig := getTestQSCConfig()
+				tQscConfig.AlgorithmID = "kyber123"
+				testKpCli, err := NewWithQSC(tconfig, DefaultTransport(), l, nil)
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				req, err := testKpCli.newRequest("GET", "", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+
+				_, err = tQscConfig.processRequest(context.Background(), testKpCli, req)
+				assert.Error(t, err)
 				return nil
 			},
 		},

@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	rhttp "github.com/hashicorp/go-retryablehttp"
 
 	"github.com/IBM/keyprotect-go-client/iam"
 )
@@ -55,6 +56,11 @@ const (
 	defaultTimeout            = 30 // in seconds.
 )
 
+type QSCConfigInfo interface {
+	get_algoID() string
+	processRequest(context.Context, *Client, *http.Request) (*http.Response, error)
+}
+
 // ClientConfig ...
 type ClientConfig struct {
 	BaseURL       string
@@ -64,7 +70,6 @@ type ClientConfig struct {
 	InstanceID    string  // The IBM Cloud (Bluemix) instance ID that identifies your Key Protect service instance.
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
-	AlgorithmID   string  // Algorithm ID for the QSC (quantum crypto safe), ignore if used with no tags. Only used when built with `quantum` tags
 }
 
 var (
@@ -93,13 +98,13 @@ type API = Client
 // Client holds configuration and auth information to interact with KeyProtect.
 // It is expected that one of these is created per KeyProtect service instance/credential pair.
 type Client struct {
-	URL        *url.URL
-	HttpClient http.Client
-	Dump       Dump
-	Config     ClientConfig
-	Logger     Logger
-
+	URL         *url.URL
+	HttpClient  http.Client
+	Dump        Dump
+	Config      ClientConfig
+	Logger      Logger
 	tokenSource iam.TokenSource
+	QSCConfig   QSCConfigInfo
 }
 
 // New creates and returns a Client without logging.
@@ -110,6 +115,10 @@ func New(config ClientConfig, transport http.RoundTripper) (*Client, error) {
 // NewWithLogger creates and returns a Client with logging.  The
 // error value will be non-nil if the config is invalid.
 func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logger) (*Client, error) {
+	return NewWithQSC(config, transport, logger, nil)
+}
+
+func NewWithQSC(config ClientConfig, transport http.RoundTripper, logger Logger, qscConfig QSCConfigInfo) (*Client, error) {
 
 	if transport == nil {
 		transport = DefaultTransport()
@@ -151,6 +160,7 @@ func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logg
 		Config:      config,
 		Logger:      logger,
 		tokenSource: ts,
+		QSCConfig:   qscConfig,
 	}
 	return c, nil
 }
@@ -247,9 +257,16 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("correlation-id", corrId)
 	var response *http.Response
 
-	response, err = processRequest(ctx, c, req)
-	if err != nil {
-		return nil, &URLError{err, corrId}
+	if c.QSCConfig != nil {
+		response, err = c.QSCConfig.processRequest(ctx, c, req)
+		if err != nil {
+			return nil, &URLError{err, corrId}
+		}
+	} else {
+		response, err = processRequest(ctx, c, req)
+		if err != nil {
+			return nil, &URLError{err, corrId}
+		}
 	}
 
 	defer response.Body.Close()
@@ -298,6 +315,54 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	}
 
 	return response, nil
+}
+
+func processRequest(ctx context.Context, c *Client, req *http.Request) (*http.Response, error) {
+
+	// set request up to be retryable on 500-level http codes and client errors
+	retryableClient := getRetryableClient(&c.HttpClient)
+	retryableRequest, err := rhttp.FromRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+// getRetryableClient returns a fully configured retryable HTTP client
+func getRetryableClient(client *http.Client) *rhttp.Client {
+	// build base client with the library defaults and override as neeeded
+	rc := rhttp.NewClient()
+	rc.Logger = nil
+	rc.HTTPClient = client
+	rc.RetryWaitMax = RetryWaitMax
+	rc.RetryMax = RetryMax
+	rc.CheckRetry = kpCheckRetry
+	rc.ErrorHandler = rhttp.PassthroughErrorHandler
+	return rc
+}
+
+// kpCheckRetry will retry on connection errors, server errors, and 429s (rate limit)
+func kpCheckRetry(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	// do not retry on context.Canceled or context.DeadlineExceeded
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+
+	if err != nil {
+		return true, err
+	}
+	// Retry on connection errors, 500+ errors (except 501 - not implemented), and 429 - too many requests
+	if resp.StatusCode == 0 || resp.StatusCode == 429 || (resp.StatusCode >= 500 && resp.StatusCode != 501) {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 // ContextKey provides a type to auth context keys.

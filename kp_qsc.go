@@ -33,29 +33,62 @@ const (
 	DefaultBaseQSCURL = "https://qsc-stage.kms.test.cloud.ibm.com"
 )
 
-func processRequest(ctx context.Context, c *Client, req *http.Request) (*http.Response, error) {
+type QSCAlgorithmType string
 
-	algorithmID := c.Config.AlgorithmID
+const (
+	KP_QSC_ALGO_KYBER512       QSCAlgorithmType = "kyber512"
+	KP_QSC_ALGO_KYBER768       QSCAlgorithmType = "kyber768"
+	KP_QSC_ALGO_KYBER1024      QSCAlgorithmType = "kyber1024"
+	KP_QSC_ALGO_p256_KYBER512  QSCAlgorithmType = "p256_kyber512"
+	KP_QSC_ALGO_p384_KYBER768  QSCAlgorithmType = "p384_kyber768"
+	KP_QSC_ALGO_p521_KYBER1024 QSCAlgorithmType = "p521_kyber1024"
+)
+
+// Client QSC Config...
+type ClientQSCConfig struct {
+	AlgorithmID QSCAlgorithmType // Algorithm ID for the QSC (quantum crypto safe), ignore if used with no tags. Only used when built with `quantum` tags
+}
+
+func (qscC ClientQSCConfig) get_algoID() string {
+	return string(qscC.AlgorithmID)
+}
+
+func supportedAlgoID(algoID QSCAlgorithmType) bool {
+
+	if !(algoID == KP_QSC_ALGO_KYBER512 || algoID == KP_QSC_ALGO_KYBER768 || algoID == KP_QSC_ALGO_KYBER1024 ||
+		algoID == KP_QSC_ALGO_p256_KYBER512 || algoID == KP_QSC_ALGO_p384_KYBER768 || algoID == KP_QSC_ALGO_p521_KYBER1024) {
+		return false
+	}
+	return true
+}
+
+func (qscC ClientQSCConfig) processRequest(ctx context.Context, c *Client, req *http.Request) (*http.Response, error) {
+
+	if c == nil || req == nil {
+		fmt.Println("Internal request processing error. Either client or request is nil")
+		return nil, errors.New("Internal request processing error. Either client or request is nil")
+	}
+
+	if c.QSCConfig == nil {
+		fmt.Println("Qsc config not set")
+		return nil, errors.New("QSC Config not set")
+	}
+
+	algorithmID := c.QSCConfig.get_algoID()
 
 	if algorithmID == "" {
 		// Default it
-		algorithmID = "kyber768"
+		algorithmID = string(KP_QSC_ALGO_KYBER768)
+	} else if !supportedAlgoID(QSCAlgorithmType(algorithmID)) {
+		c.Logger.Info("Unsupported Algorithm ID provided. Please refer to the docs for the list of supported algorithms. AlgorithmID Provided:", algorithmID)
+		return nil, errors.New("Unsupported Algorithm ID provided. Please refer to the docs for the list of supported algorithms")
 	}
 
-	response, err := curlPerformWithRetry(req, c, algorithmID)
-	if err != nil {
-		return nil, err
-	}
-
-	return response, nil
-}
-
-func curlPerformWithRetry(req *http.Request, c *Client, algoID string) (*http.Response, error) {
 	easy := curl.EasyInit()
 	defer easy.Cleanup()
 
 	easy.Setopt(curl.OPT_SSLVERSION, curl.SSLVERSION_TLSv1_3)
-	easy.Setopt(curl.OPT_CURVES, algoID)
+	easy.Setopt(curl.OPT_CURVES, algorithmID)
 
 	if c.Config.Verbose > 0 {
 		easy.Setopt(curl.OPT_VERBOSE, true)

@@ -7,12 +7,12 @@ keyprotect-go-client is a Go client library for interacting with the IBM KeyProt
 
 * [Questions / Support](#questions--support)
 * [Usage](#usage)
-  * [Usage with classic endpoint](#Usage-with-classic-endpoint)
-  * [Usage with quantum safe crypto endpoint](Usage-with-quantum-safe-crypto-endpoint)
   * [Migrating](#migrating)
   * [Authentication](#authentication)
   * [Finding Instance UUIDs](#finding-a-keyprotect-service-instances-uuid)
   * [Examples](#examples)
+* [Usage With Quantum Safe Crypto](#usage-with-quantum-safe-crypto)
+  * [Examples With QSC](#examples-with-qsc)
 * [Contributing](/CONTRIBUTING.md)
 
 ## Questions / Support
@@ -24,8 +24,6 @@ There are many channels for asking questions about KeyProtect and this client.
 - If you work at IBM and have access to the internal Slack, you can join the `#key-protect` channel and ask there.
 
 ## Usage
-
-### Usage with classic endpoint
 
 This client expects that you have an existing IBM Cloud Key Protect Service Instance. To get started, visit the [IBM KeyProtect Catalog Page](https://cloud.ibm.com/catalog/services/key-protect).
 
@@ -46,43 +44,6 @@ client := kp.New(cc, kp.DefaultTransport())
 // List keys in your KeyProtect instance
 keys, err := client.GetKeys(context.Background(), 0, 0)
 ```
-
-### Usage with quantum safe crypto endpoint
-
-IBM Cloud Key Protect Service supports quantum safe crypto (QSC) endpoint as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
-
-**Note**: Supported on Linux platform only at this time. Other platform support will be added in future.
-
-Process to build client with QSC support:
-
-1. Install oqs curl and openssl library compiled with QSC support. This installs needed libraries in */opt/oqssa/* directory.
-    1. dpkg -i qsc/oqs-curl-7.69.1_amd64.deb
-    1. dpkg -i qsc/oqs-openssl-1.1.1_amd64.deb
-1. Update env PATH to add /opt/oqssa directory
-    1. export PATH=/opt/oqssa/:$PATH
-1. Use 'quantum' tag to build client
-    1. CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig go build --tags=quantum
-
-
-Build a client with QSC config `ClientConfig` and `New`, then use the client to do some operations.
-```go
-import "github.com/IBM/keyprotect-go-client"
-
-// Use your IAM API Key and your KeyProtect Service Instance GUID/UUID to create a ClientConfig
-cc := kp.ClientConfig{
-  BaseURL:       kp.DefaultBaseQSCURL,
-  APIKey:        "......",
-  InstanceID:    "1234abcd-906d-438a-8a68-deadbeef1a2b3",
-  AlgorithmID:   "kyber768",
-}
-
-// Build a new client from the config
-client := kp.New(cc, kp.DefaultTransport())
-
-// List keys in your KeyProtect instance
-keys, err := client.GetKeys(context.Background(), 0, 0)
-```
-
 
 ### Migrating
 
@@ -157,14 +118,14 @@ crkID := key.ID
 ### Wrapping and Unwrapping a DEK using a specific Root Key.
 
 ```go
-myDEK := []byte{"thisisadataencryptionkey"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
 // Do some encryption with myDEK
 // Wrap the DEK so we can safely store it
 wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, nil)
 
 
 // Unwrap the DEK
-dek, err := client.UnWrap(ctx, crkID, wrappedDEK, nil)
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, nil)
 // Do some encryption/decryption using the DEK
 // Discard the DEK
 dek = nil
@@ -176,7 +137,7 @@ each element up to 255 chars.  For example:
 
 ```go
 myAAD := []string{"First aad string", "second aad string", "third aad string"}
-myDEK := []byte{"thisisadataencryptionkey"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
 // Do some encryption with myDEK
 // Wrap the DEK so we can safely store it
 wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)
@@ -184,6 +145,123 @@ wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)
 
 // Unwrap the DEK
 dek, err := client.UnWrap(ctx, crkID, wrappedDEK, &myAAD)
+// Do some encryption/decryption using the DEK
+// Discard the DEK
+dek = nil
+```
+
+Have key protect create a DEK for you:
+
+```go
+dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, nil)
+// Do some encrypt/decrypt with the dek
+// Discard the DEK
+dek = nil
+
+// Save the wrapped DEK for later.  Use Unwrap to use it.
+```
+
+Can also specify AAD:
+
+```go
+myAAD := []string{"First aad string", "second aad string", "third aad string"}
+dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, &myAAD)
+// Do some encrypt/decrypt with the dek
+// Discard the DEK
+dek = nil
+
+// Save the wrapped DEK for later.  Call Unwrap to use it, make
+// sure to specify the same AAD.
+```
+
+
+# Usage With Quantum Safe Crypto
+
+IBM Cloud Key Protect Service supports quantum safe crypto (QSC) endpoint as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
+
+**Note**: Supported on Linux platform at this time. Other platform support will be added in future.
+
+Process to build client with QSC support:
+
+1. Install oqs curl and openssl library compiled with QSC support. This installs needed libraries in */opt/oqssa/* directory.
+    1. dpkg -i qsc/oqs-curl-7.69.1_amd64.deb
+    1. dpkg -i qsc/oqs-openssl-1.1.1_amd64.deb
+1. Update env PATH to add /opt/oqssa directory
+    1. export PATH=/opt/oqssa/:$PATH
+1. Use 'quantum' tag to build client
+    1. CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig go build --tags=quantum
+
+
+Build a client with QSC config and `New`, then use the client to do some operations.
+```go
+import "github.com/IBM/keyprotect-go-client"
+
+qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+}
+
+// Use your IAM API Key and your KeyProtect Service Instance GUID/UUID to create a ClientConfig
+cc := kp.ClientConfig{
+  BaseURL:       kp.DefaultBaseQSCURL,
+  APIKey:        "......",
+  InstanceID:    "1234abcd-906d-438a-8a68-deadbeef1a2b3",
+}
+var l kp.Logger
+
+// Build a new client from the config
+client, _ := kp.NewWithQSC(cc, kp.DefaultTransport(),l, qscConfig)
+
+// List keys in your KeyProtect instance
+keys, err := client.GetKeys(context.Background(), 0, 0)
+```
+
+## Examples With QSC
+
+Once client is created using QSC configuration, key operations are exactly same as with non-qsc endpoint.
+
+### Generating a root key (CRK) with QSC endpoint
+
+```go
+// Create a root key named MyRootKey with no expiration
+key, err := client.CreateRootKey(ctx, "MyRootKey", nil)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(key.ID, key.Name)
+
+crkID := key.ID
+```
+
+### Wrapping and Unwrapping a DEK using a specific Root Key.
+
+```go
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
+// Do some encryption with myDEK
+// Wrap the DEK so we can safely store it
+wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, nil)
+
+
+// Unwrap the DEK
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, nil)
+// Do some encryption/decryption using the DEK
+// Discard the DEK
+dek = nil
+```
+
+Note you can also pass additional authentication data (AAD) to wrap and unwrap calls
+to provide another level of protection for your DEK.  The AAD is a string array with 
+each element up to 255 chars.  For example:
+
+```go
+myAAD := []string{"First aad string", "second aad string", "third aad string"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
+// Do some encryption with myDEK
+// Wrap the DEK so we can safely store it
+wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)
+
+
+// Unwrap the DEK
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, &myAAD)
 // Do some encryption/decryption using the DEK
 // Discard the DEK
 dek = nil
