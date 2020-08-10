@@ -144,7 +144,7 @@ wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)
 
 
 // Unwrap the DEK
-dek, err := client.UnWrap(ctx, crkID, wrappedDEK, &myAAD)
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, &myAAD)
 // Do some encryption/decryption using the DEK
 // Discard the DEK
 dek = nil
