@@ -1,4 +1,4 @@
-// +build !quantum
+// +build quantum
 
 package kp_test
 
@@ -23,14 +23,16 @@ func NewClient() (*kp.Client, error) {
 	if apiKey == "" {
 		panic("IBMCLOUD_API_KEY was empty")
 	}
-
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
 	cc := kp.ClientConfig{
-		BaseURL:    "https://us-south.kms.cloud.ibm.com",
+		BaseURL:    kp.DefaultBaseQSCURL,
 		APIKey:     apiKey,
 		InstanceID: instanceId,
 	}
 
-	return kp.New(cc, kp.DefaultTransport())
+	return kp.NewWithQSC(cc, kp.DefaultTransport(), nil, qscConfig)
 }
 
 func Example() {

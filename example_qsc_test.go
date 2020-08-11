@@ -1,4 +1,4 @@
-// +build !quantum
+// +build quantum
 
 package kp_test
 
@@ -9,14 +9,19 @@ import (
 	kp "github.com/IBM/keyprotect-go-client"
 )
 
-func ExampleClient_CreateRootKey() {
-	client, _ := kp.New(
+func ExampleQSCClient_CreateRootKey() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 	ctx := context.Background()
 
@@ -24,18 +29,24 @@ func ExampleClient_CreateRootKey() {
 	if err != nil {
 		fmt.Println("Error while creating root key: ", err)
 	} else {
-		fmt.Println("New key created: ", *rootkey)
+		ffmt.Println("New key created: ", *rootkey)
 	}
+
 }
 
-func ExampleClient_WrapCreateDEK() {
-	client, _ := kp.New(
+func ExampleQSCClient_WrapCreateDEK() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
@@ -63,20 +74,27 @@ func ExampleClient_WrapCreateDEK() {
 		fmt.Println("DEK length was not 32 bytes (not a 256 bit key)")
 	}
 
-	fmt.Printf("Your WDEK is: %v\n", wrappedDek)
+	if len(wrappedDek) > 0 {
+		fmt.Printf("Your WDEK is: %v\n", string(wrappedDek))
+	}
 
 	// dek is your plaintext DEK, use it for encrypt/decrypt and throw it away
 	// wrappedDek is your WDEK, keep this and pass it to Unwrap to get back your DEK when you need it again
 }
 
-func ExampleClient_UnwrapV2() {
-	client, _ := kp.New(
+func ExampleQSCClient_UnwrapV2() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
@@ -117,14 +135,19 @@ func ExampleClient_UnwrapV2() {
 
 }
 
-func ExampleClient_CreateStandardKey() {
-	client, _ := kp.New(
+func ExampleQSCClient_CreateStandardKey() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 
 	fmt.Println("Creating standard key")
@@ -136,18 +159,23 @@ func ExampleClient_CreateStandardKey() {
 	}
 }
 
-func ExampleClient_GetKey() {
-	client, _ := kp.New(
+func ExampleQSCClient_GetKey() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
 
-	fmt.Println("Getting standard key")
+	fmt.Println("Getting key")
 	key, err := client.GetKey(context.Background(), keyId)
 	if err != nil {
 		fmt.Println("Get Key failed with error: ", err)
@@ -156,18 +184,23 @@ func ExampleClient_GetKey() {
 	}
 }
 
-func ExampleClient_DeleteKey() {
-	client, _ := kp.New(
+func ExampleQSCClient_DeleteKey() {
+	qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+	}
+	client, _ := kp.NewWithQSC(
 		kp.ClientConfig{
-			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
 			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
 		},
 		kp.DefaultTransport(),
+		nil,
+		qscConfig,
 	)
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
 
-	fmt.Println("Deleting standard key")
+	fmt.Println("Deleting key")
 	delKey, err := client.DeleteKey(context.Background(), keyId, kp.ReturnRepresentation)
 	if err != nil {
 		fmt.Println("Error while deleting: ", err)
