@@ -177,22 +177,34 @@ dek = nil
 
 # Usage With Quantum Safe Crypto
 
-IBM Cloud Key Protect Service supports quantum safe crypto (QSC) endpoint as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
+IBM Cloud Key Protect Service supports quantum safe crypto (QSC) configuration as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
 
-**Note**: Supported on Linux platform at this time. Other platform support will be added in future.
+**Note**: Pre-compiled package is supported on Ubuntu at this time. Other platform support will be added in future. Meanwhile to compile packages on other platforms visit documenation [link here]
 
-Process to build client with QSC support:
+Follow below steps or copy below commands to compile client with quantum config:
 
-1. Install oqs curl and openssl library compiled with QSC support. This installs needed libraries in */opt/oqssa/* directory.
-    1. dpkg -i qsc/oqs-curl-7.69.1_amd64.deb
-    1. dpkg -i qsc/oqs-openssl-1.1.1_amd64.deb
-1. Update env PATH to add /opt/oqssa directory
-    1. export PATH=/opt/oqssa/:$PATH
-1. Use 'quantum' tag to build client
-    1. CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig go build --tags=quantum
+1. Download debian package compiled with quantum configuration. For more information on the package visit [IBM oqssa repo](https://github.com/IBM/oqssa)
+  
+    curl https://api.github.com/repos/IBM/oqssa/releases/latest | grep "browser_download_url" | cut -d '"' -f 4 | wget -i -
+1. Install package. Package will downalod to /opt/oqssa directory:
+  
+    dpkg -i oqssa-0.1.0_amd64.deb
+1. Export path:
+  
+    export PATH=/opt/oqssa/:$PATH
+1. Compile client with --tags=quantum to use quantum configuration:
+
+    CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig LD_LIBRARY_PATH=/opt/oqssa/lib go test --tags quantum
+
+```
+curl https://api.github.com/repos/IBM/oqssa/releases/latest | grep "browser_download_url" | cut -d '"' -f 4 | wget -i -
+dpkg -i oqssa-0.1.0_amd64.deb
+export PATH=/opt/oqssa/:$PATH
+CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig LD_LIBRARY_PATH=/opt/oqssa/lib go test --tags quantum  
+```
 
 
-Build a client with QSC config and `New`, then use the client to do some operations.
+Build a client with QSC config and `NewWithLogger`, then use the client to do some operations.
 ```go
 import "github.com/IBM/keyprotect-go-client"
 
@@ -209,7 +221,7 @@ cc := kp.ClientConfig{
 var l kp.Logger
 
 // Build a new client from the config
-client, _ := kp.NewWithQSC(cc, kp.DefaultTransport(),l, qscConfig)
+client, _ := kp.NewWithLogger(cc, kp.DefaultTransport(),l, kp.WithQSC(qscConfig))
 
 // List keys in your KeyProtect instance
 keys, err := client.GetKeys(context.Background(), 0, 0)
