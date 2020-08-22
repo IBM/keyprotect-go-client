@@ -1,5 +1,3 @@
-// +build !quantum
-
 package kp_test
 
 import (

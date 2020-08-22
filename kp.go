@@ -58,7 +58,7 @@ const (
 )
 
 type QSCConfigInfo interface {
-	get_algoID() string
+	getAlgoID() string
 	processRequest(context.Context, *Client, *http.Request) (*http.Response, error)
 }
 
@@ -79,6 +79,9 @@ var (
 
 	// RetryMax is the max number of attempts to retry for failed HTTP requests
 	RetryMax = 4
+
+	//RetryWaitMax is the minimum time to wait between curl retries
+	RetryWaitMin = 500 * time.Millisecond
 )
 
 // DefaultTransport ...
@@ -108,6 +111,8 @@ type Client struct {
 	QSCConfig   QSCConfigInfo
 }
 
+type Option func(*Client)
+
 // New creates and returns a Client without logging.
 func New(config ClientConfig, transport http.RoundTripper) (*Client, error) {
 	return NewWithLogger(config, transport, nil)
@@ -115,11 +120,7 @@ func New(config ClientConfig, transport http.RoundTripper) (*Client, error) {
 
 // NewWithLogger creates and returns a Client with logging.  The
 // error value will be non-nil if the config is invalid.
-func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logger) (*Client, error) {
-	return NewWithQSC(config, transport, logger, nil)
-}
-
-func NewWithQSC(config ClientConfig, transport http.RoundTripper, logger Logger, qscConfig QSCConfigInfo) (*Client, error) {
+func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logger, opts ...Option) (*Client, error) {
 
 	if transport == nil {
 		transport = DefaultTransport()
@@ -161,9 +162,18 @@ func NewWithQSC(config ClientConfig, transport http.RoundTripper, logger Logger,
 		Config:      config,
 		Logger:      logger,
 		tokenSource: ts,
-		QSCConfig:   qscConfig,
+	}
+
+	for _, opt := range opts {
+		opt(c)
 	}
 	return c, nil
+}
+
+func WithQSC(qscConfig QSCConfigInfo) Option {
+	return func(c *Client) {
+		c.QSCConfig = qscConfig
+	}
 }
 
 func (c *Client) newRequest(method, path string, body interface{}) (*http.Request, error) {
@@ -258,16 +268,13 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("correlation-id", corrId)
 	var response *http.Response
 
+	requester := processRequest
 	if c.QSCConfig != nil {
-		response, err = c.QSCConfig.processRequest(ctx, c, req)
-		if err != nil {
-			return nil, &URLError{err, corrId}
-		}
-	} else {
-		response, err = processRequest(ctx, c, req)
-		if err != nil {
-			return nil, &URLError{err, corrId}
-		}
+		requester = c.QSCConfig.processRequest
+	}
+	response, err = requester(ctx, c, req)
+	if err != nil {
+		return nil, &URLError{err, corrId}
 	}
 
 	defer response.Body.Close()

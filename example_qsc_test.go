@@ -13,7 +13,7 @@ func ExampleQSCClient_CreateRootKey() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -21,7 +21,7 @@ func ExampleQSCClient_CreateRootKey() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 	ctx := context.Background()
 
@@ -29,16 +29,15 @@ func ExampleQSCClient_CreateRootKey() {
 	if err != nil {
 		fmt.Println("Error while creating root key: ", err)
 	} else {
-		ffmt.Println("New key created: ", *rootkey)
+		fmt.Println("New root key created: ", *rootkey)
 	}
-
 }
 
 func ExampleQSCClient_WrapCreateDEK() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -46,7 +45,7 @@ func ExampleQSCClient_WrapCreateDEK() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
@@ -86,7 +85,7 @@ func ExampleQSCClient_UnwrapV2() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -94,7 +93,7 @@ func ExampleQSCClient_UnwrapV2() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
@@ -139,7 +138,7 @@ func ExampleQSCClient_CreateStandardKey() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -147,15 +146,14 @@ func ExampleQSCClient_CreateStandardKey() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 
-	fmt.Println("Creating standard key")
 	rootkey, err := client.CreateStandardKey(context.Background(), "mynewstandardkey", nil)
 	if err != nil {
 		fmt.Println("Error while creating standard key: ", err)
 	} else {
-		fmt.Println("New key created: ", *rootkey)
+		fmt.Println("New standard key created: ", *rootkey)
 	}
 }
 
@@ -163,7 +161,7 @@ func ExampleQSCClient_GetKey() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -171,7 +169,7 @@ func ExampleQSCClient_GetKey() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
 
@@ -188,7 +186,7 @@ func ExampleQSCClient_DeleteKey() {
 	qscConfig := kp.ClientQSCConfig{
 		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
 	}
-	client, _ := kp.NewWithQSC(
+	client, _ := kp.NewWithLogger(
 		kp.ClientConfig{
 			BaseURL:    kp.DefaultBaseQSCURL,
 			APIKey:     "notARealApiKey",
@@ -196,11 +194,11 @@ func ExampleQSCClient_DeleteKey() {
 		},
 		kp.DefaultTransport(),
 		nil,
-		qscConfig,
+		kp.WithQSC(qscConfig),
 	)
 	keyId := "1234abcd-abcd-asdf-9eaa-deadbeefabcd"
 
-	fmt.Println("Deleting key")
+	fmt.Println("Deleting standard key")
 	delKey, err := client.DeleteKey(context.Background(), keyId, kp.ReturnRepresentation)
 	if err != nil {
 		fmt.Println("Error while deleting: ", err)

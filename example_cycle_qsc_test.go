@@ -10,7 +10,7 @@ import (
 	kp "github.com/IBM/keyprotect-go-client"
 )
 
-func NewClient() (*kp.Client, error) {
+func NewQSCClient() (*kp.Client, error) {
 	instanceId, ok := os.LookupEnv("KP_INSTANCE_ID")
 	if !ok {
 		panic("Must set KP_INSTANCE_ID")
@@ -32,10 +32,10 @@ func NewClient() (*kp.Client, error) {
 		InstanceID: instanceId,
 	}
 
-	return kp.NewWithQSC(cc, kp.DefaultTransport(), nil, qscConfig)
+	return kp.NewWithLogger(cc, kp.DefaultTransport(), nil, kp.WithQSC(qscConfig))
 }
 
-func Example() {
+func ExampleQSC() {
 	c, _ := NewClient()
 
 	ctx := context.Background()

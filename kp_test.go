@@ -184,22 +184,6 @@ func TestKeys(t *testing.T) {
 			},
 		},
 		{
-			"New API with QSC",
-			func(t *testing.T, _ *API, _ context.Context) error {
-				var l Logger
-				testapi, err := NewWithQSC(NewTestClientConfig(), DefaultTransport(), l, nil)
-				assert.NotNil(t, testapi)
-
-				// hard-to-reach bits:
-				c := NewTestClientConfig()
-				c.BaseURL = ":"
-				_, err = NewWithQSC(c, nil, l, nil)
-				assert.EqualError(t, err, "parse :/api/v2/: missing protocol scheme")
-
-				return nil
-			},
-		},
-		{
 			"Timeout",
 			func(t *testing.T, _ *API, _ context.Context) error {
 				cfg := NewTestClientConfig()

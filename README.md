@@ -217,7 +217,7 @@ keys, err := client.GetKeys(context.Background(), 0, 0)
 
 ## Examples With QSC
 
-Once client is created using QSC configuration, key operations are exactly same as with non-qsc endpoint.
+Once client is created using QSC configuration, key operations are exactly same as with non-qsc configuration.
 
 ### Generating a root key (CRK) with QSC endpoint
 
