@@ -80,12 +80,12 @@ func (qscC ClientQSCConfig) processRequest(ctx context.Context, c *Client, req *
 		return nil, errors.New("Internal request processing error. Request is nil")
 	}
 
-	if c.QSCConfig == nil {
+	if c.qscConfig == nil {
 		c.Logger.Info("Qsc config not set")
 		return nil, errors.New("QSC Config not set")
 	}
 
-	algorithmID := c.QSCConfig.getAlgoID()
+	algorithmID := c.qscConfig.getAlgoID()
 
 	if algorithmID == "" {
 		// Default it
@@ -212,7 +212,8 @@ func (qscC ClientQSCConfig) processRequest(ctx context.Context, c *Client, req *
 		curlstatusCode = curlCode.(int)
 		//c.Logger.Info("CURL statusCode: ", curlstatusCode)
 		// Retry on connection errors, 500+ errors (except 501 - not implemented), and 429 - too many requests
-		if !(curlstatusCode == 0 || curlstatusCode == 429 || (curlstatusCode >= 500 && curlstatusCode != 501)) {
+		if curlstatusCode != 0 && curlstatusCode != http.StatusTooManyRequests &&
+			(curlstatusCode < http.StatusInternalServerError || curlstatusCode == http.StatusNotImplemented) {
 			break
 		}
 

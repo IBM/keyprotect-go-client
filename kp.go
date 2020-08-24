@@ -80,7 +80,7 @@ var (
 	// RetryMax is the max number of attempts to retry for failed HTTP requests
 	RetryMax = 4
 
-	//RetryWaitMax is the minimum time to wait between curl retries
+	//RetryWaitMax is the minimum time to wait between curl retries (only applies to QSC clients)
 	RetryWaitMin = 500 * time.Millisecond
 )
 
@@ -108,14 +108,14 @@ type Client struct {
 	Config      ClientConfig
 	Logger      Logger
 	tokenSource iam.TokenSource
-	QSCConfig   QSCConfigInfo
+	qscConfig   QSCConfigInfo
 }
 
 type Option func(*Client)
 
 // New creates and returns a Client without logging.
-func New(config ClientConfig, transport http.RoundTripper) (*Client, error) {
-	return NewWithLogger(config, transport, nil)
+func New(config ClientConfig, transport http.RoundTripper, opts ...Option) (*Client, error) {
+	return NewWithLogger(config, transport, nil, opts...)
 }
 
 // NewWithLogger creates and returns a Client with logging.  The
@@ -172,7 +172,7 @@ func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logg
 
 func WithQSC(qscConfig QSCConfigInfo) Option {
 	return func(c *Client) {
-		c.QSCConfig = qscConfig
+		c.qscConfig = qscConfig
 	}
 }
 
@@ -269,8 +269,8 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	var response *http.Response
 
 	requester := processRequest
-	if c.QSCConfig != nil {
-		requester = c.QSCConfig.processRequest
+	if c.qscConfig != nil {
+		requester = c.qscConfig.processRequest
 	}
 	response, err = requester(ctx, c, req)
 	if err != nil {

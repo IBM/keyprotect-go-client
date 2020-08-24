@@ -227,6 +227,30 @@ func TestCurl(t *testing.T) {
 			},
 		},
 		{
+			"curl valid algorithm with New method",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				tconfig := NewTestClientConfig()
+
+				testKpCli, err := New(tconfig, DefaultTransport(), WithQSC(getTestQSCConfig()))
+				assert.NotNil(t, testKpCli)
+				assert.NoError(t, err)
+
+				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				assert.NoError(t, err)
+				testKpCli.URL = u
+
+				req, err := testKpCli.newRequest("GET", "/_version", nil)
+				assert.NoError(t, err)
+				assert.NotNil(t, req)
+				MockAuth()
+
+				_, err = testKpCli.do(ctx, req, &testKeys)
+				assert.NoError(t, err)
+
+				return nil
+			},
+		},
+		{
 			"curl no algorithm set",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				tconfig := NewTestClientConfig()

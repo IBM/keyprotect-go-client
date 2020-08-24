@@ -150,7 +150,7 @@ dek, err := client.Unwrap(ctx, crkID, wrappedDEK, &myAAD)
 dek = nil
 ```
 
-Have key protect create a DEK for you:
+Have key Protect create a DEK for you:
 
 ```go
 dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, nil)
@@ -179,7 +179,7 @@ dek = nil
 
 IBM Cloud Key Protect Service supports quantum safe crypto (QSC) configuration as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
 
-**Note**: Pre-compiled package is supported on Ubuntu at this time. Other platform support will be added in future. Meanwhile to compile packages on other platforms visit documenation [link here]
+**Note**: Pre-compiled package is supported on Ubuntu at this time. Other platform support will be added in future. Meanwhile to compile packages on other platforms visit documentaion [link here]
 
 Follow below steps or copy below commands to compile client with quantum config:
 
