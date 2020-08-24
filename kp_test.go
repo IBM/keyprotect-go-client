@@ -178,7 +178,7 @@ func TestKeys(t *testing.T) {
 				c := NewTestClientConfig()
 				c.BaseURL = ":"
 				_, err = NewWithLogger(c, nil, l)
-				assert.EqualError(t, err, "parse :/api/v2/: missing protocol scheme")
+				assert.Contains(t, err.Error(), "missing protocol scheme")
 
 				return nil
 			},

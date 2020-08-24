@@ -75,9 +75,9 @@ keys, err := api.GetKeys(ctx, 0, 0)
 
 For information on IAM API Keys and tokens please refer to the [IAM docs](https://cloud.ibm.com/docs/iam?topic=iam-manapikey)
 
-## Finding a KeyProtect Service Instance's UUID
+## Finding a Key Protect Service Instance's UUID
 
-The client requires a valid UUID that identifies your KeyProtect Service Instance to be able to interact with your key data in the instance. An instance is somewhat like a folder or directory of keys; you can have many of them per account, but the keys they contain are separate and cannot be shared between instances.
+The client requires a valid UUID that identifies your Key Protect Service Instance to be able to interact with your key data in the instance. An instance is somewhat like a folder or directory of keys; you can have many of them per account, but the keys they contain are separate and cannot be shared between instances.
 
 The [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) can be used to find the UUID for your KeyProtect instance.
 
@@ -150,7 +150,7 @@ dek, err := client.Unwrap(ctx, crkID, wrappedDEK, &myAAD)
 dek = nil
 ```
 
-Have key Protect create a DEK for you:
+Have Key Protect create a DEK for you:
 
 ```go
 dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, nil)
