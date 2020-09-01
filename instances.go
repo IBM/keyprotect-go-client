@@ -50,9 +50,12 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork string   `json:"allowed_network,omitempty"`
-	AllowedIP      []string `json:"allowed_ip, omitempty"`
+	AllowedNetwork string      `json:"allowed_network,omitempty"`
+	AllowedIP      IPAddresses `json:"allowed_ip,omitempty"`
 }
+
+// IPAddresses ...
+type IPAddresses []string
 
 // InstancePolicies represents a collection of Policies associated with Key Protect instances.
 type InstancePolicies struct {
