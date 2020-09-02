@@ -197,16 +197,16 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 
 // SetAllowedIPInstancePolices updates the allowed IP instance policy details associated with an instance.
 // For more information can refet to the Key Protect docs in the link below:
-// <KP link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-allowed-ip
 func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, allowedIPs []string) error {
 	policy := InstancePolicy{
 		PolicyType: AllowedIP,
 		PolicyData: PolicyData{
-			Enabled:    &enable,
-			Attributes: &Attributes{},
+			Enabled: &enable,
 		},
 	}
-	if len(allowedIPs) != 0 {
+	if enable && len(allowedIPs) > 0 {
+		policy.PolicyData.Attributes = &Attributes{}
 		policy.PolicyData.Attributes.AllowedIP = allowedIPs
 	}
 
