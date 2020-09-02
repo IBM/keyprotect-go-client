@@ -100,7 +100,7 @@ func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*Instance
 
 // GetAllowedIPInstancePolicy retrieves the allowed IP instance policy details associated with the instance.
 // For more information can refer the Key Protect docs in the link below:
-//<KP Link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-allowed-ip
 func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
