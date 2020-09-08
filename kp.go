@@ -183,14 +183,14 @@ func (c *Client) newRequest(method, path string, body interface{}) (*http.Reques
 	return request, nil
 }
 
-type reason struct {
+type Reason struct {
 	Code     string
 	Message  string
 	Status   int
 	MoreInfo string
 }
 
-func (r reason) String() string {
+func (r Reason) String() string {
 	if r.MoreInfo != "" {
 		return fmt.Sprintf("%s: %s - FOR_MORE_INFO_REFER: %s", r.Code, r.Message, r.MoreInfo)
 	}
@@ -203,7 +203,7 @@ type Error struct {
 	Message       string   // error message from KeyProtect service
 	BodyContent   []byte   // raw body content if more inspection is needed
 	CorrelationID string   // string value of a UUID that uniquely identifies the request to KeyProtect
-	Reasons       []reason // collection of reason types containing detailed error messages
+	Reasons       []Reason // collection of reason types containing detailed error messages
 }
 
 // Error returns correlation id and error message string
@@ -268,7 +268,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 
 	type KPErrorMsg struct {
 		Message string `json:"errorMsg,omitempty"`
-		Reasons []reason
+		Reasons []Reason
 	}
 
 	type KPError struct {
@@ -283,7 +283,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	case http.StatusNoContent:
 	default:
 		errMessage := string(resBody)
-		var reasons []reason
+		var reasons []Reason
 
 		if strings.Contains(string(resBody), "errorMsg") {
 			kperr := KPError{}
