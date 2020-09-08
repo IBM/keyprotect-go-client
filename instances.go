@@ -33,6 +33,15 @@ const (
 
 	// Metrics defines the policy type as metrics
 	Metrics = "metrics"
+	// KeyAccess defines the policy type as key create import access
+	KeyAccess = "keyCreateImportAccess"
+
+	// KeyAccess policy attributes
+	CreateRootKey     = "CreateRootKey"
+	CreateStandardKey = "CreateStandardKey"
+	ImportRootKey     = "ImportRootKey"
+	ImportStandardKey = "ImportStandardKey"
+	EnforceToken      = "EnforceToken"
 )
 
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
@@ -54,8 +63,13 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork string      `json:"allowed_network,omitempty"`
-	AllowedIP      IPAddresses `json:"allowed_ip,omitempty"`
+	AllowedNetwork    string      `json:"allowed_network,omitempty"`
+	AllowedIP         IPAddresses `json:"allowed_ip,omitempty"`
+	CreateRootKey     *bool       `json:"create_root_key,omitempty"`
+	CreateStandardKey *bool       `json:"create_standard_key,omitempty"`
+	ImportRootKey     *bool       `json:"import_root_key,omitempty"`
+	ImportStandardKey *bool       `json:"import_standard_key,omitempty"`
+	EnforceToken      *bool       `json:"enforce_token,omitempty"`
 }
 
 // IPAddresses ...
@@ -109,6 +123,24 @@ func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolic
 	policyResponse := InstancePolicies{}
 
 	err := c.getInstancePolicy(ctx, AllowedIP, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+
+	return &policyResponse.Policies[0], nil
+}
+
+// GetKeyAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
+// For more information can refer the Key Protect docs in the link below:
+// <kp link>
+func (c *Client) GetKeyAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, KeyAccess, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +213,7 @@ func (c *Client) setInstancePolicy(ctx context.Context, policyType string, polic
 	v.Set("policy", policyType)
 	req.URL.RawQuery = v.Encode()
 
-	policiesResponse := Policies{}
+	policiesResponse := InstancePolicies{}
 	_, err = c.do(ctx, req, &policiesResponse)
 	if err != nil {
 		return err
@@ -300,6 +332,43 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 	}
 
 	err := c.setInstancePolicy(ctx, Metrics, policyRequest)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// SetKeyAccessInstancePolicy updates the key create import access policy details associated with an instance.
+// For more information can refer to the Key Protect docs in the link below:
+// <kp link>
+func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, attributes map[string]bool) error {
+	policy := InstancePolicy{
+		PolicyType: KeyAccess,
+		PolicyData: PolicyData{
+			Enabled: &enable,
+		},
+	}
+
+	if enable {
+		policy.PolicyData.Attributes = &Attributes{}
+		a := policy.PolicyData.Attributes
+		a.CreateRootKey = validateValue(attributes, CreateRootKey)
+		a.CreateStandardKey = validateValue(attributes, CreateStandardKey)
+		a.ImportRootKey = validateValue(attributes, ImportRootKey)
+		a.ImportStandardKey = validateValue(attributes, ImportStandardKey)
+		a.EnforceToken = validateValue(attributes, EnforceToken)
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	err := c.setInstancePolicy(ctx, KeyAccess, policyRequest)
 	if err != nil {
 		return err
 	}
