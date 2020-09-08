@@ -1736,6 +1736,63 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.Equal(t, ip.PolicyType, AllowedIP)
 	assert.True(t, *(ip.PolicyData.Enabled))
 
+	keyAccessResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"creationDate": "2020-09-02T21:12:26Z",
+			"createdBy": "1ab2c4d",
+			"updatedBy": "1ab2c4d",
+			"lastUpdated": "2020-09-08T18:31:37Z",
+			"policy_type": "keyCreateImportAccess",
+			"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"create_root_key": true,
+					"create_standard_key": false,
+					"import_root_key": true,
+					"import_standard_key": false,
+					"enforce_token": true
+				}
+			}
+		}]
+	}`)
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", "keyCreateImportAccess").
+		Reply(204)
+
+	attributes := map[string]bool{
+		CreateStandardKey: false,
+		ImportStandardKey: false,
+		EnforceToken:      true,
+	}
+
+	err = c.SetKeyAccessInstancePolicy(context.Background(), true, attributes)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", "keyCreateImportAccess").
+		Reply(200).
+		Body(bytes.NewReader(keyAccessResponse))
+
+	kip, err := c.GetKeyAccessInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, kip)
+	assert.Equal(t, kip.PolicyType, KeyAccess)
+	assert.True(t, *(kip.PolicyData.Enabled))
+	assert.True(t, *(kip.PolicyData.Attributes.CreateRootKey))
+	assert.False(t, *(kip.PolicyData.Attributes.CreateStandardKey))
+	assert.True(t, *(kip.PolicyData.Attributes.ImportRootKey))
+	assert.False(t, *(kip.PolicyData.Attributes.ImportStandardKey))
+	assert.True(t, *(kip.PolicyData.Attributes.EnforceToken))
+
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
