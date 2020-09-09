@@ -16,6 +16,7 @@ package kp
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 )
@@ -205,9 +206,17 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 			Enabled: &enable,
 		},
 	}
-	if enable && len(allowedIPs) > 0 {
-		policy.PolicyData.Attributes = &Attributes{}
-		policy.PolicyData.Attributes.AllowedIP = allowedIPs
+
+	// The IP address validation is performed by the key protect service.
+	if len(allowedIPs) != 0 {
+		if enable {
+			policy.PolicyData.Attributes = &Attributes{}
+			policy.PolicyData.Attributes.AllowedIP = allowedIPs
+		} else {
+			return fmt.Errorf("Provide IP Addresses only of the policy is being enabled")
+		}
+	} else {
+		return fmt.Errorf("Please provide atleast 1 IP Address")
 	}
 
 	policyRequest := InstancePolicies{
@@ -218,9 +227,6 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 		Policies: []InstancePolicy{policy},
 	}
 	err := c.setInstancePolicy(ctx, AllowedIP, policyRequest)
-	if err != nil {
-		return err
-	}
 
 	return err
 }
