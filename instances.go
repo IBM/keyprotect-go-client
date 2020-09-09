@@ -63,7 +63,7 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork    string      `json:"allowed_network,omitempty"`
+	AllowedNetwork    *string     `json:"allowed_network,omitempty"`
 	AllowedIP         IPAddresses `json:"allowed_ip,omitempty"`
 	CreateRootKey     *bool       `json:"create_root_key,omitempty"`
 	CreateStandardKey *bool       `json:"create_standard_key,omitempty"`
@@ -136,7 +136,7 @@ func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolic
 
 // GetKeyAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
 // For more information can refer the Key Protect docs in the link below:
-// <kp link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-key-creation-import
 func (c *Client) GetKeyAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
@@ -293,7 +293,7 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 		},
 	}
 	if networkType != "" {
-		policy.PolicyData.Attributes.AllowedNetwork = networkType
+		policy.PolicyData.Attributes.AllowedNetwork = &networkType
 	}
 
 	policyRequest := InstancePolicies{
@@ -341,8 +341,8 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 
 // SetKeyAccessInstancePolicy updates the key create import access policy details associated with an instance.
 // For more information can refer to the Key Protect docs in the link below:
-// <kp link>
-func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, attributes map[string]bool) error {
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-key-creation-import
+func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, attributes *Attributes) error {
 	policy := InstancePolicy{
 		PolicyType: KeyAccess,
 		PolicyData: PolicyData{
@@ -350,15 +350,7 @@ func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, at
 		},
 	}
 
-	if enable {
-		policy.PolicyData.Attributes = &Attributes{}
-		a := policy.PolicyData.Attributes
-		a.CreateRootKey = validateValue(attributes, CreateRootKey)
-		a.CreateStandardKey = validateValue(attributes, CreateStandardKey)
-		a.ImportRootKey = validateValue(attributes, ImportRootKey)
-		a.ImportStandardKey = validateValue(attributes, ImportStandardKey)
-		a.EnforceToken = validateValue(attributes, EnforceToken)
-	}
+	policy.PolicyData.Attributes = attributes
 
 	policyRequest := InstancePolicies{
 		Metadata: PoliciesMetadata{
