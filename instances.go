@@ -208,15 +208,13 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 	}
 
 	// The IP address validation is performed by the key protect service.
-	if len(allowedIPs) != 0 {
-		if enable {
-			policy.PolicyData.Attributes = &Attributes{}
-			policy.PolicyData.Attributes.AllowedIP = allowedIPs
-		} else {
-			return fmt.Errorf("Provide IP Addresses only of the policy is being enabled")
-		}
-	} else {
+	if enable && len(allowedIPs) != 0 {
+		policy.PolicyData.Attributes = &Attributes{}
+		policy.PolicyData.Attributes.AllowedIP = allowedIPs
+	} else if enable && len(allowedIPs) == 0 {
 		return fmt.Errorf("Please provide atleast 1 IP Address")
+	} else if !enable && len(allowedIPs) != 0 {
+		return fmt.Errorf("Provide IP Addresses only of the policy is being enabled")
 	}
 
 	policyRequest := InstancePolicies{
