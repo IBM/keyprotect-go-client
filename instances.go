@@ -16,6 +16,7 @@ package kp
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
 )
@@ -26,6 +27,9 @@ const (
 
 	//AllowedNetwork defines the policy type as allowed network
 	AllowedNetwork = "allowedNetwork"
+
+	//AllowedIP defines the polity type as allowed ip that are whitelisted
+	AllowedIP = "allowedIP"
 )
 
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
@@ -47,8 +51,12 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork string `json:"allowed_network,omitempty"`
+	AllowedNetwork string      `json:"allowed_network,omitempty"`
+	AllowedIP      IPAddresses `json:"allowed_ip,omitempty"`
 }
+
+// IPAddresses ...
+type IPAddresses []string
 
 // InstancePolicies represents a collection of Policies associated with Key Protect instances.
 type InstancePolicies struct {
@@ -80,6 +88,24 @@ func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*Instance
 	policyResponse := InstancePolicies{}
 
 	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+
+	return &policyResponse.Policies[0], nil
+}
+
+// GetAllowedIPInstancePolicy retrieves the allowed IP instance policy details associated with the instance.
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-allowed-ip
+func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, AllowedIP, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -166,6 +192,39 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	if err != nil {
 		return err
 	}
+
+	return err
+}
+
+// SetAllowedIPInstancePolices updates the allowed IP instance policy details associated with an instance.
+// For more information can refet to the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-allowed-ip
+func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, allowedIPs []string) error {
+	policy := InstancePolicy{
+		PolicyType: AllowedIP,
+		PolicyData: PolicyData{
+			Enabled: &enable,
+		},
+	}
+
+	// The IP address validation is performed by the key protect service.
+	if enable && len(allowedIPs) != 0 {
+		policy.PolicyData.Attributes = &Attributes{}
+		policy.PolicyData.Attributes.AllowedIP = allowedIPs
+	} else if enable && len(allowedIPs) == 0 {
+		return fmt.Errorf("Please provide at least 1 IP subnet specified with CIDR notation")
+	} else if !enable && len(allowedIPs) != 0 {
+		return fmt.Errorf("IP address list should only be provided if the policy is being enabled")
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+	err := c.setInstancePolicy(ctx, AllowedIP, policyRequest)
 
 	return err
 }
