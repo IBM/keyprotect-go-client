@@ -1680,12 +1680,12 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{"192.0.2.0/24", "203.0.113.0/32"})
 
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "IP address list should only be provided if the policy is being enabled")
+	assert.Equal(t, "IP address list should only be provided if the policy is being enabled", err.Error())
 
 	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{})
 
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "Please provide atleast 1 IP subnet specified with CIDR notation")
+	assert.Equal(t, "Please provide at least 1 IP subnet specified with CIDR notation", err.Error())
 }
 
 //TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
