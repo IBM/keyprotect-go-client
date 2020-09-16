@@ -1672,6 +1672,22 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
+// TestSetAllowedIPPolicyError tests the error scenarios while setting Allowed IP policy
+func TestSetAllowedIPPolicyError(t *testing.T) {
+	c, _, err := NewTestClient(t, nil)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{"192.0.2.0/24", "203.0.113.0/32"})
+
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "IP address list should only be provided if the policy is being enabled")
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{})
+
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "Please provide atleast 1 IP subnet specified with CIDR notation")
+}
+
 //TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
 func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 	defer gock.Off()
