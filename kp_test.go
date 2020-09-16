@@ -1689,6 +1689,7 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 
 }
 
+// TestGetPrivateEndpointPortNumber tests the method that retrieves the private endponint port number
 func TestGetPrivateEndpointPortNumber(t *testing.T) {
 	defer gock.Off()
 	response := []byte(`{
@@ -1714,8 +1715,26 @@ func TestGetPrivateEndpointPortNumber(t *testing.T) {
 	port, err := c.GetAllowedIPPrivateNetworkPort(context.Background())
 
 	assert.NoError(t, err)
-	assert.NotNil(t, port)
-	assert.Equal(t, port.PrivatePort, 15008)
+	assert.Equal(t, port, 15008)
+
+	// Error scenario
+	noPortResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.allowed_ip_metadata+json",
+			"collectionTotal": 1
+		},
+		"resources": []
+	}`)
+
+	gock.New("http://example.com").
+		Get("instance/allowed_ip_port").
+		Reply(200).
+		Body(bytes.NewReader(noPortResponse))
+
+	port, err = c.GetAllowedIPPrivateNetworkPort(context.Background())
+
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "No port number available. Please check the instance has an enabled allowedIP policy")
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
