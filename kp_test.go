@@ -1641,7 +1641,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 			"policy_data": {
 				"enabled": true,
 				"attributes": {
-					"allowed_ip": ["47.220.195.239/32", "12.184.193.84/30"]
+					"allowed_ip": ["192.0.2.0/24", "203.0.113.0/32"]
 				}
 			}
 		}]
@@ -1652,7 +1652,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		MatchParam("policy", "allowedIP").
 		Reply(204)
 
-	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{"21.54.123.68/30", "53.114.213.84/32"})
+	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{"192.0.2.0/24", "203.0.113.0/32"})
 
 	assert.NoError(t, err)
 
