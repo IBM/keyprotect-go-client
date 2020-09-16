@@ -1650,7 +1650,66 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.True(t, *(ap.PolicyData.Enabled))
 	assert.Equal(t, ap.PolicyData.Attributes.AllowedNetwork, "public-and-private")
 
+	// Set and get allowed ip instance policy
+	allowedIPPolicy := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"creationDate": "2020-09-01T17:28:28Z",
+			"createdBy": "IBMid-50BE1MTM26",
+			"updatedBy": "IBMid-50BE1MTM26",
+			"lastUpdated": "2020-09-02T17:20:21Z",
+			"policy_type": "allowedIP",
+			"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_ip": ["192.0.2.0/24", "203.0.113.0/32"]
+				}
+			}
+		}]
+	}`)
+
+	gock.New("http://example/com").
+		Put("/api/v2/instance/policies").
+		MatchParam("policy", "allowedIP").
+		Reply(204)
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{"192.0.2.0/24", "203.0.113.0/32"})
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/api/v2/instance/policies").
+		MatchParam("policy", "allowedIP").
+		Reply(200).
+		Body(bytes.NewReader(allowedIPPolicy))
+
+	ip, err := c.GetAllowedIPInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ip)
+	assert.Equal(t, ip.PolicyType, AllowedIP)
+	assert.True(t, *(ip.PolicyData.Enabled))
+
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAllowedIPPolicyError tests the error scenarios while setting Allowed IP policy
+func TestSetAllowedIPPolicyError(t *testing.T) {
+	c, _, err := NewTestClient(t, nil)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{"192.0.2.0/24", "203.0.113.0/32"})
+
+	assert.Error(t, err)
+	assert.Equal(t, "IP address list should only be provided if the policy is being enabled", err.Error())
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{})
+
+	assert.Error(t, err)
+	assert.Equal(t, "Please provide at least 1 IP subnet specified with CIDR notation", err.Error())
 }
 
 //TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
