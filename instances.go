@@ -337,7 +337,7 @@ func (c *Client) GetAllowedIPPrivateNetworkPort(ctx context.Context) (*PrivatePo
 	}
 
 	if len(portResponse.Ports) == 0 {
-		return nil, fmt.Errorf("No port number available")
+		return nil, fmt.Errorf("No port number available. Please check the instance has an enabled allowedIP policy")
 	}
 	return &portResponse.Ports[0], nil
 }
