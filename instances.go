@@ -212,7 +212,7 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 		policy.PolicyData.Attributes = &Attributes{}
 		policy.PolicyData.Attributes.AllowedIP = allowedIPs
 	} else if enable && len(allowedIPs) == 0 {
-		return fmt.Errorf("Please provide atleast 1 IP subnet specified with CIDR notation")
+		return fmt.Errorf("Please provide at least 1 IP subnet specified with CIDR notation")
 	} else if !enable && len(allowedIPs) != 0 {
 		return fmt.Errorf("IP address list should only be provided if the policy is being enabled")
 	}
