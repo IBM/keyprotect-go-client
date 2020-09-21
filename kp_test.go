@@ -1689,7 +1689,7 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 
 }
 
-// TestGetPrivateEndpointPortNumber tests the method that retrieves the private endponint port number
+// TestGetPrivateEndpointPortNumber tests the method that retrieves the private endpoint port number
 func TestGetPrivateEndpointPortNumber(t *testing.T) {
 	defer gock.Off()
 	response := []byte(`{
