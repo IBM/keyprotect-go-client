@@ -1710,6 +1710,57 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, "Please provide at least 1 IP subnet specified with CIDR notation", err.Error())
+
+}
+
+// TestGetPrivateEndpointPortNumber tests the method that retrieves the private endpoint port number
+func TestGetPrivateEndpointPortNumber(t *testing.T) {
+	defer gock.Off()
+	response := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.allowed_ip_metadata+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"private_endpoint_port": 15008
+		}]
+	}`)
+
+	gock.New("http://example.com").
+		Get("instance/allowed_ip_port").
+		Reply(200).
+		Body(bytes.NewReader(response))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	port, err := c.GetAllowedIPPrivateNetworkPort(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, port, 15008)
+
+	// Error scenario
+	noPortResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.allowed_ip_metadata+json",
+			"collectionTotal": 1
+		},
+		"resources": []
+	}`)
+
+	gock.New("http://example.com").
+		Get("instance/allowed_ip_port").
+		Reply(200).
+		Body(bytes.NewReader(noPortResponse))
+
+	port, err = c.GetAllowedIPPrivateNetworkPort(context.Background())
+
+	assert.Error(t, err)
+	assert.Equal(t, err.Error(), "No port number available. Please check the instance has an enabled allowedIP policy")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
 //TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
