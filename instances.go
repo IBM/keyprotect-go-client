@@ -308,3 +308,36 @@ func (c *Client) SetInstancePolicies(ctx context.Context, setDualAuth, dualAuthE
 
 	return nil
 }
+
+type portsMetadata struct {
+	CollectionType string `json:"collectionType"`
+	NumberOfPorts  int    `json:"collectionTotal"`
+}
+
+type portResponse struct {
+	Metadata portsMetadata `json:"metadata"`
+	Ports    []privatePort `json:"resources"`
+}
+type privatePort struct {
+	PrivatePort int `json:"private_endpoint_port,omitempty"`
+}
+
+// GetAllowedIPPrivateNetworkPort retrieves the private endpoint port assigned to allowed ip policy.
+func (c *Client) GetAllowedIPPrivateNetworkPort(ctx context.Context) (int, error) {
+	var portResponse portResponse
+
+	req, err := c.newRequest("GET", "instance/allowed_ip_port", nil)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = c.do(ctx, req, &portResponse)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(portResponse.Ports) == 0 {
+		return 0, fmt.Errorf("No port number available. Please check the instance has an enabled allowedIP policy")
+	}
+	return portResponse.Ports[0].PrivatePort, nil
+}
