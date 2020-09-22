@@ -40,7 +40,7 @@ type Policy struct {
 }
 
 type Rotation struct {
-	Interval int `json:"interval_month,omitempty"`
+	Interval int `json:"intervalMonth,omitempty"`
 }
 
 type DualAuth struct {
