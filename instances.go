@@ -51,8 +51,8 @@ type InstancePolicy struct {
 	CreatedAt  *time.Time `json:"creationDate,omitempty"`
 	UpdatedAt  *time.Time `json:"lastUpdated,omitempty"`
 	UpdatedBy  string     `json:"updatedBy,omitempty"`
-	PolicyType string     `json:"policy_type,omitempty"`
-	PolicyData PolicyData `json:"policy_data,omitempty" mapstructure:"policyData"`
+	PolicyType string     `json:"policyType,omitempty"`
+	PolicyData PolicyData `json:"policyData,omitempty" mapstructure:"policyData"`
 }
 
 // PolicyData contains the details of the policy type
@@ -63,13 +63,13 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork    *string     `json:"allowed_network,omitempty"`
-	AllowedIP         IPAddresses `json:"allowed_ip,omitempty"`
-	CreateRootKey     *bool       `json:"create_root_key,omitempty"`
-	CreateStandardKey *bool       `json:"create_standard_key,omitempty"`
-	ImportRootKey     *bool       `json:"import_root_key,omitempty"`
-	ImportStandardKey *bool       `json:"import_standard_key,omitempty"`
-	EnforceToken      *bool       `json:"enforce_token,omitempty"`
+	AllowedNetwork    *string     `json:"allowedNetwork,omitempty"`
+	AllowedIP         IPAddresses `json:"allowedIP,omitempty"`
+	CreateRootKey     *bool       `json:"createRootKey,omitempty"`
+	CreateStandardKey *bool       `json:"createStandardKey,omitempty"`
+	ImportRootKey     *bool       `json:"importRootKey,omitempty"`
+	ImportStandardKey *bool       `json:"importStandardKey,omitempty"`
+	EnforceToken      *bool       `json:"enforceToken,omitempty"`
 }
 
 // IPAddresses ...
@@ -136,7 +136,7 @@ func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolic
 
 // GetKeyAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
 // For more information can refer the Key Protect docs in the link below:
-// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-key-creation-import
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
 func (c *Client) GetKeyAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
@@ -341,7 +341,7 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 
 // SetKeyAccessInstancePolicy updates the key create import access policy details associated with an instance.
 // For more information can refer to the Key Protect docs in the link below:
-// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-key-creation-import
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
 func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, attributes *Attributes) error {
 	policy := InstancePolicy{
 		PolicyType: KeyAccess,
