@@ -21,6 +21,7 @@ import (
 	"time"
 )
 
+<<<<<<< HEAD
 const (
 	// DualAuthDelete defines the policy type as dual auth delete
 	DualAuthDelete = "dualAuthDelete"
@@ -44,6 +45,8 @@ const (
 	EnforceToken      = "EnforceToken"
 )
 
+=======
+>>>>>>> Updated some requested changes
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type InstancePolicy struct {
@@ -51,8 +54,8 @@ type InstancePolicy struct {
 	CreatedAt  *time.Time `json:"creationDate,omitempty"`
 	UpdatedAt  *time.Time `json:"lastUpdated,omitempty"`
 	UpdatedBy  string     `json:"updatedBy,omitempty"`
-	PolicyType string     `json:"policyType,omitempty"`
-	PolicyData PolicyData `json:"policyData,omitempty" mapstructure:"policyData"`
+	PolicyType string     `json:"policy_type,omitempty"`
+	PolicyData PolicyData `json:"policy_data,omitempty" mapstructure:"policyData"`
 }
 
 // PolicyData contains the details of the policy type
@@ -63,13 +66,13 @@ type PolicyData struct {
 
 // Attributes contains the detals of allowed network policy type
 type Attributes struct {
-	AllowedNetwork    *string     `json:"allowedNetwork,omitempty"`
-	AllowedIP         IPAddresses `json:"allowedIP,omitempty"`
-	CreateRootKey     *bool       `json:"createRootKey,omitempty"`
-	CreateStandardKey *bool       `json:"createStandardKey,omitempty"`
-	ImportRootKey     *bool       `json:"importRootKey,omitempty"`
-	ImportStandardKey *bool       `json:"importStandardKey,omitempty"`
-	EnforceToken      *bool       `json:"enforceToken,omitempty"`
+	AllowedNetwork    *string     `json:"allowed_network,omitempty"`
+	AllowedIP         IPAddresses `json:"allowed_ip,omitempty"`
+	CreateRootKey     *bool       `json:"create_root_key,omitempty"`
+	CreateStandardKey *bool       `json:"create_standard_key,omitempty"`
+	ImportRootKey     *bool       `json:"import_root_key,omitempty"`
+	ImportStandardKey *bool       `json:"import_standard_key,omitempty"`
+	EnforceToken      *bool       `json:"enforce_token,omitempty"`
 }
 
 // IPAddresses ...
@@ -87,7 +90,7 @@ type InstancePolicies struct {
 func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, DualAuthDelete, &policyResponse)
+	err := c.getInstancePolicy(ctx, "dualAuthDelete", &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +107,7 @@ func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy
 func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
+	err := c.getInstancePolicy(ctx, "allowedNetwork", &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +125,7 @@ func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*Instance
 func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, AllowedIP, &policyResponse)
+	err := c.getInstancePolicy(ctx, "allowedIP", &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +138,12 @@ func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolic
 }
 
 // GetKeyAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
-// For more information can refer the Key Protect docs in the link below:
+// For more information, Please refer the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
 func (c *Client) GetKeyAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, KeyAccess, &policyResponse)
+	err := c.getInstancePolicy(ctx, "keyCreateImportAccess", &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -163,9 +166,7 @@ func (c *Client) getInstancePolicy(ctx context.Context, policyType string, polic
 	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &policyResponse)
-	if err != nil {
-		return err
-	}
+
 	return err
 }
 
@@ -215,9 +216,7 @@ func (c *Client) setInstancePolicy(ctx context.Context, policyType string, polic
 
 	policiesResponse := InstancePolicies{}
 	_, err = c.do(ctx, req, &policiesResponse)
-	if err != nil {
-		return err
-	}
+
 	return err
 }
 
@@ -226,7 +225,7 @@ func (c *Client) setInstancePolicy(ctx context.Context, policyType string, polic
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
 func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) error {
 	policy := InstancePolicy{
-		PolicyType: DualAuthDelete,
+		PolicyType: "dualAuthDelete",
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
@@ -240,10 +239,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, DualAuthDelete, policyRequest)
-	if err != nil {
-		return err
-	}
+	err := c.setInstancePolicy(ctx, "dualAuthDelete", policyRequest)
 
 	return err
 }
@@ -252,8 +248,9 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 // For more information can refet to the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-allowed-ip
 func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, allowedIPs []string) error {
+
 	policy := InstancePolicy{
-		PolicyType: AllowedIP,
+		PolicyType: "allowedIP",
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
@@ -276,7 +273,7 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 		},
 		Policies: []InstancePolicy{policy},
 	}
-	err := c.setInstancePolicy(ctx, AllowedIP, policyRequest)
+	err := c.setInstancePolicy(ctx, "allowedIP", policyRequest)
 
 	return err
 }
@@ -286,7 +283,7 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
 func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable bool, networkType string) error {
 	policy := InstancePolicy{
-		PolicyType: AllowedNetwork,
+		PolicyType: "allowedNetwork",
 		PolicyData: PolicyData{
 			Enabled:    &enable,
 			Attributes: &Attributes{},
@@ -304,10 +301,7 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, AllowedNetwork, policyRequest)
-	if err != nil {
-		return err
-	}
+	err := c.setInstancePolicy(ctx, "allowedNetwork", policyRequest)
 
 	return err
 }
@@ -340,11 +334,19 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 }
 
 // SetKeyAccessInstancePolicy updates the key create import access policy details associated with an instance.
-// For more information can refer to the Key Protect docs in the link below:
+// For more information, please refer to the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
-func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, attributes *Attributes) error {
+func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, attributes *Attributes) error {
+	var enable bool
+
+	if attributes == nil {
+		enable = false
+	} else {
+		enable = true
+	}
+
 	policy := InstancePolicy{
-		PolicyType: KeyAccess,
+		PolicyType: "keyCreateImportAccess",
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
@@ -360,10 +362,7 @@ func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, enable bool, at
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, KeyAccess, policyRequest)
-	if err != nil {
-		return err
-	}
+	err := c.setInstancePolicy(ctx, "keyCreateImportAccess", policyRequest)
 
 	return err
 }
@@ -409,7 +408,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 
 	if policies.AllowedNetwork != nil {
 		policy := InstancePolicy{
-			PolicyType: AllowedNetwork,
+			PolicyType: "allowedNetwork",
 			PolicyData: PolicyData{
 				Enabled: &(policies.AllowedNetwork.Enabled),
 				Attributes: &Attributes{
@@ -459,11 +458,8 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 	}
 
 	_, err = c.do(ctx, req, &policyresponse)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }
 
 type portsMetadata struct {
