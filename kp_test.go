@@ -35,11 +35,6 @@ import (
 	gock "gopkg.in/h2non/gock.v1"
 )
 
-var (
-	trueBool  = true
-	falseBool = false
-)
-
 // NewTestClientConfig returns a new ClientConfig suitable for testing.
 //
 func NewTestClientConfig() ClientConfig {
@@ -1672,7 +1667,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, dap)
-	assert.Equal(t, dap.PolicyType, DualAuthDelete)
+	assert.Equal(t, dap.PolicyType, "dualAuthDelete")
 	assert.False(t, *(dap.PolicyData.Enabled))
 
 	gock.New("http://example.com").
@@ -1694,7 +1689,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
-	assert.Equal(t, ap.PolicyType, AllowedNetwork)
+	assert.Equal(t, ap.PolicyType, "allowedNetwork")
 	assert.True(t, *(ap.PolicyData.Enabled))
 	assert.Equal(t, *(ap.PolicyData.Attributes.AllowedNetwork), "public-and-private")
 
@@ -1738,10 +1733,10 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ip)
-	assert.Equal(t, ip.PolicyType, AllowedIP)
+	assert.Equal(t, ip.PolicyType, "allowedIP")
 	assert.True(t, *(ip.PolicyData.Enabled))
 
-	keyAccessResponse := []byte(`{
+	keyAccessEnabledResponse := []byte(`{
 		"metadata": {
 			"collectionType": "application/vnd.ibm.kms.policy+json",
 			"collectionTotal": 1
@@ -1765,18 +1760,45 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		}]
 	}`)
 
+	keyAccessDisabledResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"creationDate": "2020-09-02T21:12:26Z",
+			"createdBy": "1ab2c4d",
+			"updatedBy": "1ab2c4d",
+			"lastUpdated": "2020-09-08T18:31:37Z",
+			"policy_type": "keyCreateImportAccess",
+			"policy_data": {
+				"enabled": false,
+				"attributes": {
+					"create_root_key": true,
+					"create_standard_key": true,
+					"import_root_key": true,
+					"import_standard_key": true,
+					"enforce_token": true
+				}
+			}
+		}]
+	}`)
+
 	gock.New("http://example.com").
 		Put("/instance/policies").
 		MatchParam("policy", "keyCreateImportAccess").
 		Reply(204)
 
+	allow := true
+	disallow := false
+
 	attributes := Attributes{
-		CreateStandardKey: &falseBool,
-		ImportStandardKey: &falseBool,
-		EnforceToken:      &trueBool,
+		CreateStandardKey: &disallow,
+		ImportStandardKey: &disallow,
+		EnforceToken:      &allow,
 	}
 
-	err = c.SetKeyAccessInstancePolicy(context.Background(), true, &attributes)
+	err = c.SetKeyAccessInstancePolicy(context.Background(), &attributes)
 
 	assert.NoError(t, err)
 
@@ -1784,19 +1806,41 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Get("/instance/policies").
 		MatchParam("policy", "keyCreateImportAccess").
 		Reply(200).
-		Body(bytes.NewReader(keyAccessResponse))
+		Body(bytes.NewReader(keyAccessEnabledResponse))
 
 	kip, err := c.GetKeyAccessInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kip)
-	assert.Equal(t, kip.PolicyType, KeyAccess)
+	assert.Equal(t, kip.PolicyType, "keyCreateImportAccess")
 	assert.True(t, *(kip.PolicyData.Enabled))
 	assert.True(t, *(kip.PolicyData.Attributes.CreateRootKey))
 	assert.False(t, *(kip.PolicyData.Attributes.CreateStandardKey))
 	assert.True(t, *(kip.PolicyData.Attributes.ImportRootKey))
 	assert.False(t, *(kip.PolicyData.Attributes.ImportStandardKey))
 	assert.True(t, *(kip.PolicyData.Attributes.EnforceToken))
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", "keyCreateImportAccess").
+		Reply(204)
+
+	err = c.SetKeyAccessInstancePolicy(context.Background(), nil)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", "keyCreateImportAccess").
+		Reply(200).
+		Body(bytes.NewReader(keyAccessDisabledResponse))
+
+	kip, err = c.GetKeyAccessInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, kip)
+	assert.Equal(t, kip.PolicyType, "keyCreateImportAccess")
+	assert.False(t, *(kip.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -1882,117 +1926,6 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "Please provide at least 1 IP subnet specified with CIDR notation", err.Error())
 
-}
-
-// TestSetInstanceKeyAccessPolicyError tests the method set instance dual auth policy to error out scenarios
-func TestSetInstanceKeyAccessPolicyError(t *testing.T) {
-	defer gock.Off()
-
-	errorResponseEnableNilAttributes := []byte(`{
-		"metadata": {
-			"collectionType": "application/vnd.ibm.kms.error+json",
-			"collectionTotal": 1
-		},
-		"resources": [{
-			"errorMsg": "Bad Request: Instance policy could not be created: Please see 'reasons' for more details (MISSING_FIELD_ERR)",
-			"reasons": [{
-				"code": "MISSING_FIELD_ERR",
-				"message": "The field 'attributes' is required",
-				"status": 400,
-				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
-				"target": {
-					"type": "field",
-					"name": "attributes"
-				}
-			}]
-		}]
-	}`)
-
-	errorResponseEnableNoAttributes := []byte(`{
-		"metadata": {
-			"collectionType": "application/vnd.ibm.kms.error+json",
-			"collectionTotal": 1
-		},
-		"resources": [{
-			"errorMsg": "Bad Request: Instance policy could not be created: Please see 'reasons' for more details (MISSING_FIELD_ERR)",
-			"reasons": [{
-				"code": "MISSING_FIELD_ERR",
-				"message": "At least 1 of the following fields are required: ['create_root_key', 'import_root_key', 'create_standard_key', 'import_standard_key', 'enforce_token']",
-				"status": 400,
-				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
-				"target": {
-					"type": "field",
-					"name": "['create_root_key', 'import_root_key', 'create_standard_key', 'import_standard_key', 'enforce_token']"
-				}
-			}]
-		}]
-	}`)
-
-	errorResponseDisableWithAttributes := []byte(`{
-		"metadata": {
-			"collectionType": "application/vnd.ibm.kms.error+json",
-			"collectionTotal": 1
-		},
-		"resources": [{
-			"errorMsg": "Bad Request: Instance policy could not be created: Please see 'reasons' for more details (INVALID_FIELD_ERR)",
-			"reasons": [{
-				"code": "INVALID_FIELD_ERR",
-				"message": "The field 'attributes' must be: provided only if policy is being enabled",
-				"status": 400,
-				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
-				"target": {
-					"type": "field",
-					"name": "attributes"
-				}
-			}]
-		}]
-	}`)
-
-	gock.New("http://example.com").
-		Put("/instance/policies").
-		MatchParam("policy", "keyCreateImportAccess").
-		Reply(400).
-		Body(bytes.NewReader(errorResponseEnableNilAttributes))
-
-	c, _, err := NewTestClient(t, nil)
-	gock.InterceptClient(&c.HttpClient)
-	defer gock.RestoreClient(&c.HttpClient)
-	c.tokenSource = &FakeTokenSource{}
-
-	err = c.SetKeyAccessInstancePolicy(context.Background(), true, nil)
-
-	errorEnableNilAttributes := err.(*Error)
-	assert.Error(t, err)
-	assert.Equal(t, errorEnableNilAttributes.Reasons[0].Code, "MISSING_FIELD_ERR")
-	assert.Equal(t, errorEnableNilAttributes.Reasons[0].Message, "The field 'attributes' is required")
-
-	gock.New("http://example.com").
-		Put("/instance/policies").
-		MatchParam("policy", "keyCreateImportAccess").
-		Reply(400).
-		Body(bytes.NewReader(errorResponseEnableNoAttributes))
-
-	err = c.SetKeyAccessInstancePolicy(context.Background(), false, &Attributes{CreateRootKey: &falseBool, CreateStandardKey: &falseBool})
-
-	errorEnableNoAttributes := err.(*Error)
-	assert.Error(t, err)
-	assert.Equal(t, errorEnableNoAttributes.Reasons[0].Code, "MISSING_FIELD_ERR")
-	assert.Equal(t, errorEnableNoAttributes.Reasons[0].Message, "At least 1 of the following fields are required: ['create_root_key', 'import_root_key', 'create_standard_key', 'import_standard_key', 'enforce_token']")
-
-	gock.New("http://example.com").
-		Put("/instance/policies").
-		MatchParam("policy", "keyCreateImportAccess").
-		Reply(400).
-		Body(bytes.NewReader(errorResponseDisableWithAttributes))
-
-	err = c.SetKeyAccessInstancePolicy(context.Background(), false, &Attributes{CreateRootKey: &trueBool, ImportRootKey: &trueBool})
-
-	errorDisableWithAttributes := err.(*Error)
-	assert.Error(t, err)
-	assert.Equal(t, errorDisableWithAttributes.Reasons[0].Code, "INVALID_FIELD_ERR")
-	assert.Equal(t, errorDisableWithAttributes.Reasons[0].Message, "The field 'attributes' must be: provided only if policy is being enabled")
-
-	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
 // TestGetPrivateEndpointPortNumber tests the method that retrieves the private endpoint port number
@@ -2184,7 +2117,6 @@ func TestSetKeyPolicies(t *testing.T) {
 		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
 
 	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 4)
-
 	assert.Nil(t, err)
 	assert.NotNil(t, rotationPolicy)
 	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
@@ -2194,7 +2126,6 @@ func TestSetKeyPolicies(t *testing.T) {
 		Reply(200).Body(bytes.NewReader(allPoliciesResponse))
 
 	allpolicies, err := c.SetPolicies(context.Background(), testKey, true, 6, true, true)
-
 	assert.Nil(t, err)
 	assert.NotNil(t, allpolicies)
 	assert.Equal(t, 6, allpolicies[0].Rotation.Interval)
