@@ -1523,52 +1523,35 @@ func TestRestoreKey(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-// TestSetInstancePolicies tests the methods that set and get instance policies
-func TestSetAndGetInstancePolicies(t *testing.T) {
+// TestSetAndGetMultipleInstancePolicies tests the methods that update and retrieve mutliple instance policies
+func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	defer gock.Off()
-	allpolicies := []byte(`{
-		"metadata":{
-			"collectionType":"application/vnd.ibm.kms.policy+json",
-			"collectionTotal":2
-		},
-		"resources": [
-			{
-				"createdBy": "xyz",
-				"creationDate": "2020-04-22T15:14:29Z",
-				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "xyz6",
-				"policy_type": "allowedNetwork",
-				"policy_data": {
-				"enabled": true,
-				"attributes": {
-					"allowed_network": "private-only"
-				}
-				}
-			},
-			{
-				"createdBy": "xyz6",
-				"creationDate": "2020-04-22T15:16:23Z",
-				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "xyz6",
-				"policy_type": "dualAuthDelete",
-				"policy_data": {
-				"enabled": true,
-				"attributes": {}
-				}
-			},
-			{
-				"createdBy": "xyz6",
-				"creationDate": "2020-11-19T19:06:10Z",
-				"lastUpdated": "2020-11-19T19:06:10Z",
-				"updatedBy": "xyz6",
-				"policy_type": "metrics",
-				"policy_data": {
-				  "enabled": false
-				}
-			}
-		]
-	}`)
-	dualAuthPolicy := []byte(`{
+
+	// allPoliciesRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "dualAuthDelete",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 			},
+	// 		},
+	// 		{
+	// 			"policy_type": "allowedNetwork",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 				"attributes": map[string]interface{}{
+	// 					"allowed_network": "public-and-private",
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	allPoliciesResponse := []byte(`{
 		"metadata":{
 			"collectionType":"application/vnd.ibm.kms.policy+json",
 			"collectionTotal":1
@@ -1581,39 +1564,26 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 				"updatedBy": "xyz6",
 				"policy_type": "dualAuthDelete",
 				"policy_data": {
-				"enabled": false,
-				"attributes": {}
+				"enabled": true
 				}
-			}
-		]
-	}`)
-	allowedNetworkPolicy := []byte(`{
-		"metadata":{
-			"collectionType":"application/vnd.ibm.kms.policy+json",
-			"collectionTotal":1
-		},
-		"resources": [
+			},
 			{
-				"createdBy": "xyz6",
+				"createdBy": "1ab2c4d",
 				"creationDate": "2020-04-22T15:14:29Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "xyz6",
+				"updatedBy": "1ab2c4d",
 				"policy_type": "allowedNetwork",
 				"policy_data": {
 				"enabled": true,
 				"attributes": {
 					"allowed_network": "public-and-private"
-				}
+					}
 				}
 			}
 		]
 	}`)
 
-	gock.New("http://example.com").
-		Put("/instance/policies").
-		Reply(204)
-
-	c, _, err := NewTestClient(t, nil)
+	c,_, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1633,6 +1603,12 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		AllowedNetwork: allowedNetwork,
 	}
 
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(allPoliciesRequest).
+		Reply(204)
+
 	err = c.SetInstancePolicies(context.Background(), policies)
 
 	assert.NoError(t, err)
@@ -1640,16 +1616,66 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	gock.New("http://example.com").
 		Get("/instance/policies").
 		Reply(200).
-		Body(bytes.NewReader(allpolicies))
+		Body(bytes.NewReader(allPoliciesResponse))
 
-	allP, err := c.GetInstancePolicies(context.Background())
+	ap, err := c.GetInstancePolicies(context.Background())
 
 	assert.NoError(t, err)
-	assert.NotNil(t, allP)
-	assert.True(t, len(allP) >= 0)
+	assert.NotNil(t, ap)
+	assert.Greater(t, len(ap), -1)
+
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+
+}
+
+// TestSetAndGetDualAuthInstancePolicy tests the methods that update and retrieve dual auth instance policy
+func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
+	defer gock.Off()
+
+	// dualAuthPolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "dualAuthDelete",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	dualAuthPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "xyz6",
+				"creationDate": "2020-04-22T15:16:23Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "xyz6",
+				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": true
+				}
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(dualAuthPolicyRequest).
 		MatchParam("policy", "dualAuthDelete").
 		Reply(204)
 
@@ -1661,17 +1687,71 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Get("/instance/policies").
 		MatchParam("policy", "dualAuthDelete").
 		Reply(200).
-		Body(bytes.NewReader(dualAuthPolicy))
+		Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	dap, err := c.GetDualAuthInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, dap)
 	assert.Equal(t, dap.PolicyType, "dualAuthDelete")
-	assert.False(t, *(dap.PolicyData.Enabled))
+	assert.True(t, *(dap.PolicyData.Enabled))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetAllowedNetworkPolicy tests the methods that update and retrieve allowed network instance policy
+func TestSetAndGetAllowedNetworkPolicy(t *testing.T) {
+	defer gock.Off()
+
+	// allowedNetworkPolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "allowedNetwork",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 				"attributes": map[string]interface{}{
+	// 					"allowed_network": "public-and-private",
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	allowedNetworkPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "1ab2c4d",
+				"creationDate": "2020-04-22T15:14:29Z",
+				"lastUpdated": "2020-06-08T17:11:38Z",
+				"updatedBy": "1ab2c4d",
+				"policy_type": "allowedNetwork",
+				"policy_data": {
+				"enabled": true,
+				"attributes": {
+					"allowed_network": "public-and-private"
+				}
+				}
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(allowedNetworkPolicyRequest).
 		MatchParam("policy", "allowedNetwork").
 		Reply(204)
 
@@ -1683,7 +1763,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Get("/instance/policies").
 		MatchParam("policy", "allowedNetwork").
 		Reply(200).
-		Body(bytes.NewReader(allowedNetworkPolicy))
+		Body(bytes.NewReader(allowedNetworkPolicyResponse))
 
 	ap, err := c.GetAllowedNetworkInstancePolicy(context.Background())
 
@@ -1693,8 +1773,33 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.True(t, *(ap.PolicyData.Enabled))
 	assert.Equal(t, *(ap.PolicyData.Attributes.AllowedNetwork), "public-and-private")
 
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetAllowedIPPolicy tests the methods that update and retrieve allowedip instance policy
+func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
+	defer gock.Off()
 	// Set and get allowed ip instance policy
-	allowedIPPolicy := []byte(`{
+
+	// allowedIPPolicyEnableRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "allowedIP",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 				"attributes": map[string]interface{}{
+	// 					"allowed_ip": []string{"192.0.2.0/24", "203.0.113.0/32"},
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	allowedIPPolicyEnabledResponse := []byte(`{
 		"metadata": {
 			"collectionType": "application/vnd.ibm.kms.policy+json",
 			"collectionTotal": 1
@@ -1714,8 +1819,50 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		}]
 	}`)
 
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	// allowedIPPolicyDisableRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "allowedIP",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": false,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	allowedIPPolicyDisabledResponse := []byte(`{
+		"metadata": {
+			"collectionType": "application/vnd.ibm.kms.policy+json",
+			"collectionTotal": 1
+		},
+		"resources": [{
+			"creationDate": "2020-09-01T17:28:28Z",
+			"createdBy": "IBMid-50BE1MTM26",
+			"updatedBy": "IBMid-50BE1MTM26",
+			"lastUpdated": "2020-09-02T17:20:21Z",
+			"policy_type": "allowedIP",
+			"policy_data": {
+				"enabled": false,
+				"attributes": {
+                    "allowed_ip": []
+                }
+			}
+		}]
+	}`)
+
 	gock.New("http://example/com").
 		Put("/api/v2/instance/policies").
+		// MatchType("json").
+		// JSON(allowedIPPolicyEnableRequest).
 		MatchParam("policy", "allowedIP").
 		Reply(204)
 
@@ -1727,7 +1874,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Get("/api/v2/instance/policies").
 		MatchParam("policy", "allowedIP").
 		Reply(200).
-		Body(bytes.NewReader(allowedIPPolicy))
+		Body(bytes.NewReader(allowedIPPolicyEnabledResponse))
 
 	ip, err := c.GetAllowedIPInstancePolicy(context.Background())
 
@@ -1735,6 +1882,57 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.NotNil(t, ip)
 	assert.Equal(t, ip.PolicyType, "allowedIP")
 	assert.True(t, *(ip.PolicyData.Enabled))
+
+	gock.New("http://example/com").
+		Put("/api/v2/instance/policies").
+		// MatchType("json").
+		// JSON(allowedIPPolicyDisableRequest).
+		MatchParam("policy", "allowedIP").
+		Reply(204)
+
+	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{})
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/api/v2/instance/policies").
+		MatchParam("policy", "allowedIP").
+		Reply(200).
+		Body(bytes.NewReader(allowedIPPolicyDisabledResponse))
+
+	ip, err = c.GetAllowedIPInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, ip)
+	assert.Equal(t, ip.PolicyType, "allowedIP")
+	assert.False(t, *(ip.PolicyData.Enabled))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetKeyCreateImportAccessInstancePolicy tests the methods that update and retrieve key create import access  instance policy
+func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
+	defer gock.Off()
+
+	// keyAccessEnableRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "keyCreateImportAccess",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 				"attributes": map[string]interface{}{
+	// 					"create_standard_key": false,
+	// 					"import_standard_key": false,
+	// 					"enforce_token":       true,
+	// 				},
+	// 			},
+	// 		},
+	// 	},
+	// }
 
 	keyAccessEnabledResponse := []byte(`{
 		"metadata": {
@@ -1760,6 +1958,21 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		}]
 	}`)
 
+	// keyAccessDisableRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "keyCreateImportAccess",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": false,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
 	keyAccessDisabledResponse := []byte(`{
 		"metadata": {
 			"collectionType": "application/vnd.ibm.kms.policy+json",
@@ -1778,27 +1991,31 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 					"create_standard_key": true,
 					"import_root_key": true,
 					"import_standard_key": true,
-					"enforce_token": true
+					"enforce_token": false
 				}
 			}
 		}]
 	}`)
 
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(keyAccessEnableRequest).
 		MatchParam("policy", "keyCreateImportAccess").
 		Reply(204)
 
-	allow := true
-	disallow := false
-
-	attributes := Attributes{
-		CreateStandardKey: &disallow,
-		ImportStandardKey: &disallow,
-		EnforceToken:      &allow,
+	attributes := map[string]bool {
+		CreateRootKey: false,
+		ImportStandardKey: false,
+		EnforceToken:      true,
 	}
 
-	err = c.SetKeyAccessInstancePolicy(context.Background(), &attributes)
+	err = c.SetKeyCreateImportAccessInstancePolicy(context.Background(), true, attributes)
 
 	assert.NoError(t, err)
 
@@ -1808,7 +2025,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Reply(200).
 		Body(bytes.NewReader(keyAccessEnabledResponse))
 
-	kip, err := c.GetKeyAccessInstancePolicy(context.Background())
+	kip, err := c.GetKeyCreateImportAccessInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kip)
@@ -1822,10 +2039,12 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(keyAccessDisableRequest).
 		MatchParam("policy", "keyCreateImportAccess").
 		Reply(204)
 
-	err = c.SetKeyAccessInstancePolicy(context.Background(), nil)
+	err = c.SetKeyCreateImportAccessInstancePolicy(context.Background(), false, nil)
 
 	assert.NoError(t, err)
 
@@ -1835,7 +2054,7 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		Reply(200).
 		Body(bytes.NewReader(keyAccessDisabledResponse))
 
-	kip, err = c.GetKeyAccessInstancePolicy(context.Background())
+	kip, err = c.GetKeyCreateImportAccessInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kip)
