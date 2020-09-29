@@ -173,3 +173,46 @@ func ExampleClient_DeleteKey() {
 		fmt.Println("Deleted key: ", delKey)
 	}
 }
+
+func ExampleClient_InstancePolicies() {
+	client, _ := kp.New(
+		kp.ClientConfig{
+			BaseURL:    "https://us-south.kms.cloud.ibm.com",
+			APIKey:     "notARealApiKey",
+			InstanceID: "a6493c3a-5b29-4ac3-9eaa-deadbeef3bfd",
+		},
+		kp.DefaultTransport(),
+	)
+
+	policies := kp.MultiplePolicies {
+		DualAuthDelete : &kp.BasicPolicyData{
+			Enabled: true,
+		},
+		AllowedNetwork : &kp.AllowedNetworkPolicyData{
+			Enabled: true,
+			Network: "public-and-private",
+		},
+	}
+
+	fmt.Println("Creating instance policies")
+	err := client.SetInstancePolicies(context.Background(), policies)
+	if err != nil {
+		fmt.Println("Error while setting instance policies")
+	} else {
+		fmt.Println("Set instance polices")
+	}
+
+	attributes := map[string]bool{
+		"CreateRootKey": true,
+		"CreateStandardKey": true,
+	}
+	fmt.Println("Setting key create import access instance policy")
+	err = client.SetKeyCreateImportAccessInstancePolicy(context.Background(), true, attributes)
+	if err != nil {
+		fmt.Println("Error while setting key create import access instance policy")
+	} else {
+		fmt.Println("Set Key Create Import Access instance policy")
+	}
+
+
+}

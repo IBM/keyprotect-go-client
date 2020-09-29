@@ -21,7 +21,6 @@ import (
 	"time"
 )
 
-<<<<<<< HEAD
 const (
 	// DualAuthDelete defines the policy type as dual auth delete
 	DualAuthDelete = "dualAuthDelete"
@@ -35,7 +34,7 @@ const (
 	// Metrics defines the policy type as metrics
 	Metrics = "metrics"
 	// KeyAccess defines the policy type as key create import access
-	KeyAccess = "keyCreateImportAccess"
+	KeyCreateImportAccess = "keyCreateImportAccess"
 
 	// KeyAccess policy attributes
 	CreateRootKey     = "CreateRootKey"
@@ -45,8 +44,7 @@ const (
 	EnforceToken      = "EnforceToken"
 )
 
-=======
->>>>>>> Updated some requested changes
+
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
 type InstancePolicy struct {
@@ -137,13 +135,13 @@ func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolic
 	return &policyResponse.Policies[0], nil
 }
 
-// GetKeyAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
-// For more information, Please refer the Key Protect docs in the link below:
+// GetKeyCreateImportAccessInstancePolicy retrieves the key create import access policy details associated with the instance.
+// For more information can refer the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
-func (c *Client) GetKeyAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+func (c *Client) GetKeyCreateImportAccessInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, "keyCreateImportAccess", &policyResponse)
+	err := c.getInstancePolicy(ctx, KeyCreateImportAccess, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -333,26 +331,36 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 	return err
 }
 
-// SetKeyAccessInstancePolicy updates the key create import access policy details associated with an instance.
-// For more information, please refer to the Key Protect docs in the link below:
+// SetKeyCreateImportAccessInstancePolicy updates the key create import access policy details associated with an instance.
+// For more information can refer to the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
-func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, attributes *Attributes) error {
-	var enable bool
-
-	if attributes == nil {
-		enable = false
-	} else {
-		enable = true
-	}
-
+func (c *Client) SetKeyCreateImportAccessInstancePolicy(ctx context.Context, enable bool, attributes map[string]bool) error {
 	policy := InstancePolicy{
-		PolicyType: "keyCreateImportAccess",
+		PolicyType: KeyCreateImportAccess,
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
 	}
 
-	policy.PolicyData.Attributes = attributes
+	if enable {
+		policy.PolicyData.Attributes = &Attributes{}
+		a := policy.PolicyData.Attributes
+		if val, ok := attributes[CreateRootKey]; ok {
+			a.CreateRootKey = &val
+		}
+		if val, ok := attributes[CreateStandardKey]; ok {
+			a.CreateStandardKey = &val
+		}
+		if val, ok := attributes[ImportRootKey]; ok {
+			a.ImportRootKey = &val
+		}
+		if val, ok := attributes[ImportStandardKey]; ok {
+			a.ImportStandardKey = &val
+		}
+		if val, ok := attributes[EnforceToken]; ok {
+			a.EnforceToken = &val
+		}
+	}
 
 	policyRequest := InstancePolicies{
 		Metadata: PoliciesMetadata{
@@ -362,7 +370,10 @@ func (c *Client) SetKeyAccessInstancePolicy(ctx context.Context, attributes *Att
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, "keyCreateImportAccess", policyRequest)
+	err := c.setInstancePolicy(ctx, KeyCreateImportAccess, policyRequest)
+	if err != nil {
+		return err
+	}
 
 	return err
 }
@@ -384,12 +395,23 @@ type AllowedIPPolicyData struct {
 	IPAddresses IPAddresses
 }
 
+// KeyAccessInstancePolicyData defines the attribute input for the Key Create Import Access instance policy
+type KeyCreateImportAccessInstancePolicy struct {
+	Enabled bool
+	CreateRootKey bool
+	CreateStandardKey bool
+	ImportRootKey bool
+	ImportStandardKey bool
+	EnforceToken bool
+}
+
 // MultiplePolicies defines the input for the SetInstancPolicies method that can hold multiple policy details
 type MultiplePolicies struct {
 	DualAuthDelete *BasicPolicyData
 	AllowedNetwork *AllowedNetworkPolicyData
 	AllowedIP      *AllowedIPPolicyData
 	Metrics        *BasicPolicyData
+	KeyCreateImportAccess *KeyCreateImportAccessInstancePolicy
 }
 
 // SetInstancePolicies updates single or multiple policy details of an instance.
@@ -412,7 +434,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 			PolicyData: PolicyData{
 				Enabled: &(policies.AllowedNetwork.Enabled),
 				Attributes: &Attributes{
-					AllowedNetwork: policies.AllowedNetwork.Network,
+					AllowedNetwork: &(policies.AllowedNetwork.Network),
 				},
 			},
 		}
@@ -439,6 +461,34 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 				Enabled: &(policies.Metrics.Enabled),
 			},
 		}
+		resPolicies = append(resPolicies, policy)
+	}
+
+	if policies.KeyCreateImportAccess != nil {
+		policy := InstancePolicy{
+			PolicyType: KeyCreateImportAccess,
+			PolicyData: PolicyData{
+				Enabled: &(policies.KeyCreateImportAccess.Enabled),
+				Attributes: &Attributes{},
+			},
+		}
+
+		if policies.KeyCreateImportAccess.CreateRootKey {
+			policy.PolicyData.Attributes.CreateRootKey = &policies.KeyCreateImportAccess.CreateRootKey
+		}
+		if policies.KeyCreateImportAccess.CreateStandardKey {
+			policy.PolicyData.Attributes.CreateStandardKey = &policies.KeyCreateImportAccess.CreateStandardKey
+		}
+		if policies.KeyCreateImportAccess.ImportRootKey {
+			policy.PolicyData.Attributes.ImportRootKey = &policies.KeyCreateImportAccess.ImportRootKey
+		}
+		if policies.KeyCreateImportAccess.ImportStandardKey {
+			policy.PolicyData.Attributes.ImportStandardKey = &policies.KeyCreateImportAccess.ImportStandardKey
+		}
+		if policies.KeyCreateImportAccess.EnforceToken {
+			policy.PolicyData.Attributes.EnforceToken = &policies.KeyCreateImportAccess.EnforceToken
+		}
+
 		resPolicies = append(resPolicies, policy)
 	}
 
