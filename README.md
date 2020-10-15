@@ -177,31 +177,7 @@ dek = nil
 
 # Usage With Quantum Safe Crypto
 
-IBM Cloud Key Protect Service supports quantum safe crypto (QSC) configuration as well. Visit [link to the KP Docs here] for QSC supported endpoints, algorithms and other details.
-
-**Note**: Pre-compiled package is supported on Ubuntu at this time. Other platform support will be added in future. Meanwhile to compile packages on other platforms visit documentaion [link here]
-
-Follow below steps or copy below commands to compile client with quantum config:
-
-1. Download debian package compiled with quantum configuration. For more information on the package visit [IBM oqssa repo](https://github.com/IBM/oqssa)
-  
-    curl https://api.github.com/repos/IBM/oqssa/releases/latest | grep "browser_download_url" | cut -d '"' -f 4 | wget -i -
-1. Install package. Package will downalod to /opt/oqssa directory:
-  
-    dpkg -i oqssa-0.1.0_amd64.deb
-1. Export path:
-  
-    export PATH=/opt/oqssa/:$PATH
-1. Compile client with --tags=quantum to use quantum configuration:
-
-    CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig LD_LIBRARY_PATH=/opt/oqssa/lib go test --tags quantum
-
-```
-curl https://api.github.com/repos/IBM/oqssa/releases/latest | grep "browser_download_url" | cut -d '"' -f 4 | wget -i -
-dpkg -i oqssa-0.1.0_amd64.deb
-export PATH=/opt/oqssa/:$PATH
-CPATH=/opt/oqssa/include/ PKG_CONFIG_PATH=/opt/oqssa/lib/pkgconfig LD_LIBRARY_PATH=/opt/oqssa/lib go test --tags quantum  
-```
+IBM Cloud Key Protect Service supports quantum safe crypto (QSC) configuration as well. Visit [Key Protect QSC Docs](https://cloud.ibm.com/docs/key-protect?topic=key-protect-quantum-safe-cryptography-tls-introduction) for supported endpoints, algorithms and other details for building, compiling and installing Open Quantum Safe Software stack (OQSSA) to use with Key Protect go client.
 
 
 Build a client with QSC config and `NewWithLogger`, then use the client to do some operations.

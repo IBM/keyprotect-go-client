@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	DefaultBaseQSCURL = "https://qsc-stage.kms.test.cloud.ibm.com"
+	DefaultBaseQSCURL = "https://qsc.us-south.kms.cloud.ibm.com"
 )
 
 type QSCAlgorithmType string

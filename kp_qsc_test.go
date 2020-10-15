@@ -36,7 +36,6 @@ func NewTestClientConfig() ClientConfig {
 		InstanceID: "test instance id",
 		APIKey:     "test api key",
 		TokenURL:   "https://iam.cloud.ibm.com/oidc/token",
-		Verbose:    3,
 	}
 }
 
@@ -133,6 +132,7 @@ func TestCurl(t *testing.T) {
 			},
 		},
 	}
+	defaultQscURL := DefaultBaseQSCURL
 
 	cases := TestCases{
 		{
@@ -187,7 +187,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -211,7 +211,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -235,7 +235,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -260,7 +260,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -284,7 +284,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -308,7 +308,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -332,7 +332,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -356,7 +356,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com")
+				u, err := url.Parse(defaultQscURL)
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
