@@ -89,7 +89,7 @@ func (qscC ClientQSCConfig) processRequest(ctx context.Context, c *Client, req *
 
 	if algorithmID == "" {
 		// Default it
-		algorithmID = string(KP_QSC_ALGO_KYBER768)
+		algorithmID = string(KP_QSC_ALGO_p384_KYBER768)
 	} else if !supportedAlgoID(QSCAlgorithmType(algorithmID)) {
 		c.Logger.Info("Unsupported Algorithm ID provided. Please refer to the docs for the list of supported algorithms. AlgorithmID Provided:", algorithmID)
 		return nil, errors.New("Unsupported Algorithm ID provided. Please refer to the docs for the list of supported algorithms")
