@@ -120,3 +120,17 @@ func TestValid_NilToken_ReturnsFalse(t *testing.T) {
 	var tok *Token
 	assert.False(t, tok.Valid(), "tok.Valid() should return false")
 }
+
+func TestError_NilContextOrResp_NoNilDeref(t *testing.T) {
+
+	err := Error{
+		ErrorCode:    "TEST123",
+		ErrorMessage: "Test Error",
+		Context:      nil,
+		HTTPResponse: nil,
+	}
+
+	errStr := err.Error()
+
+	assert.Equal(t, errStr, "iam.Error: HTTP 0 requestId='' message='TEST123 Test Error'")
+}
