@@ -36,7 +36,7 @@ func NewQSCClient() (*kp.Client, error) {
 }
 
 func ExampleQSC() {
-	c, _ := NewClient()
+	c, _ := NewQSCClient()
 
 	ctx := context.Background()
 
