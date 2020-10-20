@@ -178,7 +178,11 @@ func TestKeys(t *testing.T) {
 				c := NewTestClientConfig()
 				c.BaseURL = ":"
 				_, err = NewWithLogger(c, nil, l)
-				assert.Contains(t, err.Error(), "missing protocol scheme")
+
+				// assert that we got a url.Error while parsing the bad BaseURL
+				assert.Error(t, err)
+				assert.IsType(t, &url.Error{}, err)
+				assert.Equal(t, err.(*url.Error).Op, "parse")
 
 				return nil
 			},
