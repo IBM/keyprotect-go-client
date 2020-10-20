@@ -380,7 +380,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com/api/v2/keys")
+				u, err := url.Parse("https://qsc.us-south.kms.cloud.ibm.com/api/v2/keys")
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -404,7 +404,7 @@ func TestCurl(t *testing.T) {
 				assert.NotNil(t, testKpCli)
 				assert.NoError(t, err)
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com/api/v2/keys")
+				u, err := url.Parse("https://qsc.us-south.kms.cloud.ibm.com/api/v2/keys")
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
@@ -431,7 +431,7 @@ func TestCurl(t *testing.T) {
 				RetryMax = 3
 				RetryWaitMax = 1 * time.Millisecond
 
-				u, err := url.Parse("https://qsc-stage.kms.test.cloud.ibm.com:444/api/v2/keys")
+				u, err := url.Parse("https://qsc.us-south.kms.cloud.ibm.com:444/api/v2/keys")
 				assert.NoError(t, err)
 				testKpCli.URL = u
 
