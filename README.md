@@ -11,6 +11,8 @@ keyprotect-go-client is a Go client library for interacting with the IBM KeyProt
   * [Authentication](#authentication)
   * [Finding Instance UUIDs](#finding-a-keyprotect-service-instances-uuid)
   * [Examples](#examples)
+* [Usage With Quantum Safe Crypto](#usage-with-quantum-safe-crypto)
+  * [Examples With QSC](#examples-with-qsc)
 * [Contributing](/CONTRIBUTING.md)
 
 ## Questions / Support
@@ -73,9 +75,9 @@ keys, err := api.GetKeys(ctx, 0, 0)
 
 For information on IAM API Keys and tokens please refer to the [IAM docs](https://cloud.ibm.com/docs/iam?topic=iam-manapikey)
 
-## Finding a KeyProtect Service Instance's UUID
+## Finding a Key Protect Service Instance's UUID
 
-The client requires a valid UUID that identifies your KeyProtect Service Instance to be able to interact with your key data in the instance. An instance is somewhat like a folder or directory of keys; you can have many of them per account, but the keys they contain are separate and cannot be shared between instances.
+The client requires a valid UUID that identifies your Key Protect Service Instance to be able to interact with your key data in the instance. An instance is somewhat like a folder or directory of keys; you can have many of them per account, but the keys they contain are separate and cannot be shared between instances.
 
 The [IBM Cloud CLI](https://cloud.ibm.com/docs/cli?topic=cloud-cli-getting-started) can be used to find the UUID for your KeyProtect instance.
 
@@ -116,7 +118,7 @@ crkID := key.ID
 ### Wrapping and Unwrapping a DEK using a specific Root Key.
 
 ```go
-myDEK := []byte{"thisisadataencryptionkey"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
 // Do some encryption with myDEK
 // Wrap the DEK so we can safely store it
 wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, nil)
@@ -135,7 +137,112 @@ each element up to 255 chars.  For example:
 
 ```go
 myAAD := []string{"First aad string", "second aad string", "third aad string"}
-myDEK := []byte{"thisisadataencryptionkey"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
+// Do some encryption with myDEK
+// Wrap the DEK so we can safely store it
+wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)
+
+
+// Unwrap the DEK
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, &myAAD)
+// Do some encryption/decryption using the DEK
+// Discard the DEK
+dek = nil
+```
+
+Have Key Protect create a DEK for you:
+
+```go
+dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, nil)
+// Do some encrypt/decrypt with the dek
+// Discard the DEK
+dek = nil
+
+// Save the wrapped DEK for later.  Use Unwrap to use it.
+```
+
+Can also specify AAD:
+
+```go
+myAAD := []string{"First aad string", "second aad string", "third aad string"}
+dek, wrappedDek, err := client.WrapCreateDEK(ctx, crkID, &myAAD)
+// Do some encrypt/decrypt with the dek
+// Discard the DEK
+dek = nil
+
+// Save the wrapped DEK for later.  Call Unwrap to use it, make
+// sure to specify the same AAD.
+```
+
+
+# Usage With Quantum Safe Crypto
+
+IBM Cloud Key Protect Service supports quantum safe crypto (QSC) configuration as well. Visit [Key Protect QSC Docs](https://cloud.ibm.com/docs/key-protect?topic=key-protect-quantum-safe-cryptography-tls-introduction) for supported endpoints, algorithms and other details for building, compiling and installing Open Quantum Safe Software stack (OQSSA) to use with Key Protect go client.
+
+
+Build a client with QSC config and `NewWithLogger`, then use the client to do some operations.
+```go
+import "github.com/IBM/keyprotect-go-client"
+
+qscConfig := kp.ClientQSCConfig{
+		AlgorithmID: kp.KP_QSC_ALGO_KYBER768,
+}
+
+// Use your IAM API Key and your KeyProtect Service Instance GUID/UUID to create a ClientConfig
+cc := kp.ClientConfig{
+  BaseURL:       kp.DefaultBaseQSCURL,
+  APIKey:        "......",
+  InstanceID:    "1234abcd-906d-438a-8a68-deadbeef1a2b3",
+}
+var l kp.Logger
+
+// Build a new client from the config
+client, _ := kp.NewWithLogger(cc, kp.DefaultTransport(),l, kp.WithQSC(qscConfig))
+
+// List keys in your KeyProtect instance
+keys, err := client.GetKeys(context.Background(), 0, 0)
+```
+
+## Examples With QSC
+
+Once client is created using QSC configuration, key operations are exactly same as with non-qsc configuration.
+
+### Generating a root key (CRK) with QSC endpoint
+
+```go
+// Create a root key named MyRootKey with no expiration
+key, err := client.CreateRootKey(ctx, "MyRootKey", nil)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(key.ID, key.Name)
+
+crkID := key.ID
+```
+
+### Wrapping and Unwrapping a DEK using a specific Root Key.
+
+```go
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
+// Do some encryption with myDEK
+// Wrap the DEK so we can safely store it
+wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, nil)
+
+
+// Unwrap the DEK
+dek, err := client.Unwrap(ctx, crkID, wrappedDEK, nil)
+// Do some encryption/decryption using the DEK
+// Discard the DEK
+dek = nil
+```
+
+Note you can also pass additional authentication data (AAD) to wrap and unwrap calls
+to provide another level of protection for your DEK.  The AAD is a string array with 
+each element up to 255 chars.  For example:
+
+```go
+myAAD := []string{"First aad string", "second aad string", "third aad string"}
+myDEK := []byte{"NWvfrThUqP9aFmTWFgB86qztK2BuN0qIGg7K7kcCCRs="}
 // Do some encryption with myDEK
 // Wrap the DEK so we can safely store it
 wrappedDEK, err := client.Wrap(ctx, crkID, myDEK, &myAAD)

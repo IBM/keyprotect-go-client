@@ -38,6 +38,7 @@ import (
 const (
 	// DefaultBaseURL ...
 	DefaultBaseURL = "https://us-south.kms.cloud.ibm.com"
+
 	// DefaultTokenURL ..
 	DefaultTokenURL = iam.IAMTokenURL
 
@@ -56,13 +57,10 @@ const (
 	defaultTimeout            = 30 // in seconds.
 )
 
-var (
-	// RetryWaitMax is the maximum time to wait between HTTP retries
-	RetryWaitMax = 30 * time.Second
-
-	// RetryMax is the max number of attempts to retry for failed HTTP requests
-	RetryMax = 4
-)
+type QSCConfigInfo interface {
+	getAlgoID() string
+	processRequest(context.Context, *Client, *http.Request) (*http.Response, error)
+}
 
 // ClientConfig ...
 type ClientConfig struct {
@@ -74,6 +72,17 @@ type ClientConfig struct {
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
 }
+
+var (
+	// RetryWaitMax is the maximum time to wait between HTTP retries
+	RetryWaitMax = 30 * time.Second
+
+	// RetryMax is the max number of attempts to retry for failed HTTP requests
+	RetryMax = 4
+
+	//RetryWaitMax is the minimum time to wait between curl retries (only applies to QSC clients)
+	RetryWaitMin = 500 * time.Millisecond
+)
 
 // DefaultTransport ...
 func DefaultTransport() http.RoundTripper {
@@ -93,23 +102,25 @@ type API = Client
 // Client holds configuration and auth information to interact with KeyProtect.
 // It is expected that one of these is created per KeyProtect service instance/credential pair.
 type Client struct {
-	URL        *url.URL
-	HttpClient http.Client
-	Dump       Dump
-	Config     ClientConfig
-	Logger     Logger
-
+	URL         *url.URL
+	HttpClient  http.Client
+	Dump        Dump
+	Config      ClientConfig
+	Logger      Logger
 	tokenSource iam.TokenSource
+	qscConfig   QSCConfigInfo
 }
 
+type Option func(*Client)
+
 // New creates and returns a Client without logging.
-func New(config ClientConfig, transport http.RoundTripper) (*Client, error) {
-	return NewWithLogger(config, transport, nil)
+func New(config ClientConfig, transport http.RoundTripper, opts ...Option) (*Client, error) {
+	return NewWithLogger(config, transport, nil, opts...)
 }
 
 // NewWithLogger creates and returns a Client with logging.  The
 // error value will be non-nil if the config is invalid.
-func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logger) (*Client, error) {
+func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logger, opts ...Option) (*Client, error) {
 
 	if transport == nil {
 		transport = DefaultTransport()
@@ -152,7 +163,17 @@ func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logg
 		Logger:      logger,
 		tokenSource: ts,
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
 	return c, nil
+}
+
+func WithQSC(qscConfig QSCConfigInfo) Option {
+	return func(c *Client) {
+		c.qscConfig = qscConfig
+	}
 }
 
 func (c *Client) newRequest(method, path string, body interface{}) (*http.Request, error) {
@@ -245,20 +266,18 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
 	req.Header.Set("correlation-id", corrId)
+	var response *http.Response
 
-	// set request up to be retryable on 500-level http codes and client errors
-	retryableClient := getRetryableClient(&c.HttpClient)
-	retryableRequest, err := rhttp.FromRequest(req)
-	if err != nil {
-		return nil, err
+	requester := processRequest
+	if c.qscConfig != nil {
+		requester = c.qscConfig.processRequest
 	}
-
-	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
+	response, err = requester(ctx, c, req)
 	if err != nil {
 		return nil, &URLError{err, corrId}
 	}
-	defer response.Body.Close()
 
+	defer response.Body.Close()
 	resBody, err := ioutil.ReadAll(response.Body)
 	redact := []string{c.Config.APIKey, req.Header.Get("authorization")}
 	c.Dump(req, response, []byte{}, resBody, c.Logger, redact)
@@ -293,15 +312,31 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 				reasons = kperr.Resources[0].Reasons
 			}
 		}
-
 		return nil, &Error{
-			URL:           response.Request.URL.String(),
+			URL:           req.URL.String(),
 			StatusCode:    response.StatusCode,
 			Message:       errMessage,
 			BodyContent:   resBody,
 			CorrelationID: corrId,
 			Reasons:       reasons,
 		}
+	}
+
+	return response, nil
+}
+
+func processRequest(ctx context.Context, c *Client, req *http.Request) (*http.Response, error) {
+
+	// set request up to be retryable on 500-level http codes and client errors
+	retryableClient := getRetryableClient(&c.HttpClient)
+	retryableRequest, err := rhttp.FromRequest(req)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
+	if err != nil {
+		return nil, err
 	}
 
 	return response, nil
