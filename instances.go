@@ -22,14 +22,17 @@ import (
 )
 
 const (
-	//DualAuthDelete defines the policy type as dual auth delete
+	// DualAuthDelete defines the policy type as dual auth delete
 	DualAuthDelete = "dualAuthDelete"
 
-	//AllowedNetwork defines the policy type as allowed network
+	// AllowedNetwork defines the policy type as allowed network
 	AllowedNetwork = "allowedNetwork"
 
-	//AllowedIP defines the polity type as allowed ip that are whitelisted
+	// AllowedIP defines the policy type as allowed ip that are whitelisted
 	AllowedIP = "allowedIP"
+
+	// Metrics defines the policy type as metrics
+	Metrics = "metrics"
 )
 
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
@@ -132,6 +135,23 @@ func (c *Client) getInstancePolicy(ctx context.Context, policyType string, polic
 		return err
 	}
 	return err
+}
+
+// GetMetricsInstancePolicy retrieves the metrics policy details associated with the instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-sysdig-metrics
+func (c *Client) GetMetricsInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, Metrics, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+	return &policyResponse.Policies[0], nil
 }
 
 // GetInstancePolicies retrieves all policies of an Instance.
@@ -260,38 +280,114 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 	return err
 }
 
-// SetInstancePolicies updates single or multiple policy details of an instance.
-func (c *Client) SetInstancePolicies(ctx context.Context, setDualAuth, dualAuthEnable bool, setAllowedNetwork, allowedNetworkEnable bool, networkType string) error {
-	var policies []InstancePolicy
-
-	if setDualAuth {
-		policy := InstancePolicy{
-			PolicyType: DualAuthDelete,
-		}
-		policy.PolicyData.Enabled = &dualAuthEnable
-		policies = append(policies, policy)
-	}
-
-	if setAllowedNetwork {
-		policy := InstancePolicy{
-			PolicyType: AllowedNetwork,
-			PolicyData: PolicyData{
-				Enabled:    &allowedNetworkEnable,
-				Attributes: &Attributes{},
-			},
-		}
-		if networkType != "" {
-			policy.PolicyData.Attributes.AllowedNetwork = networkType
-		}
-		policies = append(policies, policy)
+// SetMetricsInstancePolicy updates the metrics policy details associated with an instance
+// For more information can refer the Key Protect docs in the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-sysdig-metrics
+func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) error {
+	policy := InstancePolicy{
+		PolicyType: Metrics,
+		PolicyData: PolicyData{
+			Enabled: &enable,
+		},
 	}
 
 	policyRequest := InstancePolicies{
 		Metadata: PoliciesMetadata{
 			CollectionType:   policyType,
-			NumberOfPolicies: len(policies),
+			NumberOfPolicies: 1,
 		},
-		Policies: policies,
+		Policies: []InstancePolicy{policy},
+	}
+
+	err := c.setInstancePolicy(ctx, Metrics, policyRequest)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// BasicPolicyData defines the attribute input for the policy that supports only enabled parameter
+type BasicPolicyData struct {
+	Enabled bool
+}
+
+// AllowedNetworkPolicyData defines the attribute input for the Allowed Network instance policy
+type AllowedNetworkPolicyData struct {
+	Enabled bool
+	Network string
+}
+
+// AllowedIPPolicyData defines the attribute input for the Allowed IP instance policy
+type AllowedIPPolicyData struct {
+	Enabled     bool
+	IPAddresses IPAddresses
+}
+
+// MultiplePolicies defines the input for the SetInstancPolicies method that can hold multiple policy details
+type MultiplePolicies struct {
+	DualAuthDelete *BasicPolicyData
+	AllowedNetwork *AllowedNetworkPolicyData
+	AllowedIP      *AllowedIPPolicyData
+	Metrics        *BasicPolicyData
+}
+
+// SetInstancePolicies updates single or multiple policy details of an instance.
+func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolicies) error {
+	var resPolicies []InstancePolicy
+
+	if policies.DualAuthDelete != nil {
+		policy := InstancePolicy{
+			PolicyType: DualAuthDelete,
+			PolicyData: PolicyData{
+				Enabled: &(policies.DualAuthDelete.Enabled),
+			},
+		}
+		resPolicies = append(resPolicies, policy)
+	}
+
+	if policies.AllowedNetwork != nil {
+		policy := InstancePolicy{
+			PolicyType: AllowedNetwork,
+			PolicyData: PolicyData{
+				Enabled: &(policies.AllowedNetwork.Enabled),
+				Attributes: &Attributes{
+					AllowedNetwork: policies.AllowedNetwork.Network,
+				},
+			},
+		}
+		resPolicies = append(resPolicies, policy)
+	}
+
+	if policies.AllowedIP != nil {
+		policy := InstancePolicy{
+			PolicyType: AllowedIP,
+			PolicyData: PolicyData{
+				Enabled: &(policies.AllowedIP.Enabled),
+				Attributes: &Attributes{
+					AllowedIP: policies.AllowedIP.IPAddresses,
+				},
+			},
+		}
+		resPolicies = append(resPolicies, policy)
+	}
+
+	if policies.Metrics != nil {
+		policy := InstancePolicy{
+			PolicyType: Metrics,
+			PolicyData: PolicyData{
+				Enabled: &(policies.Metrics.Enabled),
+			},
+		}
+		resPolicies = append(resPolicies, policy)
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: len(resPolicies),
+		},
+		Policies: resPolicies,
 	}
 
 	policyresponse := Policies{}
