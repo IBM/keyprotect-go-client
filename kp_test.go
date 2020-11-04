@@ -1456,7 +1456,7 @@ func TestRestoreKey(t *testing.T) {
 				"imported":true,
 				"deleted":false,
 				"deletionDate":"2020-06-16T21:32:57Z",
-				"deletedBy":"IBMid-50BE1MTM26"
+				"deletedBy":"xyz6"
 			}
 		]
 	}`)
@@ -1491,10 +1491,10 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		},
 		"resources": [
 			{
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz",
 				"creationDate": "2020-04-22T15:14:29Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "IBMid-50BE1MTM26",
+				"updatedBy": "xyz6",
 				"policy_type": "allowedNetwork",
 				"policy_data": {
 				"enabled": true,
@@ -1504,14 +1504,24 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 				}
 			},
 			{
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz6",
 				"creationDate": "2020-04-22T15:16:23Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "IBMid-50BE1MTM26",
+				"updatedBy": "xyz6",
 				"policy_type": "dualAuthDelete",
 				"policy_data": {
 				"enabled": true,
 				"attributes": {}
+				}
+			},
+			{
+				"createdBy": "xyz6",
+				"creationDate": "2020-11-19T19:06:10Z",
+				"lastUpdated": "2020-11-19T19:06:10Z",
+				"updatedBy": "xyz6",
+				"policy_type": "metrics",
+				"policy_data": {
+				  "enabled": false
 				}
 			}
 		]
@@ -1523,10 +1533,10 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		},
 		"resources": [
 			{
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz6",
 				"creationDate": "2020-04-22T15:16:23Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "IBMid-50BE1MTM26",
+				"updatedBy": "xyz6",
 				"policy_type": "dualAuthDelete",
 				"policy_data": {
 				"enabled": false,
@@ -1542,10 +1552,10 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		},
 		"resources": [
 			{
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz6",
 				"creationDate": "2020-04-22T15:14:29Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
-				"updatedBy": "IBMid-50BE1MTM26",
+				"updatedBy": "xyz6",
 				"policy_type": "allowedNetwork",
 				"policy_data": {
 				"enabled": true,
@@ -1565,8 +1575,23 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
+	dualAuth := &BasicPolicyData{
+		Enabled: true,
+	}
+	metrics := &BasicPolicyData{
+		Enabled: false,
+	}
+	allowedNetwork := &AllowedNetworkPolicyData{
+		Enabled: true,
+		Network: "private-only",
+	}
+	policies := MultiplePolicies{
+		Metrics:        metrics,
+		DualAuthDelete: dualAuth,
+		AllowedNetwork: allowedNetwork,
+	}
 
-	err = c.SetInstancePolicies(context.Background(), true, true, true, true, "private-only")
+	err = c.SetInstancePolicies(context.Background(), policies)
 
 	assert.NoError(t, err)
 
@@ -1634,8 +1659,8 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 		},
 		"resources": [{
 			"creationDate": "2020-09-01T17:28:28Z",
-			"createdBy": "IBMid-50BE1MTM26",
-			"updatedBy": "IBMid-50BE1MTM26",
+			"createdBy": "xyz6",
+			"updatedBy": "xyz6",
 			"lastUpdated": "2020-09-02T17:20:21Z",
 			"policy_type": "allowedIP",
 			"policy_data": {
@@ -1670,6 +1695,72 @@ func TestSetAndGetInstancePolicies(t *testing.T) {
 	assert.True(t, *(ip.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetMetricsPolicy tests the set and get metrics instance policy method
+func TestSetMetricsPolicy(t *testing.T) {
+	// metricsPolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "metrics",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 			},
+	// 		},
+	// 	},
+	// }
+
+	metricsPolicyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.policy+json"
+		},
+		"resources": [
+			{
+				"createdBy": "xyz",
+				"creationDate": "2020-11-04T17:35:12Z",
+				"lastUpdated": "2020-11-04T17:35:12Z",
+				"policy_data": {
+					"enabled": true
+				},
+				"policy_type": "metrics",
+				"updatedBy": "xyz"
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		// MatchType("json").
+		// JSON(metricsPolicyRequest).
+		MatchParam("policy", "metrics").
+		Reply(204)
+
+	err = c.SetMetricsInstancePolicy(context.Background(), true)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", "metrics").
+		Reply(200).
+		Body(bytes.NewReader(metricsPolicyResponse))
+
+	mp, err := c.GetMetricsInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, mp)
+	assert.Equal(t, mp.PolicyType, Metrics)
+	assert.True(t, *(mp.PolicyData.Enabled))
 }
 
 // TestSetAllowedIPPolicyError tests the error scenarios while setting Allowed IP policy
@@ -2052,11 +2143,11 @@ func TestDisableKey(t *testing.T) {
 				},
 				"algorithmMode": "CBC_PAD",
 				"algorithmType": "AES",
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz6",
 				"creationDate": "2020-05-20T15:22:25Z",
 				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
 				"deleted": false,
-				"deletedBy": "IBMid-50BE1MTM26",
+				"deletedBy": "xyz6",
 				"deletionDate": "2020-05-20T15:22:50Z",
 				"dualAuthDelete": {
 					"enabled": false
@@ -2121,11 +2212,11 @@ func TestEnableKey(t *testing.T) {
 				},
 				"algorithmMode": "CBC_PAD",
 				"algorithmType": "AES",
-				"createdBy": "IBMid-50BE1MTM26",
+				"createdBy": "xyz6",
 				"creationDate": "2020-05-20T15:22:25Z",
 				"crn": "crn:v1:staging:public:dummy-service:dummy-env:a/dummy-account:dummy-instance:key:dummy-key-id",
 				"deleted": false,
-				"deletedBy": "IBMid-50BE1MTM26",
+				"deletedBy": "xyz6",
 				"deletionDate": "2020-05-20T15:22:50Z",
 				"dualAuthDelete": {
 					"enabled": false
