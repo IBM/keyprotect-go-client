@@ -45,6 +45,7 @@ type Key struct {
 	Description         string      `json:"description,omitempty"`
 	Type                string      `json:"type,omitempty"`
 	Tags                []string    `json:"Tags,omitempty"`
+	Aliases             []string    `json:"aliases,omitempty"`
 	AlgorithmType       string      `json:"algorithmType,omitempty"`
 	CreatedBy           string      `json:"createdBy,omitempty"`
 	CreationDate        *time.Time  `json:"creationDate,omitempty"`
@@ -198,6 +199,24 @@ func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-access#service-access-roles
 func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
 	return c.getKey(ctx, id, "keys/%s/metadata")
+}
+
+// GetKeyByAlias retrieves a key by alias name
+// For more information on Key Alias please refer to the link below
+// <KP Link>
+func (c *Client) GetKeyByAlias(ctx context.Context, aliasName string) (*Key, error) {
+	return c.getKey(ctx, aliasName, "keys/%s")
+}
+
+// GetKeyMetadataByAlias retrieves a key metadata details by alias name
+// Note that the "/api/v2/keys/{id}/metadata" API does not return the payload,
+// therefore the payload attribute in the Key pointer will always be empty.
+// If you need the payload, you need to use the GetKey() function with the
+// correct service access role.
+// For more information please refer to the link below:
+// <KP Link>
+func (c *Client) GetKeyMetadataByAlias(ctx context.Context, aliasName string) (*Key, error) {
+	return c.getKey(ctx, aliasName, "keys/%s/metadata")
 }
 
 func (c *Client) getKey(ctx context.Context, id string, path string) (*Key, error) {
