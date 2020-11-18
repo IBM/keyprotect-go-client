@@ -2652,6 +2652,164 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
+func TestCreateKeyWithAliases(t *testing.T){
+	defer gock.Off()
+	aliases := []string{"alias1", "alias2", "alias3"}
+	keyName := "test secret with alias"
+	keyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmType": "AES",
+				"aliases": [
+					"alias1",
+					"alias2",
+					"alias3"
+				],
+				"createdBy": "xyz",
+				"creationDate": "2020-11-06T22:40:44Z",
+				"crn": "dummycrn:v1:staging:public",
+				"deleted": false,
+				"extractable": false,
+				"id": "7b07-40b4-a306-eb98ee",
+				"lastUpdateDate": "2020-11-06T22:40:44Z",
+				"name": "test secret with alias",
+				"state": 1,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys").
+		Reply(201).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.CreateKeyWithAliases(context.Background(), keyName, nil, false, aliases)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.Name, keyName)
+	assert.Equal(t, key.Aliases, aliases)
+	assert.False(t, key.Extractable)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestCreateImportedKeyWithAliases(t *testing.T) {
+	defer gock.Off()
+
+	// Testing importing standard key with key aliases
+	aliases := []string{"importedAlias1","importedAlias2","importedAlias3","importedAlias4","importedAlias5"}
+	keyName := "importedStandardKeyWithAliases"
+	payload := "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI="
+	standardKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"id": "4b3d-6bce-9a29-1ca9a",
+				"name": "importedStandardKeyWithAliases",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+						"importedAlias1",
+						"importedAlias2",
+						"importedAlias3",
+						"importedAlias4",
+						"importedAlias5"
+				],
+				"algorithmType": "AES",
+				"createdBy": "abc-xyz",
+				"creationDate": "2015-05-12T06:32:30Z",
+				"lastUpdateDate": "2015-05-12T06:32:30Z",
+				"extractable": true,
+				"payload": "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=",
+				"state": 1,
+				"crn": "dummycrn:v1:bluemix:public:kms:",
+				"deleted": false
+			}
+		]
+	}`)
+	
+	gock.New("http://example.com").
+		Post("/api/v2/keys").
+		Reply(201).
+		Body(bytes.NewReader(standardKeyResponse))
+
+	c, _,err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+	
+	key, err := c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, payload, "", "", true, aliases)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.Name, keyName)
+	assert.Equal(t, key.Aliases, aliases)
+	assert.True(t, key.Extractable)
+	assert.Equal(t, key.Payload, payload)
+
+
+	// Testing importing root key with import token and key aliases
+	aliases = []string{"root1","root2"}
+	keyName = "importedRootKeyWithAliases"
+	encryptedKey := "CB8+E6S551r2MxxTnP6oCX1e69UfLNugCD5e7SLSlRp+NCQHm+wKgfAGMY4Eq+kFTHkQxLaQTbtDvZyk/sNGI5wAtsk8+RU7J3WZeNIUU0wgYEMyPb1CGWDfAqGVa2shCkM4CYXFaUw5iI2StFFrxUdoaesd6Nt6MLmYqnKqCl7j8ueIcKulov6Pc9kMv5SUWBAX0yziKGXu74JmL/JFAq2tVFspy7tSXHZtJTVCFryzbnlXbjFiBKDkFlJ0MkFW+axB180nVRC2Fjx315MymbiaGwVGqodXYK+yqA+AIOhXsuPvK6A6Pw8oq0//mp7TJod1t+Bcja8xh2vXQdyM/q0hkCRzgcFYXgaVl12KzERz45U2QWNDj5cqJPx4PmCv6EHWmEjiVxhIkr9bhbosUBXnXhIyVcHxjjxEp8TgeBnvQSTFwfKu9pm9ifBK65CheyK32WXg6+6POZzmYVZpGxMQs2rr/QPwPelYjV4n6Y6SR/WuycYzT+x14bkp94yVTgt6UKwtg6NaRlwpst1xa3yShymmzPvLxhANI9y+ZHVL9Aoi+Fm982rrzy9N6kVn3dfo+Y8UgsfFar6VeieH9f1S5aACHyUW0uKEi9mFVO9sCCQ4PI3RKkvTinSN4THvfpQ4n1JTr7j75FbEl9xrfMWDD8cmgzu7IYQ8TdAlnR8="
+	encyrptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
+	iv := "KuOXnIEGnSPzUkQu"
+
+	rootKeyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"id": "5f3d-63ce-4a29-1camn",
+				"name": "importedRootKeyWithAliases",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+						"root1",
+						"root2"
+				],
+				"algorithmType": "AES",
+				"createdBy": "abc-xyz",
+				"creationDate": "2015-05-12T06:32:30Z",
+				"lastUpdateDate": "2015-05-12T06:32:30Z",
+				"extractable": false,
+				"state": 1,
+				"crn": "dummycrn:v1:bluemix:public:kms:",
+				"deleted": false
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys").
+		Reply(201).
+		Body(bytes.NewReader(rootKeyResponse))
+	
+	key, err = c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, encryptedKey, encyrptedNonce, iv, true, aliases)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.Name, keyName)
+	assert.Equal(t, key.Aliases, aliases)
+	assert.False(t, key.Extractable)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
 func TestCreateKeyAlias(t *testing.T) {
 	defer gock.Off()
 	keyID := "1asdfa961f-a348-4y99-1a6a-bag4b61a5eb"
