@@ -116,25 +116,7 @@ func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration 
 		key.Expiration = expiration
 	}
 
-	keysRequest := Keys{
-		Metadata: KeysMetadata{
-			CollectionType: keyType,
-			NumberOfKeys:   1,
-		},
-		Keys: []Key{key},
-	}
-
-	req, err := c.newRequest("POST", "keys", &keysRequest)
-	if err != nil {
-		return nil, err
-	}
-
-	keysResponse := Keys{}
-	if _, err := c.do(ctx, req, &keysResponse); err != nil {
-		return nil, err
-	}
-
-	return &keysResponse.Keys[0], nil
+	return c.createKey(ctx, key)
 }
 
 // CreateRootKey creates a new, non-extractable key resource without
@@ -159,6 +141,66 @@ func (c *Client) CreateImportedRootKey(ctx context.Context, name string, expirat
 // given key material.
 func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, expiration *time.Time, payload string) (*Key, error) {
 	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true)
+}
+
+// CreateKeyWithAliaes creats a new key with alias names. A key can have a maximum of 5 alias names.
+// For more information please refer to the links below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-root-keys#create-root-key-api
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-standard-keys#create-standard-key-api
+func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string) (*Key, error){
+	return c.CreateImportedKeyWithAliases(ctx, name, expiration, "", "", "", extractable, aliases)
+}
+
+
+// CreateImportedKeyWithAliases creates a new key with alias name and provided key material. A key can have a maximum of 5 alias names
+// When importing root keys with import-token encryptedNonce and iv need to passed along with payload.
+// Standard Keys cannot be imported with an import token hence only payload is required.
+// For more information please refer to the links below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
+func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	key := Key{
+		Name:        name,
+		Type:        keyType,
+		Extractable: extractable,
+		Payload:     payload,
+		Aliases: aliases,
+	}
+
+	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
+		key.EncryptedNonce = encryptedNonce
+		key.IV = iv
+		key.EncryptionAlgorithm = importTokenEncAlgo
+	}
+
+	if expiration != nil {
+		key.Expiration = expiration
+	}
+
+	return c.createKey(ctx, key)
+}
+
+
+func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
+	keysRequest := Keys{
+		Metadata: KeysMetadata{
+			CollectionType: keyType,
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{key},
+	}
+
+	req, err := c.newRequest("POST", "keys", &keysRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	keysResponse := Keys{}
+	if _, err := c.do(ctx, req, &keysResponse); err != nil {
+		return nil, err
+	}
+
+	return &keysResponse.Keys[0], nil
 }
 
 // GetKeys retrieves a collection of keys that can be paged through.
