@@ -30,6 +30,7 @@ import (
 
 	"github.com/IBM/keyprotect-go-client/iam"
 
+	"github.com/stretchr/stew/slice"
 	"github.com/stretchr/testify/assert"
 	gock "gopkg.in/h2non/gock.v1"
 )
@@ -2212,4 +2213,173 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestCreateKeyAlias(t *testing.T) {
+	defer gock.Off()
+	keyID := "1asdfa961f-a348-4y99-1a6a-bag4b61a5eb"
+	alias := "xmen2020"
+	requestPath := keyID + "/aliases/" + alias
+	keyAliasResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.alias+json",
+			"collectionTotal":1
+			},
+			"resources":[
+				{
+					"keyId":"1asdfa961f-a348-4y99-1a6a-bag4b61a5eb",
+					"alias":"xmen2020",
+					"createdBy":"xyz",
+					"creationDate":"2020-11-09T17:23:44Z"
+				}
+			]
+		}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + requestPath).
+		Reply(201).
+		Body(bytes.NewReader(keyAliasResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	keyAlias, err := c.CreateKeyAlias(context.Background(), alias, keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, keyAlias)
+	assert.Equal(t, keyAlias.KeyID, keyID)
+	assert.Equal(t, keyAlias.Alias, alias)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestDeleteKeyAlias(t *testing.T) {
+	defer gock.Off()
+	keyID := "1asdfa961f-a348-4y99-1a6a-bag4b61a5eb"
+	alias := "xmen2020"
+	requestPath := keyID + "/aliases/" + alias
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.DeleteKeyAlias(context.Background(), alias, keyID)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+
+}
+
+func TestGetKeyWithAlias(t *testing.T) {
+	defer gock.Off()
+	keyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmType": "AES",
+				"aliases": [
+					"inumu",
+					"domainblvd"
+				],
+				"createdBy": "xyz",
+				"creationDate": "2020-11-06T22:40:44Z",
+				"crn": "crn:v1:staging:public:kms:us-south:a/07214fad6bb9305647dc3ebe3244b781:43d105f4-84a0-41c8-8950-4b7180ffa213:key:f4877b07-40b4-4307-a306-eb98eeeea590",
+				"deleted": false,
+				"description": "a testing thing",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": true,
+				"id": "f4877b07-40b4-4307-a306-eb98eeeea590",
+				"payload": "1/9ajNlN5Vu9s2rR7mLhOVR6aGn8+gbtgj03PwfFUaM=",
+				"lastUpdateDate": "2020-11-06T22:40:44Z",
+				"name": "test secret",
+				"state": 1,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}`)
+	alias := "domainblvd"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + alias).
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.GetKeyByAlias(context.Background(), alias)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.NotEqual(t, key.Payload, "")
+	assert.True(t, slice.ContainsString(key.Aliases, alias))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestGetKeyMetadataWithAlias(t *testing.T) {
+	defer gock.Off()
+	keyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"algorithmType": "AES",
+				"aliases": [
+					"inumu",
+					"domainblvd"
+				],
+				"createdBy": "xyz",
+				"creationDate": "2020-11-06T22:40:44Z",
+				"crn": "crn:v1:staging:public:kms:us-south:a/07214fad6bb9305647dc3ebe3244b781:43d105f4-84a0-41c8-8950-4b7180ffa213:key:f4877b07-40b4-4307-a306-eb98eeeea590",
+				"deleted": false,
+				"description": "a testing thing",
+				"dualAuthDelete": {
+					"enabled": false
+				},
+				"extractable": true,
+				"id": "f4877b07-40b4-4307-a306-eb98eeeea590",
+				"lastUpdateDate": "2020-11-06T22:40:44Z",
+				"name": "test secret",
+				"state": 1,
+				"type": "application/vnd.ibm.kms.key+json"
+			}
+		]
+	}`)
+	alias := "domainblvd"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + alias + "/metadata").
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.GetKeyMetadataByAlias(context.Background(), alias)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.Payload, "")
+	assert.True(t, slice.ContainsString(key.Aliases, alias))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
