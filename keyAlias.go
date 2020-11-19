@@ -14,7 +14,7 @@ var (
 type KeyAlias struct {
 	KeyID        string     `json:"keyId,omitempty"`
 	Alias        string     `json:"alias,omitempty"`
-	CreatedBy    *string    `json:"createdBy,omitempty"`
+	CreatedBy    string     `json:"createdBy,omitempty"`
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
@@ -32,7 +32,7 @@ type KeyAliases struct {
 // CreateKeyAlias creates an alias name for a key.
 // An alias name acts as an identifier just like key ID
 // For more information please refer to the link below:
-// <KP Link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-key-alias#create-key-alias-api
 func (c *Client) CreateKeyAlias(ctx context.Context, aliasName, keyID string) (*KeyAlias, error) {
 
 	req, err := c.newRequest("POST", fmt.Sprintf(requestPath, keyID, aliasName), nil)
@@ -43,7 +43,6 @@ func (c *Client) CreateKeyAlias(ctx context.Context, aliasName, keyID string) (*
 	aliasesResponse := KeyAliases{}
 	_, err = c.do(ctx, req, &aliasesResponse)
 	if err != nil {
-		fmt.Printf("err: %+v\n", err)
 		return nil, err
 	}
 
@@ -56,7 +55,7 @@ func (c *Client) CreateKeyAlias(ctx context.Context, aliasName, keyID string) (*
 
 // DeleteKeyAlias deletes an alias name associated with a key
 // For more information please refer to the link below:
-// <KP Link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-key-alias#delete-key-alias
 func (c *Client) DeleteKeyAlias(ctx context.Context, aliasName, keyID string) error {
 
 	req, err := c.newRequest("DELETE", fmt.Sprintf(requestPath, keyID, aliasName), nil)
