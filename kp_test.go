@@ -30,7 +30,6 @@ import (
 
 	"github.com/IBM/keyprotect-go-client/iam"
 
-	"github.com/stretchr/stew/slice"
 	"github.com/stretchr/testify/assert"
 	gock "gopkg.in/h2non/gock.v1"
 )
@@ -2321,12 +2320,12 @@ func TestGetKeyWithAlias(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.GetKeyByAlias(context.Background(), alias)
+	key, err := c.GetKey(context.Background(), alias)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
 	assert.NotEqual(t, key.Payload, "")
-	assert.True(t, slice.ContainsString(key.Aliases, alias))
+	assert.Contains(t, key.Aliases, alias)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
@@ -2374,12 +2373,12 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.GetKeyMetadataByAlias(context.Background(), alias)
+	key, err := c.GetKeyMetadata(context.Background(), alias)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
 	assert.Equal(t, key.Payload, "")
-	assert.True(t, slice.ContainsString(key.Aliases, alias))
+	assert.Contains(t, key.Aliases, alias)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }

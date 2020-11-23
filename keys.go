@@ -186,37 +186,21 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	return &keys, nil
 }
 
-// GetKey retrieves a key by ID.
-func (c *Client) GetKey(ctx context.Context, id string) (*Key, error) {
-	return c.getKey(ctx, id, "keys/%s")
+// GetKey retrieves a key by ID or alias name.
+// For more information on Key Alias please refer to the link below
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-retrieve-key
+func (c *Client) GetKey(ctx context.Context, idOrAlias string) (*Key, error) {
+	return c.getKey(ctx, idOrAlias, "keys/%s")
 }
 
-// GetKeyMetadata retrieves the metadata of a Key.
+// GetKeyMetadata retrieves the metadata of a Key by ID or alias name.
 // Note that the "/api/v2/keys/{id}/metadata" API does not return the payload,
 // therefore the payload attribute in the Key pointer will always be empty.
 // If you need the payload, you need to use the GetKey() function with the
 // correct service access role.
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-access#service-access-roles
-func (c *Client) GetKeyMetadata(ctx context.Context, id string) (*Key, error) {
-	return c.getKey(ctx, id, "keys/%s/metadata")
-}
-
-// GetKeyByAlias retrieves a key by alias name
-// For more information on Key Alias please refer to the link below
-// <KP Link>
-func (c *Client) GetKeyByAlias(ctx context.Context, aliasName string) (*Key, error) {
-	return c.getKey(ctx, aliasName, "keys/%s")
-}
-
-// GetKeyMetadataByAlias retrieves a key metadata details by alias name
-// Note that the "/api/v2/keys/{id}/metadata" API does not return the payload,
-// therefore the payload attribute in the Key pointer will always be empty.
-// If you need the payload, you need to use the GetKey() function with the
-// correct service access role.
-// For more information please refer to the link below:
-// <KP Link>
-func (c *Client) GetKeyMetadataByAlias(ctx context.Context, aliasName string) (*Key, error) {
-	return c.getKey(ctx, aliasName, "keys/%s/metadata")
+func (c *Client) GetKeyMetadata(ctx context.Context, idOrAlias string) (*Key, error) {
+	return c.getKey(ctx, idOrAlias, "keys/%s/metadata")
 }
 
 func (c *Client) getKey(ctx context.Context, id string, path string) (*Key, error) {
