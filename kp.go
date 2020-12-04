@@ -71,6 +71,7 @@ type ClientConfig struct {
 	APIKey        string  // Service ID API key, can be used instead of an access token
 	TokenURL      string  // The URL used to get an access token from the API key
 	InstanceID    string  // The IBM Cloud (Bluemix) instance ID that identifies your Key Protect service instance.
+	KeyRing       string  // The ID of the target Key Ring the key is associated with. It is optional but recommended for better performance.
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
 }
@@ -245,6 +246,10 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
 	req.Header.Set("correlation-id", corrId)
+
+	if c.Config.KeyRing != "" {
+		req.Header.Set("x-kms-key-ring", c.Config.KeyRing)
+	}
 
 	// set request up to be retryable on 500-level http codes and client errors
 	retryableClient := getRetryableClient(&c.HttpClient)
