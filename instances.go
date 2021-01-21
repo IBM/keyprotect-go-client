@@ -88,7 +88,7 @@ type InstancePolicies struct {
 func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, "dualAuthDelete", &policyResponse)
+	err := c.getInstancePolicy(ctx, DualAuthDelete, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +105,7 @@ func (c *Client) GetDualAuthInstancePolicy(ctx context.Context) (*InstancePolicy
 func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, "allowedNetwork", &policyResponse)
+	err := c.getInstancePolicy(ctx, AllowedNetwork, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (c *Client) GetAllowedNetworkInstancePolicy(ctx context.Context) (*Instance
 func (c *Client) GetAllowedIPInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, "allowedIP", &policyResponse)
+	err := c.getInstancePolicy(ctx, AllowedIP, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func (c *Client) setInstancePolicy(ctx context.Context, policyType string, polic
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-dual-auth
 func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) error {
 	policy := InstancePolicy{
-		PolicyType: "dualAuthDelete",
+		PolicyType: DualAuthDelete,
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
@@ -237,7 +237,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, "dualAuthDelete", policyRequest)
+	err := c.setInstancePolicy(ctx, DualAuthDelete, policyRequest)
 
 	return err
 }
@@ -248,7 +248,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, allowedIPs []string) error {
 
 	policy := InstancePolicy{
-		PolicyType: "allowedIP",
+		PolicyType: AllowedIP,
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
@@ -271,7 +271,7 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 		},
 		Policies: []InstancePolicy{policy},
 	}
-	err := c.setInstancePolicy(ctx, "allowedIP", policyRequest)
+	err := c.setInstancePolicy(ctx, AllowedIP, policyRequest)
 
 	return err
 }
@@ -281,7 +281,7 @@ func (c *Client) SetAllowedIPInstancePolicy(ctx context.Context, enable bool, al
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-network-access-policies
 func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable bool, networkType string) error {
 	policy := InstancePolicy{
-		PolicyType: "allowedNetwork",
+		PolicyType: AllowedNetwork,
 		PolicyData: PolicyData{
 			Enabled:    &enable,
 			Attributes: &Attributes{},
@@ -299,7 +299,7 @@ func (c *Client) SetAllowedNetworkInstancePolicy(ctx context.Context, enable boo
 		Policies: []InstancePolicy{policy},
 	}
 
-	err := c.setInstancePolicy(ctx, "allowedNetwork", policyRequest)
+	err := c.setInstancePolicy(ctx, AllowedNetwork, policyRequest)
 
 	return err
 }
