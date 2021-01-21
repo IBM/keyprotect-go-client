@@ -1658,7 +1658,7 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 		Put("/instance/policies").
 		// MatchType("json").
 		// JSON(dualAuthPolicyRequest).
-		MatchParam("policy", "dualAuthDelete").
+		MatchParam("policy", DualAuthDelete).
 		Reply(204)
 
 	err = c.SetDualAuthInstancePolicy(context.Background(), false)
@@ -1667,7 +1667,7 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", "dualAuthDelete").
+		MatchParam("policy", DualAuthDelete).
 		Reply(200).
 		Body(bytes.NewReader(dualAuthPolicyResponse))
 
@@ -1675,7 +1675,7 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, dap)
-	assert.Equal(t, dap.PolicyType, "dualAuthDelete")
+	assert.Equal(t, dap.PolicyType, DualAuthDelete)
 	assert.True(t, *(dap.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
@@ -1734,7 +1734,7 @@ func TestSetAndGetAllowedNetworkPolicy(t *testing.T) {
 		Put("/instance/policies").
 		// MatchType("json").
 		// JSON(allowedNetworkPolicyRequest).
-		MatchParam("policy", "allowedNetwork").
+		MatchParam("policy", AllowedNetwork).
 		Reply(204)
 
 	err = c.SetAllowedNetworkInstancePolicy(context.Background(), true, "public-and-private")
@@ -1743,7 +1743,7 @@ func TestSetAndGetAllowedNetworkPolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", "allowedNetwork").
+		MatchParam("policy", AllowedNetwork).
 		Reply(200).
 		Body(bytes.NewReader(allowedNetworkPolicyResponse))
 
@@ -1751,7 +1751,7 @@ func TestSetAndGetAllowedNetworkPolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
-	assert.Equal(t, ap.PolicyType, "allowedNetwork")
+	assert.Equal(t, ap.PolicyType, AllowedNetwork)
 	assert.True(t, *(ap.PolicyData.Enabled))
 	assert.Equal(t, *(ap.PolicyData.Attributes.AllowedNetwork), "public-and-private")
 
@@ -1845,7 +1845,7 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 		Put("/api/v2/instance/policies").
 		// MatchType("json").
 		// JSON(allowedIPPolicyEnableRequest).
-		MatchParam("policy", "allowedIP").
+		MatchParam("policy", AllowedIP).
 		Reply(204)
 
 	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{"192.0.2.0/24", "203.0.113.0/32"})
@@ -1854,7 +1854,7 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/instance/policies").
-		MatchParam("policy", "allowedIP").
+		MatchParam("policy", AllowedIP).
 		Reply(200).
 		Body(bytes.NewReader(allowedIPPolicyEnabledResponse))
 
@@ -1862,14 +1862,14 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ip)
-	assert.Equal(t, ip.PolicyType, "allowedIP")
+	assert.Equal(t, ip.PolicyType, AllowedIP)
 	assert.True(t, *(ip.PolicyData.Enabled))
 
 	gock.New("http://example/com").
 		Put("/api/v2/instance/policies").
 		// MatchType("json").
 		// JSON(allowedIPPolicyDisableRequest).
-		MatchParam("policy", "allowedIP").
+		MatchParam("policy", AllowedIP).
 		Reply(204)
 
 	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{})
@@ -1878,7 +1878,7 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/instance/policies").
-		MatchParam("policy", "allowedIP").
+		MatchParam("policy", AllowedIP).
 		Reply(200).
 		Body(bytes.NewReader(allowedIPPolicyDisabledResponse))
 
@@ -1886,7 +1886,7 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ip)
-	assert.Equal(t, ip.PolicyType, "allowedIP")
+	assert.Equal(t, ip.PolicyType, AllowedIP)
 	assert.False(t, *(ip.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
@@ -1988,7 +1988,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 		Put("/instance/policies").
 		// MatchType("json").
 		// JSON(keyAccessEnableRequest).
-		MatchParam("policy", "keyCreateImportAccess").
+		MatchParam("policy", KeyCreateImportAccess).
 		Reply(204)
 
 	attributes := map[string]bool {
@@ -2003,7 +2003,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", "keyCreateImportAccess").
+		MatchParam("policy", KeyCreateImportAccess).
 		Reply(200).
 		Body(bytes.NewReader(keyAccessEnabledResponse))
 
@@ -2011,7 +2011,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kip)
-	assert.Equal(t, kip.PolicyType, "keyCreateImportAccess")
+	assert.Equal(t, kip.PolicyType, KeyCreateImportAccess)
 	assert.True(t, *(kip.PolicyData.Enabled))
 	assert.True(t, *(kip.PolicyData.Attributes.CreateRootKey))
 	assert.False(t, *(kip.PolicyData.Attributes.CreateStandardKey))
@@ -2023,7 +2023,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 		Put("/instance/policies").
 		// MatchType("json").
 		// JSON(keyAccessDisableRequest).
-		MatchParam("policy", "keyCreateImportAccess").
+		MatchParam("policy", KeyCreateImportAccess).
 		Reply(204)
 
 	err = c.SetKeyCreateImportAccessInstancePolicy(context.Background(), false, nil)
@@ -2032,7 +2032,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", "keyCreateImportAccess").
+		MatchParam("policy", KeyCreateImportAccess).
 		Reply(200).
 		Body(bytes.NewReader(keyAccessDisabledResponse))
 
@@ -2040,7 +2040,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, kip)
-	assert.Equal(t, kip.PolicyType, "keyCreateImportAccess")
+	assert.Equal(t, kip.PolicyType, KeyCreateImportAccess)
 	assert.False(t, *(kip.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
@@ -2091,7 +2091,7 @@ func TestSetMetricsPolicy(t *testing.T) {
 		Put("/instance/policies").
 		// MatchType("json").
 		// JSON(metricsPolicyRequest).
-		MatchParam("policy", "metrics").
+		MatchParam("policy", Metrics).
 		Reply(204)
 
 	err = c.SetMetricsInstancePolicy(context.Background(), true)
@@ -2100,7 +2100,7 @@ func TestSetMetricsPolicy(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", "metrics").
+		MatchParam("policy", Metrics).
 		Reply(200).
 		Body(bytes.NewReader(metricsPolicyResponse))
 
@@ -2203,7 +2203,7 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/api/v2/instance/policies").
-		MatchParam("policy", "dualAuthDelete").
+		MatchParam("policy", DualAuthDelete).
 		Reply(400).
 		Body(bytes.NewReader(errorResponse))
 
@@ -2298,7 +2298,7 @@ func TestSetKeyPolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/api/v2/keys/"+testKey+"/policies").
-		MatchParam("policy", "dualAuthDelete").
+		MatchParam("policy", DualAuthDelete).
 		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	c, _, err := NewTestClient(t, nil)
@@ -2447,7 +2447,7 @@ func TestGetKeyPolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/keys/"+testKey+"/policies").
-		MatchParam("policy", "dualAuthDelete").
+		MatchParam("policy", DualAuthDelete).
 		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	dualAuthPolicy, err := c.GetDualAuthDeletePolicy(context.Background(), testKey)
