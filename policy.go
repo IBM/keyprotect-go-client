@@ -176,7 +176,7 @@ func (c *Client) GetRotationPolicy(ctx context.Context, id string) (*Policy, err
 func (c *Client) GetDualAuthDeletePolicy(ctx context.Context, id string) (*Policy, error) {
 	policyresponse := Policies{}
 
-	err := c.getPolicy(ctx, id, "dualAuthDelete", &policyresponse)
+	err := c.getPolicy(ctx, id, DualAuthDelete, &policyresponse)
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (c *Client) SetDualAuthDeletePolicy(ctx context.Context, id string, enabled
 		Policies: []Policy{policy},
 	}
 
-	policyresponse, err := c.setPolicy(ctx, id, "dualAuthDelete", policyRequest)
+	policyresponse, err := c.setPolicy(ctx, id, DualAuthDelete, policyRequest)
 	if err != nil {
 		return nil, err
 	}
