@@ -54,6 +54,8 @@ const (
 
 	authContextKey ContextKey = 0
 	defaultTimeout            = 30 // in seconds.
+
+	correlationIdContextKey = "X-Correlation-Id"
 )
 
 var (
@@ -234,13 +236,14 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 		return nil, err
 	}
 
-	// generate our own UUID for the correlation ID and feed it into the request
+	// retrieve the correlation id from the context. If not present, then a UUID will be
+	// generated for the correlation ID and feed it into the request
 	// KeyProtect will use this when it is set on a request header rather than generating its
 	// own inside the service
-	// We generate our own here because a connection error might actually mean the request
-	// doesn't make it server side, so having a correlation ID locally helps us know that
-	// when comparing with server side logs.
-	corrId := uuid.New().String()
+	// if not present, we generate our own here because a connection error might actually
+	// mean the request doesn't make it server side, so having a correlation ID locally helps
+	// us know that when comparing with server side logs.
+	corrId := c.getCorrelationId(ctx)
 
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
@@ -363,6 +366,21 @@ func (c *Client) getAccessToken(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("%s %s", token.TokenType, token.AccessToken), nil
+}
+
+// getCorrelationId returns the correlation ID value from the given Context, or
+// returns a new UUID if not present
+func (c *Client) getCorrelationId(ctx context.Context) string {
+	if ctx.Value(correlationIdContextKey) != nil {
+		corrId := ctx.Value(correlationIdContextKey).(string)
+		_, err := uuid.Parse(corrId)
+		if err == nil {
+			return corrId
+		}
+	}
+
+	corrId := uuid.New().String()
+	return corrId
 }
 
 // Logger writes when called.

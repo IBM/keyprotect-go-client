@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/IBM/keyprotect-go-client/iam"
+	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/assert"
 	gock "gopkg.in/h2non/gock.v1"
@@ -1036,6 +1037,43 @@ func TestDo_ConnectionError_HasCorrelationID(t *testing.T) {
 
 	urlErr := err.(*URLError)
 	assert.NotEmpty(t, urlErr.CorrelationID)
+}
+
+func TestDo_CorrelationID_Set(t *testing.T) {
+	defer gock.Off()
+
+	gock.New("http://example.com").
+		ReplyError(errors.New("test error"))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	corrId := uuid.New().String()
+	ctx := context.WithValue(context.Background(), correlationIdContextKey, corrId)
+	_, err = c.GetKeys(ctx, 0, 0)
+	assert.Contains(t, err.Error(), "correlation_id='"+corrId+"'")
+}
+
+func TestDo_CorrelationID_NotUUID(t *testing.T) {
+	defer gock.Off()
+
+	gock.New("http://example.com").
+		ReplyError(errors.New("test error"))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	corrId := "invalid-uuid"
+	ctx := context.WithValue(context.Background(), correlationIdContextKey, corrId)
+	_, err = c.GetKeys(ctx, 0, 0)
+	assert.NotContains(t, err.Error(), corrId)
+	reasonsErr := err.(*URLError)
+	_, err = uuid.Parse(reasonsErr.CorrelationID)
+	assert.NoError(t, err)
 }
 
 func TestDo_KPErrorResponseWithReasons_IsErrorStruct(t *testing.T) {
