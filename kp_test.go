@@ -1523,7 +1523,7 @@ func TestRestoreKey(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-// TestSetAndGetMultipleInstancePolicies tests the methods that update and retrieve mutliple instance policies
+// TestSetAndGetMultipleInstancePolicies tests the methods that update and retrieve multiple instance policies
 func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	defer gock.Off()
 

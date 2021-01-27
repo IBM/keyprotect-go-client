@@ -332,7 +332,7 @@ func (c *Client) SetMetricsInstancePolicy(ctx context.Context, enable bool) erro
 }
 
 // SetKeyCreateImportAccessInstancePolicy updates the key create import access policy details associated with an instance.
-// For more information can refer to the Key Protect docs in the link below:
+// For more information, please refer to the Key Protect docs in the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-manage-keyCreateImportAccess
 func (c *Client) SetKeyCreateImportAccessInstancePolicy(ctx context.Context, enable bool, attributes map[string]bool) error {
 	policy := InstancePolicy{
@@ -371,9 +371,6 @@ func (c *Client) SetKeyCreateImportAccessInstancePolicy(ctx context.Context, ena
 	}
 
 	err := c.setInstancePolicy(ctx, KeyCreateImportAccess, policyRequest)
-	if err != nil {
-		return err
-	}
 
 	return err
 }
@@ -430,7 +427,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 
 	if policies.AllowedNetwork != nil {
 		policy := InstancePolicy{
-			PolicyType: "allowedNetwork",
+			PolicyType: AllowedNetwork,
 			PolicyData: PolicyData{
 				Enabled: &(policies.AllowedNetwork.Enabled),
 				Attributes: &Attributes{
