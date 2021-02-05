@@ -54,8 +54,6 @@ const (
 
 	authContextKey ContextKey = 0
 	defaultTimeout            = 30 // in seconds.
-
-	correlationIdContextKey = "X-Correlation-Id"
 )
 
 var (
@@ -64,7 +62,11 @@ var (
 
 	// RetryMax is the max number of attempts to retry for failed HTTP requests
 	RetryMax = 4
+
+	cidCtxKey = ctxKey("X-Correlation-Id")
 )
+
+type ctxKey string
 
 // ClientConfig ...
 type ClientConfig struct {
@@ -243,11 +245,11 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	// if not present, we generate our own here because a connection error might actually
 	// mean the request doesn't make it server side, so having a correlation ID locally helps
 	// us know that when comparing with server side logs.
-	corrId := c.getCorrelationId(ctx)
+	corrID := c.getCorrelationID(ctx)
 
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
-	req.Header.Set("correlation-id", corrId)
+	req.Header.Set("correlation-id", corrID)
 
 	// set request up to be retryable on 500-level http codes and client errors
 	retryableClient := getRetryableClient(&c.HttpClient)
@@ -258,7 +260,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 
 	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
 	if err != nil {
-		return nil, &URLError{err, corrId}
+		return nil, &URLError{err, corrID}
 	}
 	defer response.Body.Close()
 
@@ -302,7 +304,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 			StatusCode:    response.StatusCode,
 			Message:       errMessage,
 			BodyContent:   resBody,
-			CorrelationID: corrId,
+			CorrelationID: corrID,
 			Reasons:       reasons,
 		}
 	}
@@ -370,17 +372,30 @@ func (c *Client) getAccessToken(ctx context.Context) (string, error) {
 
 // getCorrelationId returns the correlation ID value from the given Context, or
 // returns a new UUID if not present
-func (c *Client) getCorrelationId(ctx context.Context) string {
-	if ctx.Value(correlationIdContextKey) != nil {
-		corrId := ctx.Value(correlationIdContextKey).(string)
-		_, err := uuid.Parse(corrId)
-		if err == nil {
-			return corrId
-		}
+func (c *Client) getCorrelationID(ctx context.Context) string {
+	corrID := GetCorrelationID(ctx)
+	if corrID == nil {
+		return uuid.New().String()
 	}
 
-	corrId := uuid.New().String()
-	return corrId
+	return corrID.String()
+}
+
+// NewContextWithCorrelationID retuns a context containing the UUID
+func NewContextWithCorrelationID(ctx context.Context, uuid *uuid.UUID) context.Context {
+	return context.WithValue(ctx, cidCtxKey, uuid)
+}
+
+// GetCorrelationID returns the correlation ID from the context
+func GetCorrelationID(ctx context.Context) *uuid.UUID {
+	if id := ctx.Value(cidCtxKey); id != nil {
+		return id.(*uuid.UUID)
+	}
+	return nil
+}
+
+func (c ctxKey) String() string {
+	return string(c)
 }
 
 // Logger writes when called.
