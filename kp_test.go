@@ -1050,30 +1050,12 @@ func TestDo_CorrelationID_Set(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	corrId := uuid.New().String()
-	ctx := context.WithValue(context.Background(), correlationIdContextKey, corrId)
+	corrID := uuid.New()
+	ctx := NewContextWithCorrelationID(context.Background(), &corrID)
 	_, err = c.GetKeys(ctx, 0, 0)
-	assert.Contains(t, err.Error(), "correlation_id='"+corrId+"'")
-}
-
-func TestDo_CorrelationID_NotUUID(t *testing.T) {
-	defer gock.Off()
-
-	gock.New("http://example.com").
-		ReplyError(errors.New("test error"))
-
-	c, _, err := NewTestClient(t, nil)
-	gock.InterceptClient(&c.HttpClient)
-	defer gock.RestoreClient(&c.HttpClient)
-	c.tokenSource = &FakeTokenSource{}
-
-	corrId := "invalid-uuid"
-	ctx := context.WithValue(context.Background(), correlationIdContextKey, corrId)
-	_, err = c.GetKeys(ctx, 0, 0)
-	assert.NotContains(t, err.Error(), corrId)
-	reasonsErr := err.(*URLError)
-	_, err = uuid.Parse(reasonsErr.CorrelationID)
-	assert.NoError(t, err)
+	assert.Contains(t, err.Error(), "correlation_id='"+corrID.String()+"'")
+	corrID2 := GetCorrelationID(ctx)
+	assert.Equal(t, &corrID, corrID2)
 }
 
 func TestDo_KPErrorResponseWithReasons_IsErrorStruct(t *testing.T) {
