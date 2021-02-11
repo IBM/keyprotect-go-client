@@ -259,44 +259,20 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 	return nil, nil
 }
 
-// RestoreKey restores a deleted imported root key by specifying the ID of the key
-func (c *Client) RestoreKey(ctx context.Context, id, payload, encryptedNonce, iv string) (*Key, error) {
-
-	if payload == "" {
-		return nil, fmt.Errorf("Please provide payload to restore the key")
-	}
-
-	key := Key{
-		Payload:        payload,
-		IV:             iv,
-		EncryptedNonce: encryptedNonce,
-	}
-
-	if encryptedNonce != "" && iv != "" {
-		key.EncryptionAlgorithm = importTokenEncAlgo
-	}
-
-	keysRequest := Keys{
-		Metadata: KeysMetadata{
-			CollectionType: keyType,
-			NumberOfKeys:   1,
-		},
-		Keys: []Key{key},
-	}
-
-	v := url.Values{}
-	v.Set("action", "restore")
-
-	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s", id), &keysRequest)
+// RestoreKey method reverts a delete key status to active key
+// This method performs restore of any key from deleted state to active state.
+// For more information please refer to the link below:
+// https://cloud.ibm.com/dowcs/key-protect?topic=key-protect-restore-keys
+func (c *Client) RestoreKey(ctx context.Context, id string) (*Key, error) {
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/restore", id), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	req.URL.RawQuery = v.Encode()
-
 	keysResponse := Keys{}
 
-	if _, err := c.do(ctx, req, &keysResponse); err != nil {
+	_, err = c.do(ctx, req, &keysResponse)
+	if err != nil {
 		return nil, err
 	}
 
