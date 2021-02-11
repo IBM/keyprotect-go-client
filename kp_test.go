@@ -1429,23 +1429,21 @@ func TestRestoreKey(t *testing.T) {
 		},
 		"resources":[
 			{
-				"type":"keys",
-				"id":"2n4y2-4ko2n-4m23f-23j3r",
-				"name":"test secret",
-				"description":"a testing thing",
-				"state":1,
-				"extractable":false,
-				"imported":true,
-				"deleted":false,
-				"deletionDate":"2020-05-06T16:48:51Z",
-				"deletedBy":"user_xyz"
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"name": "test_key",
+				"type": "application/vnd.ibm.kms.key+json",
+				"extractable": false,
+				"state": 1,
+				"crn": "dummy:crn",
+				"deleted": false,
+				"deletedBy": "abc-xyz",
+				"deletionDate": "2018-04-10T19:56:38Z"
 			}
 		]
 	}`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey).
-		MatchParam("action", "restore").
+		Post("/api/v2/keys/" + testKey + "/restore").
 		Reply(201).Body(bytes.NewReader(restoreKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
@@ -1453,52 +1451,11 @@ func TestRestoreKey(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.RestoreKey(context.Background(), testKey, "JaokkJZffuuMOOC4YhuFspe8508ixeKvqskKhFw1f+w=", "", "")
+	key, err := c.RestoreKey(context.Background(), testKey)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
 	assert.Equal(t, testKey, key.ID)
-	assert.False(t, key.Extractable)
-	assert.Equal(t, key.State, 1)
-
-	// restore key with encrypted nonce and iv
-
-	deletedKey := "alkd-r30lk-4323"
-	restoreKeyEcryptedNonceResponse := []byte(`{
-		"metadata":{
-			"collectionType":"application/vnd.ibm.kms.key+json",
-			"collectionTotal":1
-			},
-		"resources":[
-			{
-				"type":"application/vnd.ibm.kms.key+json",
-				"id":"alkd-r30lk-4323",
-				"name":"new_imported_root_key",
-				"state":1,
-				"extractable":false,
-				"crn":"crn:v1:kms:public:dummy-region:a/dummy-account:dummy-instance:key:alkd-r30lk-4323",
-				"imported":true,
-				"deleted":false,
-				"deletionDate":"2020-06-16T21:32:57Z",
-				"deletedBy":"xyz6"
-			}
-		]
-	}`)
-
-	gock.New("http://example/com").
-		Post("/api/v2/keys/"+deletedKey).
-		MatchParam("action", "restore").
-		Reply(201).Body(bytes.NewReader(restoreKeyEcryptedNonceResponse))
-
-	encryptedKey := "CB8+E6S551r2MxxTnP6oCX1e69UfLNugCD5e7SLSlRp+NCQHm+wKgfAGMY4Eq+kFTHkQxLaQTbtDvZyk/sNGI5wAtsk8+RU7J3WZeNIUU0wgYEMyPb1CGWDfAqGVa2shCkM4CYXFaUw5iI2StFFrxUdoaesd6Nt6MLmYqnKqCl7j8ueIcKulov6Pc9kMv5SUWBAX0yziKGXu74JmL/JFAq2tVFspy7tSXHZtJTVCFryzbnlXbjFiBKDkFlJ0MkFW+axB180nVRC2Fjx315MymbiaGwVGqodXYK+yqA+AIOhXsuPvK6A6Pw8oq0//mp7TJod1t+Bcja8xh2vXQdyM/q0hkCRzgcFYXgaVl12KzERz45U2QWNDj5cqJPx4PmCv6EHWmEjiVxhIkr9bhbosUBXnXhIyVcHxjjxEp8TgeBnvQSTFwfKu9pm9ifBK65CheyK32WXg6+6POZzmYVZpGxMQs2rr/QPwPelYjV4n6Y6SR/WuycYzT+x14bkp94yVTgt6UKwtg6NaRlwpst1xa3yShymmzPvLxhANI9y+ZHVL9Aoi+Fm982rrzy9N6kVn3dfo+Y8UgsfFar6VeieH9f1S5aACHyUW0uKEi9mFVO9sCCQ4PI3RKkvTinSN4THvfpQ4n1JTr7j75FbEl9xrfMWDD8cmgzu7IYQ8TdAlnR8="
-	encyrptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
-	iv := "KuOXnIEGnSPzUkQu"
-
-	key, err = c.RestoreKey(context.Background(), deletedKey, encryptedKey, encyrptedNonce, iv)
-
-	assert.NotNil(t, key)
-	assert.NoError(t, err)
-	assert.Equal(t, deletedKey, key.ID)
 	assert.False(t, key.Extractable)
 	assert.Equal(t, key.State, 1)
 
@@ -1565,7 +1522,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		]
 	}`)
 
-	c,_, err := NewTestClient(t, nil)
+	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1605,7 +1562,6 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
 	assert.Greater(t, len(ap), -1)
-
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 
@@ -1991,8 +1947,8 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 		MatchParam("policy", KeyCreateImportAccess).
 		Reply(204)
 
-	attributes := map[string]bool {
-		CreateRootKey: false,
+	attributes := map[string]bool{
+		CreateRootKey:     false,
 		ImportStandardKey: false,
 		EnforceToken:      true,
 	}
