@@ -2783,7 +2783,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 	aliases = []string{"root1","root2"}
 	keyName = "importedRootKeyWithAliases"
 	encryptedKey := "CB8+E6S551r2MxxTnP6oCX1e69UfLNugCD5e7SLSlRp+NCQHm+wKgfAGMY4Eq+kFTHkQxLaQTbtDvZyk/sNGI5wAtsk8+RU7J3WZeNIUU0wgYEMyPb1CGWDfAqGVa2shCkM4CYXFaUw5iI2StFFrxUdoaesd6Nt6MLmYqnKqCl7j8ueIcKulov6Pc9kMv5SUWBAX0yziKGXu74JmL/JFAq2tVFspy7tSXHZtJTVCFryzbnlXbjFiBKDkFlJ0MkFW+axB180nVRC2Fjx315MymbiaGwVGqodXYK+yqA+AIOhXsuPvK6A6Pw8oq0//mp7TJod1t+Bcja8xh2vXQdyM/q0hkCRzgcFYXgaVl12KzERz45U2QWNDj5cqJPx4PmCv6EHWmEjiVxhIkr9bhbosUBXnXhIyVcHxjjxEp8TgeBnvQSTFwfKu9pm9ifBK65CheyK32WXg6+6POZzmYVZpGxMQs2rr/QPwPelYjV4n6Y6SR/WuycYzT+x14bkp94yVTgt6UKwtg6NaRlwpst1xa3yShymmzPvLxhANI9y+ZHVL9Aoi+Fm982rrzy9N6kVn3dfo+Y8UgsfFar6VeieH9f1S5aACHyUW0uKEi9mFVO9sCCQ4PI3RKkvTinSN4THvfpQ4n1JTr7j75FbEl9xrfMWDD8cmgzu7IYQ8TdAlnR8="
-	encyrptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
+	encryptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
 	iv := "KuOXnIEGnSPzUkQu"
 
 	rootKeyResponse := []byte(`{
@@ -2817,7 +2817,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 		Reply(201).
 		Body(bytes.NewReader(rootKeyResponse))
 	
-	key, err = c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, encryptedKey, encyrptedNonce, iv, true, aliases)
+	key, err = c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, encryptedKey, encryptedNonce, iv, true, aliases)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
