@@ -286,7 +286,13 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	}
 
 	switch response.StatusCode {
-	case http.StatusOK, http.StatusCreated:
+	case http.StatusCreated:
+		if len(resBody) != 0 {
+			if err := json.Unmarshal(resBody, res); err != nil {
+				return nil, err
+			}
+		}
+	case http.StatusOK:
 		if err := json.Unmarshal(resBody, res); err != nil {
 			return nil, err
 		}

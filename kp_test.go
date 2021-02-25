@@ -2608,7 +2608,99 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-func TestCreateKeyWithAliases(t *testing.T){
+func TestCreateKeyRing(t *testing.T) {
+	defer gock.Off()
+	keyRingID := "randomKeyRingID"
+
+	gock.New("http://example.com").
+		Post("/api/v2/key_rings/" + keyRingID).
+		Reply(201)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.CreateKeyRing(context.Background(), keyRingID)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestDeleteKeyRing(t *testing.T) {
+	defer gock.Off()
+	keyRingID := "randomKeyRingID"
+
+	gock.New("http://example.com").
+		Delete("/api/v2/key_rings/" + keyRingID).
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.DeleteKeyRing(context.Background(), keyRingID)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestGetKeyRings(t *testing.T) {
+	defer gock.Off()
+
+	keyRingsResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key_ring+json",
+		  "collectionTotal": 3
+		},
+		"resources": [
+		  {
+			"id": "default"
+		  },
+		  {
+			"id": "nextgen",
+			"creationDate": "2020-11-27T15:34:53Z",
+			"createdBy": "abc-xyz"
+		  },
+		  {
+			"id": "testring",
+			"creationDate": "2020-11-27T17:39:02Z",
+			"createdBy": "abc-xyz"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/key_ring").
+		Reply(200).
+		Body(bytes.NewReader(keyRingsResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	keyRings, err := c.GetKeyRings(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, keyRings)
+	assert.Greater(t, keyRings.Metadata.NumberOfKeys, 0)
+	assert.Equal(t, keyRings.Metadata.NumberOfKeys, 3)
+	assert.Equal(t, keyRings.KeyRings[0].ID, "default")
+	assert.Equal(t, keyRings.KeyRings[1].ID, "nextgen")
+	assert.NotNil(t, keyRings.KeyRings[1].CreatedBy)
+	assert.NotNil(t, keyRings.KeyRings[1].CreationDate)
+	assert.Equal(t, keyRings.KeyRings[2].ID, "testring")
+	assert.NotNil(t, keyRings.KeyRings[2].CreatedBy)
+	assert.NotNil(t, keyRings.KeyRings[2].CreationDate)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestCreateKeyWithAliases(t *testing.T) {
 	defer gock.Off()
 	aliases := []string{"alias1", "alias2", "alias3"}
 	keyName := "test secret with alias"
@@ -2664,7 +2756,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 	defer gock.Off()
 
 	// Testing importing standard key with key aliases
-	aliases := []string{"importedAlias1","importedAlias2","importedAlias3","importedAlias4","importedAlias5"}
+	aliases := []string{"importedAlias1", "importedAlias2", "importedAlias3", "importedAlias4", "importedAlias5"}
 	keyName := "importedStandardKeyWithAliases"
 	payload := "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI="
 	standardKeyResponse := []byte(`{
@@ -2696,17 +2788,17 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 			}
 		]
 	}`)
-	
+
 	gock.New("http://example.com").
 		Post("/api/v2/keys").
 		Reply(201).
 		Body(bytes.NewReader(standardKeyResponse))
 
-	c, _,err := NewTestClient(t, nil)
+	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
-	
+
 	key, err := c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, payload, "", "", true, aliases)
 
 	assert.NoError(t, err)
@@ -2716,9 +2808,8 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 	assert.True(t, key.Extractable)
 	assert.Equal(t, key.Payload, payload)
 
-
 	// Testing importing root key with import token and key aliases
-	aliases = []string{"root1","root2"}
+	aliases = []string{"root1", "root2"}
 	keyName = "importedRootKeyWithAliases"
 	encryptedKey := "CB8+E6S551r2MxxTnP6oCX1e69UfLNugCD5e7SLSlRp+NCQHm+wKgfAGMY4Eq+kFTHkQxLaQTbtDvZyk/sNGI5wAtsk8+RU7J3WZeNIUU0wgYEMyPb1CGWDfAqGVa2shCkM4CYXFaUw5iI2StFFrxUdoaesd6Nt6MLmYqnKqCl7j8ueIcKulov6Pc9kMv5SUWBAX0yziKGXu74JmL/JFAq2tVFspy7tSXHZtJTVCFryzbnlXbjFiBKDkFlJ0MkFW+axB180nVRC2Fjx315MymbiaGwVGqodXYK+yqA+AIOhXsuPvK6A6Pw8oq0//mp7TJod1t+Bcja8xh2vXQdyM/q0hkCRzgcFYXgaVl12KzERz45U2QWNDj5cqJPx4PmCv6EHWmEjiVxhIkr9bhbosUBXnXhIyVcHxjjxEp8TgeBnvQSTFwfKu9pm9ifBK65CheyK32WXg6+6POZzmYVZpGxMQs2rr/QPwPelYjV4n6Y6SR/WuycYzT+x14bkp94yVTgt6UKwtg6NaRlwpst1xa3yShymmzPvLxhANI9y+ZHVL9Aoi+Fm982rrzy9N6kVn3dfo+Y8UgsfFar6VeieH9f1S5aACHyUW0uKEi9mFVO9sCCQ4PI3RKkvTinSN4THvfpQ4n1JTr7j75FbEl9xrfMWDD8cmgzu7IYQ8TdAlnR8="
 	encryptedNonce := "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA=="
@@ -2754,7 +2845,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 		Post("/api/v2/keys").
 		Reply(201).
 		Body(bytes.NewReader(rootKeyResponse))
-	
+
 	key, err = c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, encryptedKey, encryptedNonce, iv, true, aliases)
 
 	assert.NoError(t, err)
