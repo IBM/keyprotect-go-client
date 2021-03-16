@@ -52,11 +52,15 @@ type Key struct {
 	LastUpdateDate      *time.Time  `json:"lastUpdateDate,omitempty"`
 	LastRotateDate      *time.Time  `json:"lastRotateDate,omitempty"`
 	KeyVersion          *KeyVersion `json:"keyVersion,omitempty" mapstructure:keyVersion`
+	KeyRingID           string      `json:"keyRingID,omitempty"`
 	Extractable         bool        `json:"extractable"`
 	Expiration          *time.Time  `json:"expirationDate,omitempty"`
+	Imported            bool        `json:"imported"`
 	Payload             string      `json:"payload,omitempty"`
 	State               int         `json:"state,omitempty"`
 	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
+	AlgorithmBitSize    string      `json:"algorithmBitSize,omitempty"`
+	AlgorithmMode       string      `json:"algorithmMode,omitempty"`
 	CRN                 string      `json:"crn,omitempty"`
 	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
 	IV                  string      `json:"iv,omitempty"`
@@ -147,10 +151,9 @@ func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, exp
 // For more information please refer to the links below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-root-keys#create-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-standard-keys#create-standard-key-api
-func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string) (*Key, error){
+func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateImportedKeyWithAliases(ctx, name, expiration, "", "", "", extractable, aliases)
 }
-
 
 // CreateImportedKeyWithAliases creates a new key with alias name and provided key material. A key can have a maximum of 5 alias names
 // When importing root keys with import-token encryptedNonce and iv need to passed along with payload.
@@ -164,7 +167,7 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 		Type:        keyType,
 		Extractable: extractable,
 		Payload:     payload,
-		Aliases: aliases,
+		Aliases:     aliases,
 	}
 
 	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
@@ -179,7 +182,6 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 
 	return c.createKey(ctx, key)
 }
-
 
 func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 	keysRequest := Keys{
