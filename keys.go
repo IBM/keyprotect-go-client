@@ -55,12 +55,10 @@ type Key struct {
 	KeyRingID           string      `json:"keyRingID,omitempty"`
 	Extractable         bool        `json:"extractable"`
 	Expiration          *time.Time  `json:"expirationDate,omitempty"`
-	Imported            bool        `json:"imported"`
+	Imported            bool        `json:"imported,omitempty"`
 	Payload             string      `json:"payload,omitempty"`
 	State               int         `json:"state,omitempty"`
 	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
-	AlgorithmBitSize    string      `json:"algorithmBitSize,omitempty"`
-	AlgorithmMode       string      `json:"algorithmMode,omitempty"`
 	CRN                 string      `json:"crn,omitempty"`
 	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
 	IV                  string      `json:"iv,omitempty"`
