@@ -55,11 +55,7 @@ type Key struct {
 	KeyRingID           string      `json:"keyRingID,omitempty"`
 	Extractable         bool        `json:"extractable"`
 	Expiration          *time.Time  `json:"expirationDate,omitempty"`
-<<<<<<< HEAD
 	Imported            *bool       `json:"imported,omitempty"`
-=======
-	Imported            bool        `json:"imported,omitempty"`
->>>>>>> removed algorithm details in the struct
 	Payload             string      `json:"payload,omitempty"`
 	State               int         `json:"state,omitempty"`
 	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
@@ -96,6 +92,10 @@ type KeysActionRequest struct {
 type KeyVersion struct {
 	ID           string     `json:"id,omitempty"`
 	CreationDate *time.Time `json:"creationDate,omitempty"`
+}
+
+type KeyRingID struct {
+	KeyRingID string `json:"keyRingID"`
 }
 
 // CreateKey creates a new KP key.
@@ -205,6 +205,26 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 	}
 
 	return &keysResponse.Keys[0], nil
+}
+
+// TransferKeyToNewKeyRing method transfers a key associated with one key ring to another key ring
+// For more information please refer to the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-grouping-keys#transfer-key-key-ring
+func (c *Client) TransferKeyToNewKeyRing(ctx context.Context, keyID, newKeyRingID string) (*Key, error) {
+	keyRingRequestBody := KeyRingID{
+		KeyRingID: newKeyRingID,
+	}
+
+	req, err := c.newRequest("PATCH", fmt.Sprintf("keys/%s", keyID), keyRingRequestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	response := Keys{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+	return &response.Keys[0], nil
 }
 
 // GetKeys retrieves a collection of keys that can be paged through.
