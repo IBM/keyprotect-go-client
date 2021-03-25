@@ -2700,7 +2700,7 @@ func TestGetKeyRings(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-func TestTransferKeyToNewKeyRing(t *testing.T) {
+func TestSetKeyRing(t *testing.T) {
 	defer gock.Off()
 	keyID := "d7e8-ce56-8197-147714"
 	newKeyRingID := "kungfuPanda01"
@@ -2744,7 +2744,7 @@ func TestTransferKeyToNewKeyRing(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.TransferKeyToNewKeyRing(context.Background(), keyID, newKeyRingID)
+	key, err := c.SetKeyRing(context.Background(), keyID, newKeyRingID)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
