@@ -94,10 +94,6 @@ type KeyVersion struct {
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
-type KeyRingID struct {
-	KeyRingID string `json:"keyRingID"`
-}
-
 // CreateKey creates a new KP key.
 func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool) (*Key, error) {
 	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
@@ -207,11 +203,21 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 	return &keysResponse.Keys[0], nil
 }
 
-// TransferKeyToNewKeyRing method transfers a key associated with one key ring to another key ring
+// SetKeyRing method transfers a key associated with one key ring to another key ring
 // For more information please refer to the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-grouping-keys#transfer-key-key-ring
-func (c *Client) TransferKeyToNewKeyRing(ctx context.Context, keyID, newKeyRingID string) (*Key, error) {
-	keyRingRequestBody := KeyRingID{
+func (c *Client) SetKeyRing(ctx context.Context, keyID, newKeyRingID string) (*Key, error) {
+	if keyID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ID")
+	}
+
+	if newKeyRingID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ring id")
+	}
+
+	keyRingRequestBody := struct {
+		KeyRingID string
+	}{
 		KeyRingID: newKeyRingID,
 	}
 
