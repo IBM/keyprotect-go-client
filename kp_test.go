@@ -2718,7 +2718,6 @@ func TestSetKeyRing(t *testing.T) {
 		"state": 1,
 		"extractable": false,
 		"crn": "dummy:crn",
-		"imported": false,
 		"keyRingID": "kungfuPanda01",
 		"creationDate": "2021-02-11T20:22:38Z",
 		"createdBy": "abc-xyz",
@@ -2771,7 +2770,7 @@ func TestGetKeyVerifyKeyRingDetail(t *testing.T) {
 		"state": 1,
 		"extractable": false,
 		"crn": "dummy:crn",
-		"imported": false,
+		"imported": true,
 		"keyRingID": "sample-key-ring",
 		"creationDate": "2019-05-29T02:11:05Z",
 		"createdBy": "abc-xyz",
@@ -2805,7 +2804,7 @@ func TestGetKeyVerifyKeyRingDetail(t *testing.T) {
 	assert.NotNil(t, key.KeyRingID)
 	assert.Equal(t, key.KeyRingID, "sample-key-ring")
 	assert.NotNil(t, key.Imported)
-	assert.False(t, *key.Imported)
+	assert.True(t, key.Imported)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
