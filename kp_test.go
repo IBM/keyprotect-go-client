@@ -2700,6 +2700,115 @@ func TestGetKeyRings(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
+func TestSetKeyRing(t *testing.T) {
+	defer gock.Off()
+	keyID := "d7e8-ce56-8197-147714"
+	newKeyRingID := "kungfuPanda01"
+	keyResponse := []byte(`
+	{
+	"metadata": {
+		"collectionType": "application/vnd.ibm.kms.key+json",
+		"collectionTotal": 1
+	},
+	"resources": [
+		{
+		"type": "application/vnd.ibm.kms.key+json",
+		"id": "d7e8-ce56-8197-147714",
+		"name": "testing_key",
+		"state": 1,
+		"extractable": false,
+		"crn": "dummy:crn",
+		"keyRingID": "kungfuPanda01",
+		"creationDate": "2021-02-11T20:22:38Z",
+		"createdBy": "abc-xyz",
+		"lastUpdateDate": "2021-03-23T03:16:21Z",
+		"keyVersion": {
+			"id": "d7e8-ce56-8197-147714"
+		},
+		"dualAuthDelete": {
+			"enabled": false
+		},
+		"deleted": false
+		}
+	]
+	}`)
+
+	gock.New("http://example.com").
+		Patch("/api/v2/keys/" + keyID).
+		Reply(200).
+		Body(bytes.NewReader((keyResponse)))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.SetKeyRing(context.Background(), keyID, newKeyRingID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.NotNil(t, key.KeyRingID)
+	assert.Equal(t, key.KeyRingID, "kungfuPanda01")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestGetKeyVerifyKeyRingDetail(t *testing.T) {
+	defer gock.Off()
+	keyID := "4177-ba1e-8082-952aafe"
+	keyResponse := []byte(`
+	{
+	"metadata": {
+		"collectionType": "application/vnd.ibm.kms.key+json",
+		"collectionTotal": 1
+	},
+	"resources": [
+		{
+		"type": "application/vnd.ibm.kms.key+json",
+		"id": "4177-ba1e-8082-952aafe",
+		"name": "keywithkeyring",
+		"state": 1,
+		"extractable": false,
+		"crn": "dummy:crn",
+		"imported": true,
+		"keyRingID": "sample-key-ring",
+		"creationDate": "2019-05-29T02:11:05Z",
+		"createdBy": "abc-xyz",
+		"lastUpdateDate": "2021-03-22T21:51:23Z",
+		"lastRotateDate": "2021-02-20T00:00:11Z",
+		"keyVersion": {
+			"id": "4177-ba1e-8082-952aafe"
+		},
+		"dualAuthDelete": {
+			"enabled": false
+		},
+		"deleted": false
+		}
+	]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + keyID).
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.NotNil(t, key.KeyRingID)
+	assert.Equal(t, key.KeyRingID, "sample-key-ring")
+	assert.NotNil(t, key.Imported)
+	assert.True(t, key.Imported)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
 func TestCreateKeyWithAliases(t *testing.T) {
 	defer gock.Off()
 	aliases := []string{"alias1", "alias2", "alias3"}
