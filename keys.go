@@ -203,6 +203,36 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 	return &keysResponse.Keys[0], nil
 }
 
+// SetKeyRing method transfers a key associated with one key ring to another key ring
+// For more information please refer to the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-grouping-keys#transfer-key-key-ring
+func (c *Client) SetKeyRing(ctx context.Context, keyID, newKeyRingID string) (*Key, error) {
+	if keyID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ID")
+	}
+
+	if newKeyRingID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ring id")
+	}
+
+	keyRingRequestBody := struct {
+		KeyRingID string
+	}{
+		KeyRingID: newKeyRingID,
+	}
+
+	req, err := c.newRequest("PATCH", fmt.Sprintf("keys/%s", keyID), keyRingRequestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	response := Keys{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+	return &response.Keys[0], nil
+}
+
 // GetKeys retrieves a collection of keys that can be paged through.
 func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, error) {
 	if limit == 0 {
