@@ -65,6 +65,9 @@ type Key struct {
 	Deleted             *bool       `json:"deleted,omitempty"`
 	DeletedBy           *string     `json:"deletedBy,omitempty"`
 	DeletionDate        *time.Time  `json:"deletionDate,omitempty"`
+	PurgeAllowed        *bool       `json:"purgeAllowed,omitempty"`
+	PurgeAllowedFrom    *time.Time  `json:"purgeAllowedFrom,omitempty"`
+	PurgeScheduledOn    *time.Time  `json:"purgeScheduledOn,omitempty"`
 	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
 }
 
