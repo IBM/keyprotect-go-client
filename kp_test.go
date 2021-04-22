@@ -3123,6 +3123,7 @@ func TestPurgeKey(t *testing.T) {
 	assert.Nil(t, key)
 	assert.Contains(t, err.Error(), "REQ_TOO_EARLY_ERR")
 
+	// Error scenario - user does not have access
 	errorResponseUserNoAccess := []byte(`{
 		"metadata":{
 			"collectionType":"application/vnd.ibm.kms.error+json",
@@ -3145,6 +3146,70 @@ func TestPurgeKey(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, key)
 	assert.Contains(t, err.Error(), "The user does not have access to the specified resource")
+
+	// Error scenario - purging a key that is not in deleted state
+	errorResponsePurgeNonDeletedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Conflict: Key could not be purged: Please see 'reasons' for more details (KEY_ACTION_INVALID_STATE_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_ACTION_INVALID_STATE_ERR",
+				"message": "Key is not in a valid state",
+				"status": 409,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponsePurgeNonDeletedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_ACTION_INVALID_STATE_ERR")
+
+	// Error scenario - purge a key that is in purged state
+	errorResponsePurgeAPurgedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Not Found: Key could not be retrieved: Please see 'reasons' for more details (KEY_NOT_FOUND_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_NOT_FOUND_ERR",
+				"message": "key does not exist",
+				"status": 404,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(404).
+		Body(bytes.NewReader(errorResponsePurgeAPurgedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_NOT_FOUND_ERR")
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }

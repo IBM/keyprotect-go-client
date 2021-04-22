@@ -338,7 +338,7 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 // deleted. The purge operation is allowed to be performed on a key from 4 hours after its deletion
 // and its action is irreversible.
 // For more information please refer to the link below:
-// <KP link>
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-keys#delete-keys-key-purge
 func (c *Client) PurgeKey(ctx context.Context, id string, prefer PreferReturn) (*Key, error) {
 	req, err := c.newRequest("DELETE", fmt.Sprintf("keys/%s/purge", id), nil)
 	if err != nil {
