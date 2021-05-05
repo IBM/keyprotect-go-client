@@ -3028,6 +3028,337 @@ func TestDeleteKeyAlias(t *testing.T) {
 
 }
 
+func TestPurgeKey(t *testing.T) {
+	defer gock.Off()
+	keyID := "cd9cf-44fa-ae07-ad150"
+	requestPath := keyID + "/purge"
+	keyPurgeResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": true,
+			"purgeAllowed": true,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(200).
+		Body(bytes.NewReader(keyPurgeResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.True(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(200)
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnMinimal)
+
+	assert.Nil(t, key)
+
+	// Error scenarion - Request too early
+	errorResponseTooEarly := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Conflict: Key could not be purged: Please see 'reasons' for more details (REQ_TOO_EARLY_ERR)",
+			"reasons": [
+			  {
+				"code": "REQ_TOO_EARLY_ERR",
+				"message": "The key was updated recently: Please wait and try again: Purge operation is allowed 4h0m0s after key is deleted",
+				"status": 409,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponseTooEarly))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "REQ_TOO_EARLY_ERR")
+
+	// Error scenario - user does not have access
+	errorResponseUserNoAccess := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Unauthorized: The user does not have access to the specified resource"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponseUserNoAccess))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "The user does not have access to the specified resource")
+
+	// Error scenario - purging a key that is not in deleted state
+	errorResponsePurgeNonDeletedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Conflict: Key could not be purged: Please see 'reasons' for more details (KEY_ACTION_INVALID_STATE_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_ACTION_INVALID_STATE_ERR",
+				"message": "Key is not in a valid state",
+				"status": 409,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponsePurgeNonDeletedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_ACTION_INVALID_STATE_ERR")
+
+	// Error scenario - purge a key that is in purged state
+	errorResponsePurgeAPurgedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Not Found: Key could not be retrieved: Please see 'reasons' for more details (KEY_NOT_FOUND_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_NOT_FOUND_ERR",
+				"message": "key does not exist",
+				"status": 404,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(404).
+		Body(bytes.NewReader(errorResponsePurgeAPurgedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_NOT_FOUND_ERR")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestGetPurgeKey(t *testing.T) {
+	defer gock.Off()
+	keyID := "cd9cf-44fa-ae07-ad150"
+	getResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": true,
+			"purgeAllowed": false,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(200).
+		Body(bytes.NewReader(getResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	// Getting key that is scheduled for purge but not allowed for purge
+
+	key, err := c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.False(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	getResponse2 := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": false,
+			"purgeAllowed": true,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(200).
+		Body(bytes.NewReader(getResponse2))
+
+	c, _, err = NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	// Getting key that is scheduled for purge and allowed to purge
+
+	key, err = c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.True(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	// Getting a key that is purged
+
+	errorResponseGetPurgedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Not Found: Key could not be retrieved: Please see 'reasons' for more details (KEY_NOT_FOUND_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_NOT_FOUND_ERR",
+				"message": "key does not exist",
+				"status": 404,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(404).
+		Body(bytes.NewReader(errorResponseGetPurgedKey))
+
+	key, err = c.GetKey(context.Background(), keyID)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_NOT_FOUND_ERR")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
 func TestGetKeyWithAlias(t *testing.T) {
 	defer gock.Off()
 	keyResponse := []byte(`{
