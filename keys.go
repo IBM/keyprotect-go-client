@@ -65,6 +65,9 @@ type Key struct {
 	Deleted             *bool       `json:"deleted,omitempty"`
 	DeletedBy           *string     `json:"deletedBy,omitempty"`
 	DeletionDate        *time.Time  `json:"deletionDate,omitempty"`
+	PurgeAllowed        *bool       `json:"purgeAllowed,omitempty"`
+	PurgeAllowedFrom    *time.Time  `json:"purgeAllowedFrom,omitempty"`
+	PurgeScheduledOn    *time.Time  `json:"purgeScheduledOn,omitempty"`
 	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
 }
 
@@ -331,10 +334,35 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 	return nil, nil
 }
 
+// Purge key method shreds all the metadata and registrations associated with a key that has been
+// deleted. The purge operation is allowed to be performed on a key from 4 hours after its deletion
+// and its action is irreversible.
+// For more information please refer to the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-keys#delete-keys-key-purge
+func (c *Client) PurgeKey(ctx context.Context, id string, prefer PreferReturn) (*Key, error) {
+	req, err := c.newRequest("DELETE", fmt.Sprintf("keys/%s/purge", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Prefer", preferHeaders[prefer])
+
+	keys := Keys{}
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys.Keys) > 0 {
+		return &keys.Keys[0], nil
+	}
+
+	return nil, nil
+}
+
 // RestoreKey method reverts a delete key status to active key
 // This method performs restore of any key from deleted state to active state.
 // For more information please refer to the link below:
-// https://cloud.ibm.com/dowcs/key-protect?topic=key-protect-restore-keys
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-restore-keys
 func (c *Client) RestoreKey(ctx context.Context, id string) (*Key, error) {
 	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/restore", id), nil)
 	if err != nil {
