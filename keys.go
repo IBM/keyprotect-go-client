@@ -104,23 +104,14 @@ func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Ti
 
 // CreateImportedKey creates a new KP key from the given key material.
 func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool) (*Key, error) {
-	key := Key{
-		Name:        name,
-		Type:        keyType,
-		Extractable: extractable,
-		Payload:     payload,
-	}
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, nil, AlgorithmRSAOAEP256)
+	return c.createKey(ctx, key)
+}
 
-	if payload != "" && encryptedNonce != "" && iv != "" {
-		key.EncryptedNonce = encryptedNonce
-		key.IV = iv
-		key.EncryptionAlgorithm = importTokenEncAlgo
-	}
-
-	if expiration != nil {
-		key.Expiration = expiration
-	}
-
+// CreateImportedKeyWithSHA1 creates a new KP key from the given key material
+// using RSAES OAEP SHA 1 as encryption algorithm.
+func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1)
 	return c.createKey(ctx, key)
 }
 
@@ -163,25 +154,33 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
 func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256)
+	return c.createKey(ctx, key)
+}
+
+func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, encryptionAlgorithm string) Key {
 	key := Key{
 		Name:        name,
 		Type:        keyType,
 		Extractable: extractable,
 		Payload:     payload,
-		Aliases:     aliases,
+	}
+
+	if aliases != nil {
+		key.Aliases = aliases
 	}
 
 	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
 		key.EncryptedNonce = encryptedNonce
 		key.IV = iv
-		key.EncryptionAlgorithm = importTokenEncAlgo
+		key.EncryptionAlgorithm = encryptionAlgorithm
 	}
 
 	if expiration != nil {
 		key.Expiration = expiration
 	}
 
-	return c.createKey(ctx, key)
+	return key
 }
 
 func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
