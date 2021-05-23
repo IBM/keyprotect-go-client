@@ -125,6 +125,21 @@ func TestKeys(t *testing.T) {
 		},
 	}
 
+	testImportedKeySHA1 := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{
+			Key{
+				ID:                  testKey,
+				Name:                "ImportedKey",
+				Extractable:         false,
+				EncryptionAlgorithm: AlgorithmRSAOAEP1,
+			},
+		},
+	}
+
 	keysActionDEK := KeysActionRequest{
 		PlainText:  "YWJjZGVmZ2hpamtsbW5vCg==",
 		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
@@ -653,6 +668,10 @@ func TestKeys(t *testing.T) {
 				_, err = api.CreateImportedKey(ctx, "test", nil, "", "", "", false)
 				assert.Error(t, err)
 
+				MockAuthURL(keyURL, http.StatusCreated, testImportedKeySHA1)
+				importedKey, err := api.CreateImportedKeyWithSHA1(ctx, "importedKeyWithSHA1", nil, "payload", "encryptedNonce", "iv", false, nil)
+				assert.NoError(t, err)
+				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
 				return nil
 			},
 		},
