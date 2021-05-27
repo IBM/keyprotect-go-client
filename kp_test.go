@@ -3484,3 +3484,147 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
+
+func TestRotate2WithoutPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.Rotate2(context.Background(), keyID, nil)
+
+	assert.NoError(t, err)
+}
+
+func TestRotate2WithPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := &KeyPayload{
+		payload: "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=",
+	}
+
+	err = c.Rotate2(context.Background(), keyID, kp)
+
+	assert.NoError(t, err)
+}
+
+func TestRotate2SecurelyImport(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA==", "KuOXnIEGnSPzUkQu")
+	kp = kp.EncryptWithRSA256()
+	err = c.Rotate2(context.Background(), keyID, &kp)
+
+	assert.NoError(t, err)
+}
+
+func TestRotate2GeneratedKeyWithPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	errResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Key could not be rotated: Please see 'reasons' for more details (INVALID_QUERY_PARAM_ERR)",
+			"reasons": [
+			  {
+				"code": "INVALID_QUERY_PARAM_ERR",
+				"message": "The query_param 'payload' must be: provided only if key is imported",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": {
+				  "type": "query_param",
+				  "name": "payload"
+				}
+			  }
+			]
+		  }
+		]
+	  }`)
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(400).
+		Body(bytes.NewReader(errResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "", "")
+
+	err = c.Rotate2(context.Background(), keyID, &kp)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The query_param 'payload' must be: provided only if key is imported")
+}
+
+func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	errResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Key could not be rotated: Please see 'reasons' for more details (KEY_PAYLOAD_REQ_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_PAYLOAD_REQ_ERR",
+				"message": "This root key was created with user-supplied key material: Key material is required to perform a 'rotate' action",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": {
+				  "type": "field",
+				  "name": "payload"
+				}
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(400).
+		Body(bytes.NewReader(errResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.Rotate2(context.Background(), keyID, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
+}
