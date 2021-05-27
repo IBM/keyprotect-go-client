@@ -86,10 +86,13 @@ type Keys struct {
 // KeysActionRequest represents request parameters for a key action
 // API call.
 type KeysActionRequest struct {
-	PlainText  string   `json:"plaintext,omitempty"`
-	AAD        []string `json:"aad,omitempty"`
-	CipherText string   `json:"ciphertext,omitempty"`
-	Payload    string   `json:"payload,omitempty"`
+	PlainText           string   `json:"plaintext,omitempty"`
+	AAD                 []string `json:"aad,omitempty"`
+	CipherText          string   `json:"ciphertext,omitempty"`
+	Payload             string   `json:"payload,omitempty"`
+	EncryptedNonce      string   `json:"encryptedNonce,omitempty"`
+	IV                  string   `json:"iv,omitempty"`
+	EncryptionAlgorithm string   `json:"encryptionAlgorithm,omitempty"`
 }
 
 type KeyVersion struct {
@@ -454,6 +457,62 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	}
 
 	_, err := c.doKeysAction(ctx, id, "rotate", actionReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type KeyPayload struct {
+	payload             string
+	encryptedNonce      string
+	iv                  string
+	encryptionAlgorithm string
+}
+
+func NewKeyPayload(payload, encryptedNonce, iv string) KeyPayload {
+	kp := KeyPayload{
+		payload:        payload,
+		encryptedNonce: encryptedNonce,
+		iv:             iv,
+	}
+	return kp
+}
+
+// EncryptWithRSA256 sets the encryption algorithm for key create to RSAES_OAEP_SHA_256
+// This is the default algorithm for key creation under Key Protect service
+func (kp KeyPayload) EncryptWithRSA256() KeyPayload {
+	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_256"
+	return kp
+}
+
+// EncryptWithRSA1 sets the encryption algorithm for key create to RSAES_OAEP_SHA_1
+// This algorithm is only supported by the Hyper Protect(HPCS) service
+func (kp KeyPayload) EncryptWithRSA1() KeyPayload {
+	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_1"
+	return kp
+}
+
+// Rotate2 methods supports rotation of a root key with or without payload and also rotate a
+// securely imported root key.
+func (c *Client) Rotate2(ctx context.Context, id string, new_key *KeyPayload) error {
+	var actionReq *KeysActionRequest
+	if new_key != nil {
+		actionReq = &KeysActionRequest{
+			Payload:             new_key.payload,
+			EncryptedNonce:      new_key.encryptedNonce,
+			IV:                  new_key.iv,
+			EncryptionAlgorithm: new_key.encryptionAlgorithm,
+		}
+	}
+
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/rotate", id), actionReq)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.do(ctx, req, nil)
 	if err != nil {
 		return err
 	}
