@@ -482,14 +482,14 @@ func NewKeyPayload(payload, encryptedNonce, iv string) KeyPayload {
 
 // EncryptWithRSA256 sets the encryption algorithm for key create to RSAES_OAEP_SHA_256
 // This is the default algorithm for key creation under Key Protect service
-func (kp KeyPayload) EncryptWithRSA256() KeyPayload {
+func (kp KeyPayload) WithRSA256() KeyPayload {
 	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_256"
 	return kp
 }
 
 // EncryptWithRSA1 sets the encryption algorithm for key create to RSAES_OAEP_SHA_1
 // This algorithm is only supported by the Hyper Protect(HPCS) service
-func (kp KeyPayload) EncryptWithRSA1() KeyPayload {
+func (kp KeyPayload) WithRSA1() KeyPayload {
 	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_1"
 	return kp
 }
