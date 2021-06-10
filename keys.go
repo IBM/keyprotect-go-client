@@ -494,9 +494,9 @@ func (kp KeyPayload) WithRSA1() KeyPayload {
 	return kp
 }
 
-// Rotate2 methods supports rotation of a root key with or without payload and also rotate a
+// RotateV2 methods supports rotation of a root key with or without payload and also rotate a
 // securely imported root key.
-func (c *Client) Rotate2(ctx context.Context, id string, new_key *KeyPayload) error {
+func (c *Client) RotateV2(ctx context.Context, id string, new_key *KeyPayload) error {
 	var actionReq *KeysActionRequest
 	if new_key != nil {
 		actionReq = &KeysActionRequest{
