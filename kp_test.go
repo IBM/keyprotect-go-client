@@ -3497,7 +3497,7 @@ func TestRotate2WithoutPayload(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.Rotate2(context.Background(), keyID, nil)
+	err = c.RotateV2(context.Background(), keyID, nil)
 
 	assert.NoError(t, err)
 
@@ -3520,7 +3520,7 @@ func TestRotate2WithPayload(t *testing.T) {
 		payload: "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=",
 	}
 
-	err = c.Rotate2(context.Background(), keyID, kp)
+	err = c.RotateV2(context.Background(), keyID, kp)
 
 	assert.NoError(t, err)
 
@@ -3541,7 +3541,7 @@ func TestRotate2SecurelyImport(t *testing.T) {
 
 	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA==", "KuOXnIEGnSPzUkQu")
 	kp = kp.WithRSA256()
-	err = c.Rotate2(context.Background(), keyID, &kp)
+	err = c.RotateV2(context.Background(), keyID, &kp)
 
 	assert.NoError(t, err)
 
@@ -3586,7 +3586,7 @@ func TestRotate2GeneratedKeyWithPayload(t *testing.T) {
 
 	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "", "")
 
-	err = c.Rotate2(context.Background(), keyID, &kp)
+	err = c.RotateV2(context.Background(), keyID, &kp)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "The query_param 'payload' must be: provided only if key is imported")
@@ -3629,7 +3629,7 @@ func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.Rotate2(context.Background(), keyID, nil)
+	err = c.RotateV2(context.Background(), keyID, nil)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
