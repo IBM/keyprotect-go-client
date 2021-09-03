@@ -2471,8 +2471,7 @@ func TestDisableKey(t *testing.T) {
 	}`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey).
-		MatchParam("action", "disable").
+		Post("/api/v2/keys/" + testKey + "/actions/disable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2541,8 +2540,7 @@ func TestEnableKey(t *testing.T) {
 	`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey).
-		MatchParam("action", "enable").
+		Post("/api/v2/keys/" + testKey + "/actions/enable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2572,8 +2570,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 	keyID := "4309-akld"
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID).
-		MatchParam("action", "setKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/setKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2592,8 +2589,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
 	keyID := "4839-adhf"
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID).
-		MatchParam("action", "unsetKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/unsetKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
