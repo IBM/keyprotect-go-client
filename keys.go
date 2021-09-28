@@ -515,6 +515,21 @@ func (c *Client) RotateV2(ctx context.Context, id string, new_key *KeyPayload) e
 	return nil
 }
 
+// SyncAssociatedResources method executes the sync request which verifies and updates
+// the resources associated with the key.
+// For more information please refer to the link below
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-sync-associated-resources
+func (c *Client) SyncAssociatedResources(ctx context.Context, id string) error {
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/sync", id), nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.do(ctx, req, nil)
+
+	return err
+}
+
 // Disable a key. The key will not be deleted but it will not be active
 // and key operations cannot be performed on a disabled key.
 // For more information can refer to the Key Protect docs in the link below:

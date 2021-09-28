@@ -3630,3 +3630,41 @@ func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
 }
+
+func TestSyncAssociatedResources(t *testing.T){
+	defer gock.Off()
+	keyID := "dummy-key-id"
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/sync").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SyncAssociatedResources(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestSyncAssociatedResourcesError(t *testing.T){
+	defer gock.Off()
+	keyID := "dummy-key-id"
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/sync").
+		Reply(400)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SyncAssociatedResources(context.Background(), keyID)
+
+	assert.Error(t, err)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
