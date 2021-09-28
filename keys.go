@@ -507,12 +507,7 @@ func (c *Client) RotateV2(ctx context.Context, id string, new_key *KeyPayload) e
 		}
 	}
 
-	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/rotate", id), actionReq)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.do(ctx, req, nil)
+	_, err := c.doKeysAction(ctx, id, "rotate", actionReq)
 	if err != nil {
 		return err
 	}
@@ -561,15 +556,10 @@ func (c *Client) CancelDualAuthDelete(ctx context.Context, id string) error {
 func (c *Client) doKeysAction(ctx context.Context, id string, action string, keysActionReq *KeysActionRequest) (*KeysActionRequest, error) {
 	keyActionRsp := KeysActionRequest{}
 
-	v := url.Values{}
-	v.Set("action", action)
-
-	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s", id), keysActionReq)
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/%s", id, action), keysActionReq)
 	if err != nil {
 		return nil, err
 	}
-
-	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &keyActionRsp)
 	if err != nil {
