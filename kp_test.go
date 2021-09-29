@@ -3653,10 +3653,30 @@ func TestSyncAssociatedResources(t *testing.T){
 func TestSyncAssociatedResourcesError(t *testing.T){
 	defer gock.Off()
 	keyID := "dummy-key-id"
+	errorResp := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Conflict: Could not initiate sync requests to associated resources: Please see 'reasons' for more details (REQ_TOO_EARLY_ERR)",
+				"reasons":[
+					{
+						"code":"REQ_TOO_EARLY_ERR",
+						"message":"The key was updated recently: Please wait and try again: Sync cannot be performed until at least 2021-09-29T21:38:43Z",
+						"status":409,
+						"moreInfo":"https://cloud.ibm.com/apidocs/key-protect"
+					}
+				]
+			}
+		]
+	}`)
 
 	gock.New("http://example.com").
 		Post("/api/v2/keys/" + keyID + "/actions/sync").
-		Reply(400)
+		Reply(409).
+		Body(bytes.NewReader(errorResp))
 
 	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
@@ -3666,5 +3686,6 @@ func TestSyncAssociatedResourcesError(t *testing.T){
 	err = c.SyncAssociatedResources(context.Background(), keyID)
 
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The key was updated recently: Please wait and try again: Sync cannot be performed until at least")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
