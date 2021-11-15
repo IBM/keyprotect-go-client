@@ -125,6 +125,21 @@ func TestKeys(t *testing.T) {
 		},
 	}
 
+	testImportedKeySHA1 := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{
+			Key{
+				ID:                  testKey,
+				Name:                "ImportedKey",
+				Extractable:         false,
+				EncryptionAlgorithm: AlgorithmRSAOAEP1,
+			},
+		},
+	}
+
 	keysActionDEK := KeysActionRequest{
 		PlainText:  "YWJjZGVmZ2hpamtsbW5vCg==",
 		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
@@ -653,6 +668,10 @@ func TestKeys(t *testing.T) {
 				_, err = api.CreateImportedKey(ctx, "test", nil, "", "", "", false)
 				assert.Error(t, err)
 
+				MockAuthURL(keyURL, http.StatusCreated, testImportedKeySHA1)
+				importedKey, err := api.CreateImportedKeyWithSHA1(ctx, "importedKeyWithSHA1", nil, "payload", "encryptedNonce", "iv", false, nil)
+				assert.NoError(t, err)
+				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
 				return nil
 			},
 		},
@@ -2471,8 +2490,7 @@ func TestDisableKey(t *testing.T) {
 	}`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey).
-		MatchParam("action", "disable").
+		Post("/api/v2/keys/"+testKey+"/actions/disable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2541,8 +2559,7 @@ func TestEnableKey(t *testing.T) {
 	`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey).
-		MatchParam("action", "enable").
+		Post("/api/v2/keys/"+testKey+"/actions/enable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2572,8 +2589,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 	keyID := "4309-akld"
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID).
-		MatchParam("action", "setKeyForDeletion").
+		Post("/api/v2/keys/"+keyID+"/actions/setKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2592,8 +2608,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
 	keyID := "4839-adhf"
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID).
-		MatchParam("action", "unsetKeyForDeletion").
+		Post("/api/v2/keys/"+keyID+"/actions/unsetKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2696,6 +2711,115 @@ func TestGetKeyRings(t *testing.T) {
 	assert.Equal(t, keyRings.KeyRings[2].ID, "testring")
 	assert.NotNil(t, keyRings.KeyRings[2].CreatedBy)
 	assert.NotNil(t, keyRings.KeyRings[2].CreationDate)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestSetKeyRing(t *testing.T) {
+	defer gock.Off()
+	keyID := "d7e8-ce56-8197-147714"
+	newKeyRingID := "kungfuPanda01"
+	keyResponse := []byte(`
+	{
+	"metadata": {
+		"collectionType": "application/vnd.ibm.kms.key+json",
+		"collectionTotal": 1
+	},
+	"resources": [
+		{
+		"type": "application/vnd.ibm.kms.key+json",
+		"id": "d7e8-ce56-8197-147714",
+		"name": "testing_key",
+		"state": 1,
+		"extractable": false,
+		"crn": "dummy:crn",
+		"keyRingID": "kungfuPanda01",
+		"creationDate": "2021-02-11T20:22:38Z",
+		"createdBy": "abc-xyz",
+		"lastUpdateDate": "2021-03-23T03:16:21Z",
+		"keyVersion": {
+			"id": "d7e8-ce56-8197-147714"
+		},
+		"dualAuthDelete": {
+			"enabled": false
+		},
+		"deleted": false
+		}
+	]
+	}`)
+
+	gock.New("http://example.com").
+		Patch("/api/v2/keys/" + keyID).
+		Reply(200).
+		Body(bytes.NewReader((keyResponse)))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.SetKeyRing(context.Background(), keyID, newKeyRingID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.NotNil(t, key.KeyRingID)
+	assert.Equal(t, key.KeyRingID, "kungfuPanda01")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+func TestGetKeyVerifyKeyRingDetail(t *testing.T) {
+	defer gock.Off()
+	keyID := "4177-ba1e-8082-952aafe"
+	keyResponse := []byte(`
+	{
+	"metadata": {
+		"collectionType": "application/vnd.ibm.kms.key+json",
+		"collectionTotal": 1
+	},
+	"resources": [
+		{
+		"type": "application/vnd.ibm.kms.key+json",
+		"id": "4177-ba1e-8082-952aafe",
+		"name": "keywithkeyring",
+		"state": 1,
+		"extractable": false,
+		"crn": "dummy:crn",
+		"imported": true,
+		"keyRingID": "sample-key-ring",
+		"creationDate": "2019-05-29T02:11:05Z",
+		"createdBy": "abc-xyz",
+		"lastUpdateDate": "2021-03-22T21:51:23Z",
+		"lastRotateDate": "2021-02-20T00:00:11Z",
+		"keyVersion": {
+			"id": "4177-ba1e-8082-952aafe"
+		},
+		"dualAuthDelete": {
+			"enabled": false
+		},
+		"deleted": false
+		}
+	]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + keyID).
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.NotNil(t, key.KeyRingID)
+	assert.Equal(t, key.KeyRingID, "sample-key-ring")
+	assert.NotNil(t, key.Imported)
+	assert.True(t, key.Imported)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -2919,6 +3043,337 @@ func TestDeleteKeyAlias(t *testing.T) {
 
 }
 
+func TestPurgeKey(t *testing.T) {
+	defer gock.Off()
+	keyID := "cd9cf-44fa-ae07-ad150"
+	requestPath := keyID + "/purge"
+	keyPurgeResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": true,
+			"purgeAllowed": true,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(200).
+		Body(bytes.NewReader(keyPurgeResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	key, err := c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.True(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(200)
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnMinimal)
+
+	assert.Nil(t, key)
+
+	// Error scenarion - Request too early
+	errorResponseTooEarly := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Conflict: Key could not be purged: Please see 'reasons' for more details (REQ_TOO_EARLY_ERR)",
+			"reasons": [
+			  {
+				"code": "REQ_TOO_EARLY_ERR",
+				"message": "The key was updated recently: Please wait and try again: Purge operation is allowed 4h0m0s after key is deleted",
+				"status": 409,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponseTooEarly))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "REQ_TOO_EARLY_ERR")
+
+	// Error scenario - user does not have access
+	errorResponseUserNoAccess := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Unauthorized: The user does not have access to the specified resource"
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponseUserNoAccess))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "The user does not have access to the specified resource")
+
+	// Error scenario - purging a key that is not in deleted state
+	errorResponsePurgeNonDeletedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Conflict: Key could not be purged: Please see 'reasons' for more details (KEY_ACTION_INVALID_STATE_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_ACTION_INVALID_STATE_ERR",
+				"message": "Key is not in a valid state",
+				"status": 409,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(409).
+		Body(bytes.NewReader(errorResponsePurgeNonDeletedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_ACTION_INVALID_STATE_ERR")
+
+	// Error scenario - purge a key that is in purged state
+	errorResponsePurgeAPurgedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Not Found: Key could not be retrieved: Please see 'reasons' for more details (KEY_NOT_FOUND_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_NOT_FOUND_ERR",
+				"message": "key does not exist",
+				"status": 404,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Delete("/api/v2/keys/" + requestPath).
+		Reply(404).
+		Body(bytes.NewReader(errorResponsePurgeAPurgedKey))
+
+	key, err = c.PurgeKey(context.Background(), keyID, ReturnRepresentation)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_NOT_FOUND_ERR")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestGetPurgeKey(t *testing.T) {
+	defer gock.Off()
+	keyID := "cd9cf-44fa-ae07-ad150"
+	getResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": true,
+			"purgeAllowed": false,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(200).
+		Body(bytes.NewReader(getResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	// Getting key that is scheduled for purge but not allowed for purge
+
+	key, err := c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.False(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	getResponse2 := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"type": "application/vnd.ibm.kms.key+json",
+			"id": "cd9cf-44fa-ae07-ad150",
+			"name": "key",
+			"state": 5,
+			"extractable": false,
+			"crn": "dummy:crn",
+			"keyRingID": "default",
+			"creationDate": "2021-03-08T22:47:01Z",
+			"algorithmType": "AES",
+			"lastUpdateDate": "2021-03-08T22:47:01Z",
+			"dualAuthDelete": {
+			  "enabled": false
+			},
+			"deleted": true,
+			"deletionDate": "2021-04-20T18:15:24Z",
+			"restoreExpirationDate": "2021-05-20T18:15:24Z",
+			"restoreAllowed": false,
+			"purgeAllowed": true,
+			"purgeAllowedFrom": "2021-04-20T22:15:24Z",
+			"purgeScheduledOn": "2021-07-19T18:15:24Z"
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(200).
+		Body(bytes.NewReader(getResponse2))
+
+	c, _, err = NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	// Getting key that is scheduled for purge and allowed to purge
+
+	key, err = c.GetKey(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, key)
+	assert.Equal(t, key.ID, keyID)
+	assert.Equal(t, key.State, 5)
+	assert.True(t, *(key.Deleted))
+	assert.True(t, *(key.PurgeAllowed))
+	assert.Equal(t, key.PurgeScheduledOn.Sub(*(key.PurgeAllowedFrom)).Hours(), float64(2156))
+
+	// Getting a key that is purged
+
+	errorResponseGetPurgedKey := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Not Found: Key could not be retrieved: Please see 'reasons' for more details (KEY_NOT_FOUND_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_NOT_FOUND_ERR",
+				"message": "key does not exist",
+				"status": 404,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/").
+		Reply(404).
+		Body(bytes.NewReader(errorResponseGetPurgedKey))
+
+	key, err = c.GetKey(context.Background(), keyID)
+
+	assert.Error(t, err)
+	assert.Nil(t, key)
+	assert.Contains(t, err.Error(), "KEY_NOT_FOUND_ERR")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
 func TestGetKeyWithAlias(t *testing.T) {
 	defer gock.Off()
 	keyResponse := []byte(`{
@@ -3023,5 +3478,214 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 	assert.Equal(t, key.Payload, "")
 	assert.Contains(t, key.Aliases, alias)
 
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestRotate2WithoutPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.RotateV2(context.Background(), keyID, nil)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestRotate2WithPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := &KeyPayload{
+		payload: "108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=",
+	}
+
+	err = c.RotateV2(context.Background(), keyID, kp)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestRotate2SecurelyImport(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "iKuIfHS4Wviv1tufFF4D8j59ksWKuRq0IJ3vsA==", "KuOXnIEGnSPzUkQu")
+	kp = kp.WithRSA256()
+	err = c.RotateV2(context.Background(), keyID, &kp)
+
+	assert.NoError(t, err)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestRotate2GeneratedKeyWithPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	errResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Key could not be rotated: Please see 'reasons' for more details (INVALID_QUERY_PARAM_ERR)",
+			"reasons": [
+			  {
+				"code": "INVALID_QUERY_PARAM_ERR",
+				"message": "The query_param 'payload' must be: provided only if key is imported",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": {
+				  "type": "query_param",
+				  "name": "payload"
+				}
+			  }
+			]
+		  }
+		]
+	  }`)
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(400).
+		Body(bytes.NewReader(errResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	kp := NewKeyPayload("108v8jH6ZGGs/ekY/JRz4iy8hiDicoTi1n4vnfK9tsI=", "", "")
+
+	err = c.RotateV2(context.Background(), keyID, &kp)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The query_param 'payload' must be: provided only if key is imported")
+}
+
+func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	errResponse := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Key could not be rotated: Please see 'reasons' for more details (KEY_PAYLOAD_REQ_ERR)",
+			"reasons": [
+			  {
+				"code": "KEY_PAYLOAD_REQ_ERR",
+				"message": "This root key was created with user-supplied key material: Key material is required to perform a 'rotate' action",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": {
+				  "type": "field",
+				  "name": "payload"
+				}
+			  }
+			]
+		  }
+		]
+	  }`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/rotate").
+		Reply(400).
+		Body(bytes.NewReader(errResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.RotateV2(context.Background(), keyID, nil)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
+}
+
+func TestSyncAssociatedResources(t *testing.T){
+	defer gock.Off()
+	keyID := "dummy-key-id"
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/sync").
+		Reply(204)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SyncAssociatedResources(context.Background(), keyID)
+
+	assert.NoError(t, err)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestSyncAssociatedResourcesError(t *testing.T){
+	defer gock.Off()
+	keyID := "dummy-key-id"
+	errorResp := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Conflict: Could not initiate sync requests to associated resources: Please see 'reasons' for more details (REQ_TOO_EARLY_ERR)",
+				"reasons":[
+					{
+						"code":"REQ_TOO_EARLY_ERR",
+						"message":"The key was updated recently: Please wait and try again: Sync cannot be performed until at least 2021-09-29T21:38:43Z",
+						"status":409,
+						"moreInfo":"https://cloud.ibm.com/apidocs/key-protect"
+					}
+				]
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + keyID + "/actions/sync").
+		Reply(409).
+		Body(bytes.NewReader(errorResp))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SyncAssociatedResources(context.Background(), keyID)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "The key was updated recently: Please wait and try again: Sync cannot be performed until at least")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }

@@ -65,6 +65,9 @@ type Key struct {
 	Deleted             *bool       `json:"deleted,omitempty"`
 	DeletedBy           *string     `json:"deletedBy,omitempty"`
 	DeletionDate        *time.Time  `json:"deletionDate,omitempty"`
+	PurgeAllowed        *bool       `json:"purgeAllowed,omitempty"`
+	PurgeAllowedFrom    *time.Time  `json:"purgeAllowedFrom,omitempty"`
+	PurgeScheduledOn    *time.Time  `json:"purgeScheduledOn,omitempty"`
 	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
 }
 
@@ -83,10 +86,13 @@ type Keys struct {
 // KeysActionRequest represents request parameters for a key action
 // API call.
 type KeysActionRequest struct {
-	PlainText  string   `json:"plaintext,omitempty"`
-	AAD        []string `json:"aad,omitempty"`
-	CipherText string   `json:"ciphertext,omitempty"`
-	Payload    string   `json:"payload,omitempty"`
+	PlainText           string   `json:"plaintext,omitempty"`
+	AAD                 []string `json:"aad,omitempty"`
+	CipherText          string   `json:"ciphertext,omitempty"`
+	Payload             string   `json:"payload,omitempty"`
+	EncryptedNonce      string   `json:"encryptedNonce,omitempty"`
+	IV                  string   `json:"iv,omitempty"`
+	EncryptionAlgorithm string   `json:"encryptionAlgorithm,omitempty"`
 }
 
 type KeyVersion struct {
@@ -101,23 +107,14 @@ func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Ti
 
 // CreateImportedKey creates a new KP key from the given key material.
 func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool) (*Key, error) {
-	key := Key{
-		Name:        name,
-		Type:        keyType,
-		Extractable: extractable,
-		Payload:     payload,
-	}
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, nil, AlgorithmRSAOAEP256)
+	return c.createKey(ctx, key)
+}
 
-	if payload != "" && encryptedNonce != "" && iv != "" {
-		key.EncryptedNonce = encryptedNonce
-		key.IV = iv
-		key.EncryptionAlgorithm = importTokenEncAlgo
-	}
-
-	if expiration != nil {
-		key.Expiration = expiration
-	}
-
+// CreateImportedKeyWithSHA1 creates a new KP key from the given key material
+// using RSAES OAEP SHA 1 as encryption algorithm.
+func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1)
 	return c.createKey(ctx, key)
 }
 
@@ -160,6 +157,11 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
 func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256)
+	return c.createKey(ctx, key)
+}
+
+func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, encryptionAlgorithm string) Key {
 	key := Key{
 		Name:        name,
 		Type:        keyType,
@@ -174,14 +176,14 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
 		key.EncryptedNonce = encryptedNonce
 		key.IV = iv
-		key.EncryptionAlgorithm = importTokenEncAlgo
+		key.EncryptionAlgorithm = encryptionAlgorithm
 	}
 
 	if expiration != nil {
 		key.Expiration = expiration
 	}
 
-	return c.createKey(ctx, key)
+	return key
 }
 
 func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
@@ -204,6 +206,36 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 	}
 
 	return &keysResponse.Keys[0], nil
+}
+
+// SetKeyRing method transfers a key associated with one key ring to another key ring
+// For more information please refer to the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-grouping-keys#transfer-key-key-ring
+func (c *Client) SetKeyRing(ctx context.Context, keyID, newKeyRingID string) (*Key, error) {
+	if keyID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ID")
+	}
+
+	if newKeyRingID == "" {
+		return nil, fmt.Errorf("Please provide a valid key ring id")
+	}
+
+	keyRingRequestBody := struct {
+		KeyRingID string
+	}{
+		KeyRingID: newKeyRingID,
+	}
+
+	req, err := c.newRequest("PATCH", fmt.Sprintf("keys/%s", keyID), keyRingRequestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	response := Keys{}
+	if _, err := c.do(ctx, req, &response); err != nil {
+		return nil, err
+	}
+	return &response.Keys[0], nil
 }
 
 // GetKeys retrieves a collection of keys that can be paged through.
@@ -304,10 +336,35 @@ func (c *Client) DeleteKey(ctx context.Context, id string, prefer PreferReturn, 
 	return nil, nil
 }
 
+// Purge key method shreds all the metadata and registrations associated with a key that has been
+// deleted. The purge operation is allowed to be performed on a key from 4 hours after its deletion
+// and its action is irreversible.
+// For more information please refer to the link below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-delete-keys#delete-keys-key-purge
+func (c *Client) PurgeKey(ctx context.Context, id string, prefer PreferReturn) (*Key, error) {
+	req, err := c.newRequest("DELETE", fmt.Sprintf("keys/%s/purge", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Prefer", preferHeaders[prefer])
+
+	keys := Keys{}
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+	if len(keys.Keys) > 0 {
+		return &keys.Keys[0], nil
+	}
+
+	return nil, nil
+}
+
 // RestoreKey method reverts a delete key status to active key
 // This method performs restore of any key from deleted state to active state.
 // For more information please refer to the link below:
-// https://cloud.ibm.com/dowcs/key-protect?topic=key-protect-restore-keys
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-restore-keys
 func (c *Client) RestoreKey(ctx context.Context, id string) (*Key, error) {
 	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/restore", id), nil)
 	if err != nil {
@@ -407,6 +464,72 @@ func (c *Client) Rotate(ctx context.Context, id, payload string) error {
 	return nil
 }
 
+type KeyPayload struct {
+	payload             string
+	encryptedNonce      string
+	iv                  string
+	encryptionAlgorithm string
+}
+
+func NewKeyPayload(payload, encryptedNonce, iv string) KeyPayload {
+	kp := KeyPayload{
+		payload:        payload,
+		encryptedNonce: encryptedNonce,
+		iv:             iv,
+	}
+	return kp
+}
+
+// EncryptWithRSA256 sets the encryption algorithm for key create to RSAES_OAEP_SHA_256
+// This is the default algorithm for key creation under Key Protect service
+func (kp KeyPayload) WithRSA256() KeyPayload {
+	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_256"
+	return kp
+}
+
+// EncryptWithRSA1 sets the encryption algorithm for key create to RSAES_OAEP_SHA_1
+// This algorithm is only supported by the Hyper Protect(HPCS) service
+func (kp KeyPayload) WithRSA1() KeyPayload {
+	kp.encryptionAlgorithm = "RSAES_OAEP_SHA_1"
+	return kp
+}
+
+// RotateV2 methods supports rotation of a root key with or without payload and also rotate a
+// securely imported root key.
+func (c *Client) RotateV2(ctx context.Context, id string, new_key *KeyPayload) error {
+	var actionReq *KeysActionRequest
+	if new_key != nil {
+		actionReq = &KeysActionRequest{
+			Payload:             new_key.payload,
+			EncryptedNonce:      new_key.encryptedNonce,
+			IV:                  new_key.iv,
+			EncryptionAlgorithm: new_key.encryptionAlgorithm,
+		}
+	}
+
+	_, err := c.doKeysAction(ctx, id, "rotate", actionReq)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// SyncAssociatedResources method executes the sync request which verifies and updates
+// the resources associated with the key.
+// For more information please refer to the link below
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-sync-associated-resources
+func (c *Client) SyncAssociatedResources(ctx context.Context, id string) error {
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/sync", id), nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.do(ctx, req, nil)
+
+	return err
+}
+
 // Disable a key. The key will not be deleted but it will not be active
 // and key operations cannot be performed on a disabled key.
 // For more information can refer to the Key Protect docs in the link below:
@@ -448,15 +571,10 @@ func (c *Client) CancelDualAuthDelete(ctx context.Context, id string) error {
 func (c *Client) doKeysAction(ctx context.Context, id string, action string, keysActionReq *KeysActionRequest) (*KeysActionRequest, error) {
 	keyActionRsp := KeysActionRequest{}
 
-	v := url.Values{}
-	v.Set("action", action)
-
-	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s", id), keysActionReq)
+	req, err := c.newRequest("POST", fmt.Sprintf("keys/%s/actions/%s", id, action), keysActionReq)
 	if err != nil {
 		return nil, err
 	}
-
-	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &keyActionRsp)
 	if err != nil {
