@@ -165,7 +165,10 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 		Type:        keyType,
 		Extractable: extractable,
 		Payload:     payload,
-		Aliases:     aliases,
+	}
+
+	if aliases != nil {
+		key.Aliases = aliases
 	}
 
 	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
