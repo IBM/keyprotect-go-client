@@ -255,14 +255,12 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	if c.Config.KeyRing != "" {
 		req.Header.Set("x-kms-key-ring", c.Config.KeyRing)
 	}
-
 	// set request up to be retryable on 500-level http codes and client errors
 	retryableClient := getRetryableClient(&c.HttpClient)
 	retryableRequest, err := rhttp.FromRequest(req)
 	if err != nil {
 		return nil, err
 	}
-
 	response, err := retryableClient.Do(retryableRequest.WithContext(ctx))
 	if err != nil {
 		return nil, &URLError{err, corrID}
@@ -293,8 +291,16 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 			}
 		}
 	case http.StatusOK:
-		if err := json.Unmarshal(resBody, res); err != nil {
-			return nil, err
+		//Added the condition for HEAD Method with no response body
+		if req.Method == http.MethodHead {
+			return response, nil
+		} else {
+			if err := json.Unmarshal(resBody, res); err != nil {
+				return nil, &Error{
+					CorrelationID: corrID,
+					Message:       err.Error(),
+				}
+			}
 		}
 	case http.StatusNoContent:
 	default:

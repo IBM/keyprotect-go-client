@@ -37,7 +37,7 @@ func Example() {
 	ctx := context.Background()
 
 	// List keys in the current instance
-	keys, err := c.GetKeys(ctx, 0, 0)
+	keys, err := c.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3}, true)
 	if err != nil {
 		panic(err)
 	}

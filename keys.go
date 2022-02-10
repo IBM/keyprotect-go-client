@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -204,7 +205,7 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 }
 
 // GetKeys retrieves a collection of keys that can be paged through.
-func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, error) {
+func (c *Client) GetKeys(ctx context.Context, limit int, offset int, state []int, extractable ...bool) (*Keys, error) {
 	if limit == 0 {
 		limit = 2000
 	}
@@ -213,10 +214,16 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	if err != nil {
 		return nil, err
 	}
-
+	keyState := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(state)), ","), "[]")
+	if len(extractable) > 1 {
+		return nil, fmt.Errorf("More than one input not allowed for extractable parameter")
+	}
+	keyExtractable := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(extractable)), ","), "[]")
 	v := url.Values{}
 	v.Set("limit", strconv.Itoa(limit))
 	v.Set("offset", strconv.Itoa(offset))
+	v.Set("state", keyState)
+	v.Set("extractable", keyExtractable)
 	req.URL.RawQuery = v.Encode()
 
 	keys := Keys{}
@@ -265,6 +272,23 @@ type CallOpt interface{}
 
 type ForceOpt struct {
 	Force bool
+}
+
+func (c *Client) GetKeyCount(ctx context.Context) (int, error) {
+
+	req, err := c.newRequest("HEAD", "keys", nil)
+	if err != nil {
+		return 0, err
+	}
+	res, err := c.do(ctx, req, nil)
+	if err != nil {
+		return 0, err
+	}
+	count, err := strconv.Atoi(res.Header.Get("Key-Total"))
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // DeleteKey deletes a key resource by specifying the ID of the key.

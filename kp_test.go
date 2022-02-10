@@ -238,7 +238,7 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
 
-				keys, err := api.GetKeys(ctx, 10, 0)
+				keys, err := api.GetKeys(ctx, 10, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				assert.NotZero(t, keys.Metadata.NumberOfKeys)
 
@@ -314,7 +314,7 @@ func TestKeys(t *testing.T) {
 			"Imported Create Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err := api.GetKeys(ctx, 100, 0)
+				ks, err := api.GetKeys(ctx, 100, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				startCount := ks.Metadata.NumberOfKeys
 				testKeys.Keys = append([]Key{*newRootKey}, testKeys.Keys...)
@@ -335,7 +335,7 @@ func TestKeys(t *testing.T) {
 				key2 := k.ID
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err = api.GetKeys(ctx, 100, 0)
+				ks, err = api.GetKeys(ctx, 100, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				assert.Equal(t, startCount+2, ks.Metadata.NumberOfKeys, "Created 2 keys, counts don't match")
 				testKeys.Keys = append(testKeys.Keys[:1], testKeys.Keys[2:]...)
@@ -352,7 +352,7 @@ func TestKeys(t *testing.T) {
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err = api.GetKeys(ctx, 0, 0)
+				ks, err = api.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				assert.Equal(t, startCount, ks.Metadata.NumberOfKeys, "Deleted 2 keys, counts don't match")
 				return nil
@@ -362,7 +362,7 @@ func TestKeys(t *testing.T) {
 			"Create Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err := api.GetKeys(ctx, 100, 0)
+				ks, err := api.GetKeys(ctx, 100, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				startCount := ks.Metadata.NumberOfKeys
 				testKeys.Keys = append([]Key{*newRootKey}, testKeys.Keys...)
@@ -382,7 +382,7 @@ func TestKeys(t *testing.T) {
 				key2 := k.ID
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err = api.GetKeys(ctx, 100, 0)
+				ks, err = api.GetKeys(ctx, 100, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				assert.Equal(t, startCount+2, ks.Metadata.NumberOfKeys, "Created 2 keys, counts don't match")
 				testKeys.Keys = append(testKeys.Keys[:1], testKeys.Keys[2:]...)
@@ -399,7 +399,7 @@ func TestKeys(t *testing.T) {
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				ks, err = api.GetKeys(ctx, 0, 0)
+				ks, err = api.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.NoError(t, err)
 				assert.Equal(t, startCount, ks.Metadata.NumberOfKeys, "Deleted 2 keys, counts don't match")
 
@@ -486,7 +486,7 @@ func TestKeys(t *testing.T) {
 
 				body := "context deadline exceeded"
 				MockAuthURL(keyURL, http.StatusRequestTimeout, "").BodyString(body)
-				_, err = a.GetKeys(ctx, 0, 0)
+				_, err = a.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.Contains(t, err.Error(), body)
 				return nil
 			},
@@ -498,7 +498,7 @@ func TestKeys(t *testing.T) {
 				ctx = NewContextWithAuth(ctx, accessToken)
 				body := "Bad Request: Token is expired"
 				MockAuthURL(keyURL, http.StatusBadRequest, "").BodyString(body)
-				_, err := api.GetKeys(ctx, 0, 0)
+				_, err := api.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.Contains(t, err.Error(), body)
 				return nil
 			},
@@ -519,7 +519,7 @@ func TestKeys(t *testing.T) {
 
 				body := "Bad Request: Token is expired"
 				MockAuthURL(keyURL, http.StatusBadRequest, "").BodyString(body)
-				_, err = a.GetKeys(ctx, 0, 0)
+				_, err = a.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.Contains(t, err.Error(), body)
 				return nil
 			},
@@ -565,7 +565,7 @@ func TestKeys(t *testing.T) {
 				gock.New("https://iam.bluemix.net/oidc/token").Reply(http.StatusRequestTimeout).BodyString(body)
 				gock.InterceptClient(&a.HttpClient)
 
-				_, err = a.GetKeys(ctx, 0, 0)
+				_, err = a.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				// failing ATM:
 				//assert.EqualError(t, err, "context deadline exceeded")
 				return nil
@@ -609,7 +609,7 @@ func TestKeys(t *testing.T) {
 				gock.New("https://iam.cloud.ibm.com/oidc/token").Reply(http.StatusBadRequest).JSON(body)
 				gock.InterceptClient(&a.HttpClient)
 
-				_, err = api.GetKeys(ctx, 0, 0)
+				_, err = api.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "BXNIM0415E")
 				assert.Contains(t, err.Error(), "Provided API key could not be found")
@@ -1029,7 +1029,7 @@ func TestDo_ConnectionError_HasCorrelationID(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	keys, err := c.GetKeys(context.Background(), 0, 0)
+	keys, err := c.GetKeys(context.Background(), 0, 0, []int{0, 1, 2, 3})
 
 	assert.Nil(t, keys)
 	assert.Error(t, err)
@@ -1052,7 +1052,7 @@ func TestDo_CorrelationID_Set(t *testing.T) {
 
 	corrID := uuid.New()
 	ctx := NewContextWithCorrelationID(context.Background(), &corrID)
-	_, err = c.GetKeys(ctx, 0, 0)
+	_, err = c.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 	assert.Contains(t, err.Error(), "correlation_id='"+corrID.String()+"'")
 	corrID2 := GetCorrelationID(ctx)
 	assert.Equal(t, &corrID, corrID2)
@@ -1122,7 +1122,7 @@ func TestDo_KPErrorResponseWithoutReasons_IsErrorStruct(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	_, err = c.GetKeys(context.Background(), 0, 0)
+	_, err = c.GetKeys(context.Background(), 0, 0, []int{0, 1, 2, 3})
 
 	reasonsErr := err.(*Error)
 

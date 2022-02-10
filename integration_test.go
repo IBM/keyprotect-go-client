@@ -1,3 +1,4 @@
+//go:build integration
 // +build integration
 
 // Copyright 2019 IBM Corp.
@@ -73,7 +74,7 @@ func TestWrapUnwrap(t *testing.T) {
 
 	ctx := context.Background()
 
-	keys, err := c.GetKeys(ctx, 0, 0)
+	keys, err := c.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
@@ -90,7 +91,7 @@ func TestWrapUnwrap(t *testing.T) {
 	unwrapped, err := c.Unwrap(ctx, crk.ID, wdek, nil)
 	assert.EqualValues(unwrapped, ptDek)
 
-	keys, err = c.GetKeys(context.Background(), 0, 0)
+	keys, err = c.GetKeys(context.Background(), 0, 0, []int{0, 1, 2, 3})
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
@@ -113,7 +114,7 @@ func TestRotatedKeyHasLastUpdatedAndRotated(t *testing.T) {
 
 	ctx := context.Background()
 
-	keys, err := c.GetKeys(ctx, 0, 0)
+	keys, err := c.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3})
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
@@ -136,7 +137,7 @@ func TestRotatedKeyHasLastUpdatedAndRotated(t *testing.T) {
 	assert.NotEmpty(rotated.LastUpdateDate)
 	assert.NotEmpty(rotated.LastRotateDate)
 
-	keys, err = c.GetKeys(context.Background(), 0, 0)
+	keys, err = c.GetKeys(context.Background(), 0, 0, []int{0, 1, 2, 3})
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
@@ -165,7 +166,7 @@ func TestExtractableKey(t *testing.T) {
 
 	ctx := context.Background()
 
-	keys, err := c.GetKeys(ctx, 0, 0)
+	keys, err := c.GetKeys(ctx, 0, 0, []int{0, 1, 2, 3}, true)
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
@@ -193,7 +194,7 @@ func TestExtractableKey(t *testing.T) {
 	_, err = c.Unwrap(ctx, crk.ID, []byte("wdek"), nil)
 	assert.Error(err)
 
-	keys, err = c.GetKeys(context.Background(), 0, 0)
+	keys, err = c.GetKeys(context.Background(), 0, 0, []int{0, 1, 2, 3}, false)
 	assert.NoError(err)
 
 	for _, key := range keys.Keys {
