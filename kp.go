@@ -25,14 +25,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/IBM/keyprotect-go-client/iam"
 	"github.com/google/uuid"
 	rhttp "github.com/hashicorp/go-retryablehttp"
-
-	"github.com/IBM/keyprotect-go-client/iam"
 )
 
 const (
@@ -78,6 +79,22 @@ type ClientConfig struct {
 	KeyRing       string  // The ID of the target Key Ring the key is associated with. It is optional but recommended for better performance.
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
+}
+
+func WithForce(force bool) reqOpt {
+	return queryParamReqOpt("force", strconv.FormatBool(force))
+}
+
+func WithLimit(limit int) reqOpt {
+	return queryParamReqOpt("limit", strconv.Itoa(limit))
+}
+
+func WithOffset(offset int) reqOpt {
+	return queryParamReqOpt("offset", strconv.Itoa(offset))
+}
+
+func WithTotalCount(totalCount bool) reqOpt {
+	return queryParamReqOpt("totalCount", strconv.FormatBool(totalCount))
 }
 
 // DefaultTransport ...
@@ -232,7 +249,7 @@ func (e URLError) Error() string {
 		"error during request to KeyProtect correlation_id='%s': %s", e.CorrelationID, e.Err.Error())
 }
 
-func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, req *http.Request, res interface{}, opts ...reqOpt) (*http.Response, error) {
 
 	acccesToken, err := c.getAccessToken(ctx)
 	if err != nil {
@@ -251,6 +268,14 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
 	req.Header.Set("correlation-id", corrID)
+
+	for _, opt := range opts {
+		opt(req)
+	}
+	_, err = httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.Config.KeyRing != "" {
 		req.Header.Set("x-kms-key-ring", c.Config.KeyRing)
@@ -284,7 +309,6 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	type KPError struct {
 		Resources []KPErrorMsg `json:"resources,omitempty"`
 	}
-
 	switch response.StatusCode {
 	case http.StatusCreated:
 		if len(resBody) != 0 {

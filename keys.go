@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -98,6 +99,17 @@ type KeysActionRequest struct {
 type KeyVersion struct {
 	ID           string     `json:"id,omitempty"`
 	CreationDate *time.Time `json:"creationDate,omitempty"`
+}
+
+type KeyVersionsMetadata struct {
+	CollectionType  string `json:"collectionType"`
+	CollectionTotal int    `json:"collectionTotal"`
+	TotalCount      int    `json:"totalCount"`
+}
+
+type KeyVersions struct {
+	Metadata   KeyVersionsMetadata `json:"metadata"`
+	KeyVersion []KeyVersion        `json:"resources"`
 }
 
 // CreateKey creates a new KP key.
@@ -300,6 +312,32 @@ type CallOpt interface{}
 
 type ForceOpt struct {
 	Force bool
+}
+
+func queryParamReqOpt(key string, val string) reqOpt {
+	return func(r *http.Request) {
+		q := r.URL.Query()
+		q.Set(key, val)
+		r.URL.RawQuery = q.Encode()
+	}
+}
+
+type reqOpt func(r *http.Request)
+
+// GetKeyVersion gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
+func (c *Client) GetKeyVersions(ctx context.Context, id string, opts ...reqOpt) (*KeyVersions, int, error) {
+	keyVersion := KeyVersions{}
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	_, err = c.do(ctx, req, &keyVersion, opts...)
+	if err != nil {
+		return nil, 0, err
+	}
+	count := keyVersion.Metadata.TotalCount
+	return &keyVersion, count, nil
 }
 
 // DeleteKey deletes a key resource by specifying the ID of the key.

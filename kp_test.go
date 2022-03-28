@@ -105,7 +105,21 @@ func TestKeys(t *testing.T) {
 		Name:        "StandardKey1",
 		Extractable: true,
 	}
-
+	testKeyVersions := &KeyVersions{
+		Metadata: KeyVersionsMetadata{
+			CollectionType:  "json",
+			CollectionTotal: 2,
+			TotalCount:      2,
+		},
+		KeyVersion: []KeyVersion{
+			KeyVersion{
+				ID: testKey,
+			},
+			KeyVersion{
+				ID: "5ngy2-kko9n-4mj5f-w3jer",
+			},
+		},
+	}
 	testKeys := &Keys{
 		Metadata: KeysMetadata{
 			CollectionType: "json",
@@ -739,6 +753,24 @@ func TestKeys(t *testing.T) {
 				assert.Equal(t, http.StatusBadGateway, err.(*Error).StatusCode)
 				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
 				assert.NotEmpty(t, err.(*Error).CorrelationID)
+				return nil
+			},
+		},
+		{
+			"Get Key Version",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				//Successful call
+				MockAuthURL(keyURL, http.StatusOK, testKeyVersions)
+				keyVersions, count, err := api.GetKeyVersions(ctx, testKey, WithLimit(2), WithOffset(0), WithTotalCount(true))
+				assert.NoError(t, err)
+				assert.Equal(t, testKey, keyVersions.KeyVersion[0].ID)
+				assert.Equal(t, testKeyVersions.Metadata.TotalCount, count)
+
+				// Set it up to fail twice, with one retry
+				RetryMax = 1
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
+				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
+
 				return nil
 			},
 		},
@@ -2490,7 +2522,7 @@ func TestDisableKey(t *testing.T) {
 	}`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey+"/actions/disable").
+		Post("/api/v2/keys/" + testKey + "/actions/disable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2559,7 +2591,7 @@ func TestEnableKey(t *testing.T) {
 	`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey+"/actions/enable").
+		Post("/api/v2/keys/" + testKey + "/actions/enable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2589,7 +2621,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 	keyID := "4309-akld"
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID+"/actions/setKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/setKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2608,7 +2640,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
 	keyID := "4839-adhf"
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID+"/actions/unsetKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/unsetKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -3374,6 +3406,40 @@ func TestGetPurgeKey(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
+func TestGetKeyVersions(t *testing.T) {
+	defer gock.Off()
+	getResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json",
+			"totalCount": 1
+		},
+		"resources": [
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"creationDate": "2021-03-08T22:47:01Z"
+			}
+		]
+		}`)
+
+	key_id := "2n4y2-4ko2n-4m23f-23j3r"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + key_id + "/versions").
+		Reply(200).Body(bytes.NewReader(getResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	keyVersion, count, err := c.GetKeyVersions(context.Background(), key_id, WithLimit(1), WithTotalCount(true))
+	assert.NoError(t, err)
+	assert.NotNil(t, keyVersion)
+	assert.NotNil(t, count)
+	assert.Equal(t, key_id, keyVersion.KeyVersion[0].ID)
+}
+
 func TestGetKeyWithAlias(t *testing.T) {
 	defer gock.Off()
 	keyResponse := []byte(`{
@@ -3631,7 +3697,7 @@ func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
 	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
 }
 
-func TestSyncAssociatedResources(t *testing.T){
+func TestSyncAssociatedResources(t *testing.T) {
 	defer gock.Off()
 	keyID := "dummy-key-id"
 
@@ -3650,7 +3716,7 @@ func TestSyncAssociatedResources(t *testing.T){
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
-func TestSyncAssociatedResourcesError(t *testing.T){
+func TestSyncAssociatedResourcesError(t *testing.T) {
 	defer gock.Off()
 	keyID := "dummy-key-id"
 	errorResp := []byte(`{
