@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -81,6 +82,17 @@ type KeysMetadata struct {
 type Keys struct {
 	Metadata KeysMetadata `json:"metadata"`
 	Keys     []Key        `json:"resources"`
+}
+
+type KeyVersionsMetadata struct {
+	CollectionType  string `json:"collectionType"`
+	CollectionTotal int    `json:"collectionTotal"`
+	TotalCount      int    `json:"totalCount"`
+}
+
+type KeyVersions struct {
+	Metadata   KeyVersionsMetadata `json:"metadata"`
+	KeyVersion []KeyVersion        `json:"resources"`
 }
 
 // KeysActionRequest represents request parameters for a key action
@@ -263,6 +275,59 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	return &keys, nil
 }
 
+func (c *Client) NewListKeysOptions() *listKeysOptions {
+	return &listKeysOptions{}
+}
+
+//listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
+type listKeysOptions struct {
+	Limit       *int64 `json:"limit,omitempty"`
+	Offset      *int64 `json:"offset,omitempty"`
+	State       *[]int `json:"state,omitempty"`
+	Extractable *bool  `json:"extractable,omitempty"`
+}
+
+//ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
+func (c *Client) ListKeys(ctx context.Context, optsInput *listKeysOptions) (*Keys, error) {
+
+	req, err := c.newRequest("GET", "keys", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// extracting the query parameters and encoding the same in the request url
+	if optsInput != nil {
+		v := url.Values{}
+		if optsInput.Limit != nil {
+			v.Set("limit", fmt.Sprint(*optsInput.Limit))
+		}
+		if optsInput.Offset != nil {
+			v.Set("offset", fmt.Sprint(*optsInput.Offset))
+		}
+		if optsInput.State != nil {
+			var states []string
+			for _, i := range *optsInput.State {
+				states = append(states, strconv.Itoa(i))
+			}
+
+			v.Set("state", strings.Join(states, ","))
+		}
+		if optsInput.Extractable != nil {
+			v.Set("extractable", fmt.Sprint(*optsInput.Extractable))
+		}
+
+		req.URL.RawQuery = v.Encode()
+	}
+
+	keys := Keys{}
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keys, nil
+}
+
 // GetKey retrieves a key by ID or alias name.
 // For more information on Key Alias please refer to the link below
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-retrieve-key
@@ -300,6 +365,50 @@ type CallOpt interface{}
 
 type ForceOpt struct {
 	Force bool
+}
+
+func (c *Client) NewListKeyVersionsOptions() *listKeyVersionsOptions {
+	return &listKeyVersionsOptions{}
+}
+
+//listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
+type listKeyVersionsOptions struct {
+	Limit      *int64 `json:"limit,omitempty"`
+	Offset     *int64 `json:"offset,omitempty"`
+	TotalCount *bool  `json:"totalCount,omitempty"`
+}
+
+// GetKeyVersion gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
+func (c *Client) GetKeyVersions(ctx context.Context, id string, optsInput *listKeyVersionsOptions) (*KeyVersions, int, error) {
+	keyVersion := KeyVersions{}
+	// forming the request
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// extracting the query parameters and encoding the same in the request url
+	v := url.Values{}
+	if optsInput != nil {
+		if optsInput.Limit != nil {
+			v.Set("limit", fmt.Sprint(*optsInput.Limit))
+		}
+		if optsInput.Offset != nil {
+			v.Set("offset", fmt.Sprint(*optsInput.Offset))
+		}
+		if optsInput.TotalCount != nil {
+			v.Set("totalCount", fmt.Sprint(*optsInput.TotalCount))
+		}
+	}
+	req.URL.RawQuery = v.Encode()
+
+	//making a request
+	_, err = c.do(ctx, req, &keyVersion)
+	if err != nil {
+		return nil, 0, err
+	}
+	count := keyVersion.Metadata.TotalCount
+	return &keyVersion, count, nil
 }
 
 // DeleteKey deletes a key resource by specifying the ID of the key.

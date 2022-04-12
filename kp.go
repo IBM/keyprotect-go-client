@@ -25,7 +25,9 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -78,6 +80,32 @@ type ClientConfig struct {
 	KeyRing       string  // The ID of the target Key Ring the key is associated with. It is optional but recommended for better performance.
 	Verbose       int     // See verbose values above
 	Timeout       float64 // KP request timeout in seconds.
+}
+
+func queryParamReqOpt(key string, val string) reqOpt {
+	return func(r *http.Request) {
+		q := r.URL.Query()
+		q.Set(key, val)
+		r.URL.RawQuery = q.Encode()
+	}
+}
+
+type reqOpt func(r *http.Request)
+
+func WithForce(force bool) reqOpt {
+	return queryParamReqOpt("force", strconv.FormatBool(force))
+}
+
+func WithLimit(limit int) reqOpt {
+	return queryParamReqOpt("limit", strconv.Itoa(limit))
+}
+
+func WithOffset(offset int) reqOpt {
+	return queryParamReqOpt("offset", strconv.Itoa(offset))
+}
+
+func WithTotalCount(totalCount bool) reqOpt {
+	return queryParamReqOpt("totalCount", strconv.FormatBool(totalCount))
 }
 
 // DefaultTransport ...
@@ -232,7 +260,7 @@ func (e URLError) Error() string {
 		"error during request to KeyProtect correlation_id='%s': %s", e.CorrelationID, e.Err.Error())
 }
 
-func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*http.Response, error) {
+func (c *Client) do(ctx context.Context, req *http.Request, res interface{}, opts ...reqOpt) (*http.Response, error) {
 
 	acccesToken, err := c.getAccessToken(ctx)
 	if err != nil {
@@ -251,6 +279,14 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	req.Header.Set("bluemix-instance", c.Config.InstanceID)
 	req.Header.Set("authorization", acccesToken)
 	req.Header.Set("correlation-id", corrID)
+
+	for _, opt := range opts {
+		opt(req)
+	}
+	_, err = httputil.DumpRequestOut(req, true)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.Config.KeyRing != "" {
 		req.Header.Set("x-kms-key-ring", c.Config.KeyRing)

@@ -171,3 +171,12 @@ dek = nil
 // Save the wrapped DEK for later.  Call Unwrap to use it, make
 // sure to specify the same AAD.
 ```
+### Fetching Key Versions With Parameters.
+
+```go
+keyVersions, count, err := client.GetKeyVersions(ctx, "key_id", WithLimit(1), WithOffset(0), WithTotalCount(true))
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keyVersions, count)
+```
