@@ -275,12 +275,12 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	return &keys, nil
 }
 
-//listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
+//ListKeysOptions struct to add the query parameters for the List Keys function
 type ListKeysOptions struct {
-	Extractable *bool  `json:"extractable,omitempty"`
-	Limit       *int64 `json:"limit,omitempty"`
-	Offset      *int64 `json:"offset,omitempty"`
-	State       *[]int `json:"state,omitempty"`
+	Extractable *bool
+	Limit       *uint64
+	Offset      *uint64
+	State       []int
 }
 
 //ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
@@ -293,26 +293,25 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 
 	// extracting the query parameters and encoding the same in the request url
 	if listKeysOptions != nil {
-		v := url.Values{}
+		values := req.URL.Query()
 		if listKeysOptions.Limit != nil {
-			v.Set("limit", fmt.Sprint(*listKeysOptions.Limit))
+			values.Set("limit", fmt.Sprint(*listKeysOptions.Limit))
 		}
 		if listKeysOptions.Offset != nil {
-			v.Set("offset", fmt.Sprint(*listKeysOptions.Offset))
+			values.Set("offset", fmt.Sprint(*listKeysOptions.Offset))
 		}
 		if listKeysOptions.State != nil {
 			var states []string
-			for _, i := range *listKeysOptions.State {
+			for _, i := range listKeysOptions.State {
 				states = append(states, strconv.Itoa(i))
 			}
 
-			v.Set("state", strings.Join(states, ","))
+			values.Set("state", strings.Join(states, ","))
 		}
 		if listKeysOptions.Extractable != nil {
-			v.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
+			values.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
 		}
-
-		req.URL.RawQuery = v.Encode()
+		req.URL.RawQuery = values.Encode()
 	}
 
 	keys := Keys{}
@@ -363,15 +362,15 @@ type ForceOpt struct {
 	Force bool
 }
 
-//listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
+//ListKeyVersionsOptions struct to add the query parameters for the ListKeyVersions function
 type ListKeyVersionsOptions struct {
-	Limit      *int64 `json:"limit,omitempty"`
-	Offset     *int64 `json:"offset,omitempty"`
-	TotalCount *bool  `json:"totalCount,omitempty"`
+	Limit      *uint64
+	Offset     *uint64
+	TotalCount *bool
 }
 
-// GetKeyVersion gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
-func (c *Client) GetKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, int, error) {
+// ListKeyVersions gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
+func (c *Client) ListKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, int, error) {
 	keyVersion := KeyVersions{}
 	// forming the request
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
@@ -380,19 +379,19 @@ func (c *Client) GetKeyVersions(ctx context.Context, id string, listKeyVersionsO
 	}
 
 	// extracting the query parameters and encoding the same in the request url
-	v := url.Values{}
 	if listKeyVersionsOptions != nil {
+		values := req.URL.Query()
 		if listKeyVersionsOptions.Limit != nil {
-			v.Set("limit", fmt.Sprint(*listKeyVersionsOptions.Limit))
+			values.Set("limit", fmt.Sprint(*listKeyVersionsOptions.Limit))
 		}
 		if listKeyVersionsOptions.Offset != nil {
-			v.Set("offset", fmt.Sprint(*listKeyVersionsOptions.Offset))
+			values.Set("offset", fmt.Sprint(*listKeyVersionsOptions.Offset))
 		}
 		if listKeyVersionsOptions.TotalCount != nil {
-			v.Set("totalCount", fmt.Sprint(*listKeyVersionsOptions.TotalCount))
+			values.Set("totalCount", fmt.Sprint(*listKeyVersionsOptions.TotalCount))
 		}
+		req.URL.RawQuery = values.Encode()
 	}
-	req.URL.RawQuery = v.Encode()
 
 	//making a request
 	_, err = c.do(ctx, req, &keyVersion)

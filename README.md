@@ -171,7 +171,7 @@ dek = nil
 // Save the wrapped DEK for later.  Call Unwrap to use it, make
 // sure to specify the same AAD.
 ```
-### Fetching Key Versions With Parameters.
+### Fetching List Key Versions With Parameters.
 
 ```go
 
@@ -185,7 +185,7 @@ listkeyVersionsOptions := &kp.ListKeyVersionsOptions{
   TotalCount : &totalCount,
 }
 
-keyVersions, count, err := client.GetKeyVersions(ctx, "key_id", listkeyVersionsOptions)
+keyVersions, count, err := client.ListKeyVersions(ctx, "key_id", listkeyVersionsOptions)
 if err != nil {
     fmt.Println(err)
 }
@@ -205,7 +205,7 @@ listKeysOptions := &kp.ListKeysOptions{
   Limit : &limit,
   Offset : &offset,
   Extractable : &extractable,
-  State : &states,
+  State : states,
 }
 
 keys, err := client.ListKeys(ctx, listKeysOptions)
