@@ -174,9 +174,43 @@ dek = nil
 ### Fetching Key Versions With Parameters.
 
 ```go
-keyVersions, count, err := client.GetKeyVersions(ctx, "key_id", WithLimit(1), WithOffset(0), WithTotalCount(true))
+
+limit := int64(2)
+offset := int64(0)
+totalCount := true
+
+listkeyVersionsOptions := api.NewListKeyVersionsOptions()
+
+listkeyVersionsOptions.Limit = &limit
+listkeyVersionsOptions.Offset = &offset
+listkeyVersionsOptions.TotalCount = &totalCount
+
+keyVersions, count, err := client.GetKeyVersions(ctx, "key_id", listkeyVersionsOptions)
 if err != nil {
     fmt.Println(err)
 }
 fmt.Println(keyVersions, count)
+```
+
+### Fetching List Key With Parameters.
+
+```go
+
+l := int64(5)
+o := int64(0)
+e := false
+s := []int{1, 2, 3}
+
+listKeysOptions := client.NewListKeysOptions()
+
+listKeysOptions.Limit = &l
+listKeysOptions.Offset = &o
+listKeysOptions.Extractable = &e
+listKeysOptions.State = &s
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
 ```

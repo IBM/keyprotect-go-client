@@ -763,7 +763,14 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				//Successful call
 				MockAuthURL(keyURL, http.StatusOK, testKeyVersions)
-				keyVersions, count, err := api.GetKeyVersions(ctx, testKey, WithLimit(2), WithOffset(0), WithTotalCount(true))
+				listkeyVersions := api.NewListKeyVersionsOptions()
+				limit := int64(2)
+				offset := int64(0)
+				totalCount := true
+				listkeyVersions.Limit = &limit
+				listkeyVersions.Offset = &offset
+				listkeyVersions.TotalCount = &totalCount
+				keyVersions, count, err := api.GetKeyVersions(ctx, testKey, listkeyVersions)
 				assert.NoError(t, err)
 				assert.Equal(t, testKey, keyVersions.KeyVersion[0].ID)
 				assert.Equal(t, testKeyVersions.Metadata.TotalCount, count)
@@ -3542,7 +3549,13 @@ func TestGetKeyVersions(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	keyVersion, count, err := c.GetKeyVersions(context.Background(), key_id, WithLimit(1), WithTotalCount(true))
+	listkeyVersions := c.NewListKeyVersionsOptions()
+	limit := int64(2)
+	totalCount := true
+	listkeyVersions.Limit = &limit
+	listkeyVersions.TotalCount = &totalCount
+
+	keyVersion, count, err := c.GetKeyVersions(context.Background(), key_id, listkeyVersions)
 	assert.NoError(t, err)
 	assert.NotNil(t, keyVersion)
 	assert.NotNil(t, count)
