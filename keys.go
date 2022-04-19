@@ -275,20 +275,16 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	return &keys, nil
 }
 
-func (c *Client) NewListKeysOptions() *listKeysOptions {
-	return &listKeysOptions{}
-}
-
 //listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
-type listKeysOptions struct {
+type ListKeysOptions struct {
+	Extractable *bool  `json:"extractable,omitempty"`
 	Limit       *int64 `json:"limit,omitempty"`
 	Offset      *int64 `json:"offset,omitempty"`
 	State       *[]int `json:"state,omitempty"`
-	Extractable *bool  `json:"extractable,omitempty"`
 }
 
 //ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
-func (c *Client) ListKeys(ctx context.Context, optsInput *listKeysOptions) (*Keys, error) {
+func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions) (*Keys, error) {
 
 	req, err := c.newRequest("GET", "keys", nil)
 	if err != nil {
@@ -296,24 +292,24 @@ func (c *Client) ListKeys(ctx context.Context, optsInput *listKeysOptions) (*Key
 	}
 
 	// extracting the query parameters and encoding the same in the request url
-	if optsInput != nil {
+	if listKeysOptions != nil {
 		v := url.Values{}
-		if optsInput.Limit != nil {
-			v.Set("limit", fmt.Sprint(*optsInput.Limit))
+		if listKeysOptions.Limit != nil {
+			v.Set("limit", fmt.Sprint(*listKeysOptions.Limit))
 		}
-		if optsInput.Offset != nil {
-			v.Set("offset", fmt.Sprint(*optsInput.Offset))
+		if listKeysOptions.Offset != nil {
+			v.Set("offset", fmt.Sprint(*listKeysOptions.Offset))
 		}
-		if optsInput.State != nil {
+		if listKeysOptions.State != nil {
 			var states []string
-			for _, i := range *optsInput.State {
+			for _, i := range *listKeysOptions.State {
 				states = append(states, strconv.Itoa(i))
 			}
 
 			v.Set("state", strings.Join(states, ","))
 		}
-		if optsInput.Extractable != nil {
-			v.Set("extractable", fmt.Sprint(*optsInput.Extractable))
+		if listKeysOptions.Extractable != nil {
+			v.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
 		}
 
 		req.URL.RawQuery = v.Encode()
@@ -367,19 +363,15 @@ type ForceOpt struct {
 	Force bool
 }
 
-func (c *Client) NewListKeyVersionsOptions() *listKeyVersionsOptions {
-	return &listKeyVersionsOptions{}
-}
-
 //listKeyVersionsOptions struct to handle the query paramters for the List Key Versions
-type listKeyVersionsOptions struct {
+type ListKeyVersionsOptions struct {
 	Limit      *int64 `json:"limit,omitempty"`
 	Offset     *int64 `json:"offset,omitempty"`
 	TotalCount *bool  `json:"totalCount,omitempty"`
 }
 
 // GetKeyVersion gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
-func (c *Client) GetKeyVersions(ctx context.Context, id string, optsInput *listKeyVersionsOptions) (*KeyVersions, int, error) {
+func (c *Client) GetKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, int, error) {
 	keyVersion := KeyVersions{}
 	// forming the request
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
@@ -389,15 +381,15 @@ func (c *Client) GetKeyVersions(ctx context.Context, id string, optsInput *listK
 
 	// extracting the query parameters and encoding the same in the request url
 	v := url.Values{}
-	if optsInput != nil {
-		if optsInput.Limit != nil {
-			v.Set("limit", fmt.Sprint(*optsInput.Limit))
+	if listKeyVersionsOptions != nil {
+		if listKeyVersionsOptions.Limit != nil {
+			v.Set("limit", fmt.Sprint(*listKeyVersionsOptions.Limit))
 		}
-		if optsInput.Offset != nil {
-			v.Set("offset", fmt.Sprint(*optsInput.Offset))
+		if listKeyVersionsOptions.Offset != nil {
+			v.Set("offset", fmt.Sprint(*listKeyVersionsOptions.Offset))
 		}
-		if optsInput.TotalCount != nil {
-			v.Set("totalCount", fmt.Sprint(*optsInput.TotalCount))
+		if listKeyVersionsOptions.TotalCount != nil {
+			v.Set("totalCount", fmt.Sprint(*listKeyVersionsOptions.TotalCount))
 		}
 	}
 	req.URL.RawQuery = v.Encode()

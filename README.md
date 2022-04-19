@@ -179,11 +179,11 @@ limit := int64(2)
 offset := int64(0)
 totalCount := true
 
-listkeyVersionsOptions := api.NewListKeyVersionsOptions()
-
-listkeyVersionsOptions.Limit = &limit
-listkeyVersionsOptions.Offset = &offset
-listkeyVersionsOptions.TotalCount = &totalCount
+listkeyVersionsOptions := &kp.ListKeyVersionsOptions{
+  Limit : &limit,
+  Offset : &offset,
+  TotalCount : &totalCount,
+}
 
 keyVersions, count, err := client.GetKeyVersions(ctx, "key_id", listkeyVersionsOptions)
 if err != nil {
@@ -196,17 +196,17 @@ fmt.Println(keyVersions, count)
 
 ```go
 
-l := int64(5)
-o := int64(0)
-e := false
-s := []int{1, 2, 3}
+limit := int64(5)
+offset := int64(0)
+extractable := false
+states := []int{1, 2, 3}
 
-listKeysOptions := client.NewListKeysOptions()
-
-listKeysOptions.Limit = &l
-listKeysOptions.Offset = &o
-listKeysOptions.Extractable = &e
-listKeysOptions.State = &s
+listKeysOptions := &kp.ListKeysOptions{
+  Limit : &limit,
+  Offset : &offset,
+  Extractable : &extractable,
+  State : &states,
+}
 
 keys, err := client.ListKeys(ctx, listKeysOptions)
 if err != nil {
