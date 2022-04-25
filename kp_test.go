@@ -106,11 +106,13 @@ func TestKeys(t *testing.T) {
 		Extractable: true,
 	}
 
+	totalCount := uint32(2)
+	collectionTotal := uint32(2)
 	testKeyVersions := &KeyVersions{
 		Metadata: KeyVersionsMetadata{
 			CollectionType:  "json",
-			CollectionTotal: 2,
-			TotalCount:      2,
+			CollectionTotal: &collectionTotal,
+			TotalCount:      &totalCount,
 		},
 		KeyVersion: []KeyVersion{
 			KeyVersion{
@@ -764,8 +766,8 @@ func TestKeys(t *testing.T) {
 				//Successful call
 				MockAuthURL(keyURL, http.StatusOK, testKeyVersions)
 
-				limit := uint64(2)
-				offset := uint64(0)
+				limit := uint32(2)
+				offset := uint32(0)
 				totalCount := true
 				listkeyVersions := &ListKeyVersionsOptions{
 					Limit:      &limit,
@@ -773,10 +775,10 @@ func TestKeys(t *testing.T) {
 					TotalCount: &totalCount,
 				}
 
-				keyVersions, count, err := api.ListKeyVersions(ctx, testKey, listkeyVersions)
+				keyVersions, err := api.ListKeyVersions(ctx, testKey, listkeyVersions)
 				assert.NoError(t, err)
 				assert.Equal(t, testKey, keyVersions.KeyVersion[0].ID)
-				assert.Equal(t, testKeyVersions.Metadata.TotalCount, count)
+				assert.Equal(t, *testKeyVersions.Metadata.TotalCount, *keyVersions.Metadata.TotalCount)
 
 				// Set it up to fail twice, with one retry
 				RetryMax = 1
@@ -3525,7 +3527,7 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
-func TestGetKeyVersions(t *testing.T) {
+func TestListKeyVersions(t *testing.T) {
 	defer gock.Off()
 
 	// Case 1: when a user passes invalid value in limit
@@ -3563,17 +3565,16 @@ func TestGetKeyVersions(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	limit := uint64(0)
+	limit := uint32(0)
 	totalCount := true
 	listkeyVersions := &ListKeyVersionsOptions{
 		Limit:      &limit,
 		TotalCount: &totalCount,
 	}
 
-	keyVersion, count, err := c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	keyVersion, err := c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
 	assert.Error(t, err)
 	assert.Nil(t, keyVersion)
-	assert.EqualValues(t, 0, count)
 	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
 
 	// Case 2: When user enters valid values
@@ -3604,17 +3605,17 @@ func TestGetKeyVersions(t *testing.T) {
 		MatchParams(map[string]string{"limit": "3", "totalCount": "true"}).
 		Reply(200).Body(bytes.NewReader(KeyVersionResponse))
 
-	limit = uint64(3)
+	limit = uint32(3)
 	totalCount = true
 	listkeyVersions = &ListKeyVersionsOptions{
 		Limit:      &limit,
 		TotalCount: &totalCount,
 	}
 
-	keyVersion, count, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	keyVersion, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
 	assert.NoError(t, err)
 	assert.NotNil(t, keyVersion)
-	assert.EqualValues(t, 3, count)
+	assert.EqualValues(t, 3, *keyVersion.Metadata.TotalCount)
 
 	// Case 3: Calling ListKeyVersions with default values
 	KeyVersionResponse = []byte(`{
@@ -3644,10 +3645,10 @@ func TestGetKeyVersions(t *testing.T) {
 
 	listkeyVersions = &ListKeyVersionsOptions{}
 
-	keyVersion, count, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	keyVersion, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
 	assert.NoError(t, err)
 	assert.NotNil(t, keyVersion)
-	assert.EqualValues(t, 0, count) //Since totalCount is false
+	assert.Nil(t, keyVersion.Metadata.TotalCount)
 }
 
 func TestListKeys(t *testing.T) {
@@ -3723,8 +3724,8 @@ func TestListKeys(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	limit := uint64(3)
-	offset := uint64(0)
+	limit := uint32(3)
+	offset := uint32(0)
 	extractable := false
 	listKeysOptions := &ListKeysOptions{
 		Limit:       &limit,
@@ -3803,12 +3804,13 @@ func TestListKeys(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	extractable = true
-	states := []int{1, 2}
+	fmt.Println(Active)
+	keyStates := []KeyState{KeyState(Active), KeyState(Suspended)}
 	listKeysOptions = &ListKeysOptions{
 		Limit:       &limit,
 		Offset:      &offset,
 		Extractable: &extractable,
-		State:       states,
+		State:       keyStates,
 	}
 
 	keys, err = c.ListKeys(context.Background(), listKeysOptions)
@@ -3844,7 +3846,7 @@ func TestListKeys(t *testing.T) {
 		Reply(400).
 		Body(bytes.NewReader(listKeyResponse))
 
-	limit = uint64(0)
+	limit = uint32(0)
 	listKeysOptions = &ListKeysOptions{
 		Limit:       &limit,
 		Offset:      &offset,

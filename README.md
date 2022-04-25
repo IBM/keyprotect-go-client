@@ -175,8 +175,8 @@ dek = nil
 
 ```go
 
-limit := int64(2)
-offset := int64(0)
+limit := uint32(2)
+offset := uint32(0)
 totalCount := true
 
 listkeyVersionsOptions := &kp.ListKeyVersionsOptions{
@@ -185,27 +185,27 @@ listkeyVersionsOptions := &kp.ListKeyVersionsOptions{
   TotalCount : &totalCount,
 }
 
-keyVersions, count, err := client.ListKeyVersions(ctx, "key_id", listkeyVersionsOptions)
+keyVersions, err := client.ListKeyVersions(ctx, "key_id", listkeyVersionsOptions)
 if err != nil {
     fmt.Println(err)
 }
-fmt.Println(keyVersions, count)
+fmt.Println(keyVersions)
 ```
 
 ### Fetching List Key With Parameters.
 
 ```go
 
-limit := int64(5)
-offset := int64(0)
+limit := uint32(5)
+offset := uint32(0)
 extractable := false
-states := []int{1, 2, 3}
+keyStates := []kp.KeyState{kp.KeyState(kp.Active), kp.KeyState(kp.Suspended)}
 
 listKeysOptions := &kp.ListKeysOptions{
   Limit : &limit,
   Offset : &offset,
   Extractable : &extractable,
-  State : states,
+  State : keyStates,
 }
 
 keys, err := client.ListKeys(ctx, listKeysOptions)

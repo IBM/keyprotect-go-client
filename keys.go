@@ -39,6 +39,17 @@ var (
 // PreferReturn designates the value for the "Prefer" header.
 type PreferReturn int
 
+type KeyState uint32
+
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-key-states
+const (
+	Active KeyState = iota + 1
+	Suspended
+	Deactivated
+	_
+	Destroyed
+)
+
 // Key represents a key as returned by the KP API.
 type Key struct {
 	ID                  string      `json:"id,omitempty"`
@@ -85,9 +96,9 @@ type Keys struct {
 }
 
 type KeyVersionsMetadata struct {
-	CollectionType  string `json:"collectionType"`
-	CollectionTotal int    `json:"collectionTotal"`
-	TotalCount      int    `json:"totalCount"`
+	CollectionType  string  `json:"collectionType"`
+	CollectionTotal *uint32 `json:"collectionTotal"`
+	TotalCount      *uint32 `json:"totalCount,omitempty"`
 }
 
 type KeyVersions struct {
@@ -278,12 +289,13 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 //ListKeysOptions struct to add the query parameters for the List Keys function
 type ListKeysOptions struct {
 	Extractable *bool
-	Limit       *uint64
-	Offset      *uint64
-	State       []int
+	Limit       *uint32
+	Offset      *uint32
+	State       []KeyState
 }
 
-//ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
+// ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
+// https://cloud.ibm.com/apidocs/key-protect#getkeys
 func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions) (*Keys, error) {
 
 	req, err := c.newRequest("GET", "keys", nil)
@@ -303,7 +315,7 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 		if listKeysOptions.State != nil {
 			var states []string
 			for _, i := range listKeysOptions.State {
-				states = append(states, strconv.Itoa(i))
+				states = append(states, strconv.Itoa(int(i)))
 			}
 
 			values.Set("state", strings.Join(states, ","))
@@ -362,20 +374,21 @@ type ForceOpt struct {
 	Force bool
 }
 
-//ListKeyVersionsOptions struct to add the query parameters for the ListKeyVersions function
+// ListKeyVersionsOptions struct to add the query parameters for the ListKeyVersions function
 type ListKeyVersionsOptions struct {
-	Limit      *uint64
-	Offset     *uint64
+	Limit      *uint32
+	Offset     *uint32
 	TotalCount *bool
 }
 
-// ListKeyVersions gets all the versions of the key resource by specifying ID of the key and/or optional parameteres
-func (c *Client) ListKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, int, error) {
+// ListKeyVersions gets all the versions of the key resource by specifying ID of the key and/or optional parameters
+// https://cloud.ibm.com/apidocs/key-protect#getkeyversions
+func (c *Client) ListKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, error) {
 	keyVersion := KeyVersions{}
 	// forming the request
 	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	// extracting the query parameters and encoding the same in the request url
@@ -396,10 +409,10 @@ func (c *Client) ListKeyVersions(ctx context.Context, id string, listKeyVersions
 	//making a request
 	_, err = c.do(ctx, req, &keyVersion)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	count := keyVersion.Metadata.TotalCount
-	return &keyVersion, count, nil
+
+	return &keyVersion, nil
 }
 
 // DeleteKey deletes a key resource by specifying the ID of the key.
