@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -37,6 +38,17 @@ var (
 
 // PreferReturn designates the value for the "Prefer" header.
 type PreferReturn int
+
+type KeyState uint32
+
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-key-states
+const (
+	Active KeyState = iota + 1
+	Suspended
+	Deactivated
+	_
+	Destroyed
+)
 
 // Key represents a key as returned by the KP API.
 type Key struct {
@@ -81,6 +93,17 @@ type KeysMetadata struct {
 type Keys struct {
 	Metadata KeysMetadata `json:"metadata"`
 	Keys     []Key        `json:"resources"`
+}
+
+type KeyVersionsMetadata struct {
+	CollectionType  string  `json:"collectionType"`
+	CollectionTotal *uint32 `json:"collectionTotal"`
+	TotalCount      *uint32 `json:"totalCount,omitempty"`
+}
+
+type KeyVersions struct {
+	Metadata   KeyVersionsMetadata `json:"metadata"`
+	KeyVersion []KeyVersion        `json:"resources"`
 }
 
 // KeysActionRequest represents request parameters for a key action
@@ -263,6 +286,55 @@ func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, err
 	return &keys, nil
 }
 
+//ListKeysOptions struct to add the query parameters for the List Keys function
+type ListKeysOptions struct {
+	Extractable *bool
+	Limit       *uint32
+	Offset      *uint32
+	State       []KeyState
+}
+
+// ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
+// https://cloud.ibm.com/apidocs/key-protect#getkeys
+func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions) (*Keys, error) {
+
+	req, err := c.newRequest("GET", "keys", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// extracting the query parameters and encoding the same in the request url
+	if listKeysOptions != nil {
+		values := req.URL.Query()
+		if listKeysOptions.Limit != nil {
+			values.Set("limit", fmt.Sprint(*listKeysOptions.Limit))
+		}
+		if listKeysOptions.Offset != nil {
+			values.Set("offset", fmt.Sprint(*listKeysOptions.Offset))
+		}
+		if listKeysOptions.State != nil {
+			var states []string
+			for _, i := range listKeysOptions.State {
+				states = append(states, strconv.Itoa(int(i)))
+			}
+
+			values.Set("state", strings.Join(states, ","))
+		}
+		if listKeysOptions.Extractable != nil {
+			values.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
+		}
+		req.URL.RawQuery = values.Encode()
+	}
+
+	keys := Keys{}
+	_, err = c.do(ctx, req, &keys)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keys, nil
+}
+
 // GetKey retrieves a key by ID or alias name.
 // For more information on Key Alias please refer to the link below
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-retrieve-key
@@ -300,6 +372,47 @@ type CallOpt interface{}
 
 type ForceOpt struct {
 	Force bool
+}
+
+// ListKeyVersionsOptions struct to add the query parameters for the ListKeyVersions function
+type ListKeyVersionsOptions struct {
+	Limit      *uint32
+	Offset     *uint32
+	TotalCount *bool
+}
+
+// ListKeyVersions gets all the versions of the key resource by specifying ID of the key and/or optional parameters
+// https://cloud.ibm.com/apidocs/key-protect#getkeyversions
+func (c *Client) ListKeyVersions(ctx context.Context, id string, listKeyVersionsOptions *ListKeyVersionsOptions) (*KeyVersions, error) {
+	keyVersion := KeyVersions{}
+	// forming the request
+	req, err := c.newRequest("GET", fmt.Sprintf("keys/%s/versions", id), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// extracting the query parameters and encoding the same in the request url
+	if listKeyVersionsOptions != nil {
+		values := req.URL.Query()
+		if listKeyVersionsOptions.Limit != nil {
+			values.Set("limit", fmt.Sprint(*listKeyVersionsOptions.Limit))
+		}
+		if listKeyVersionsOptions.Offset != nil {
+			values.Set("offset", fmt.Sprint(*listKeyVersionsOptions.Offset))
+		}
+		if listKeyVersionsOptions.TotalCount != nil {
+			values.Set("totalCount", fmt.Sprint(*listKeyVersionsOptions.TotalCount))
+		}
+		req.URL.RawQuery = values.Encode()
+	}
+
+	//making a request
+	_, err = c.do(ctx, req, &keyVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	return &keyVersion, nil
 }
 
 // DeleteKey deletes a key resource by specifying the ID of the key.

@@ -106,6 +106,24 @@ func TestKeys(t *testing.T) {
 		Extractable: true,
 	}
 
+	totalCount := uint32(2)
+	collectionTotal := uint32(2)
+	testKeyVersions := &KeyVersions{
+		Metadata: KeyVersionsMetadata{
+			CollectionType:  "json",
+			CollectionTotal: &collectionTotal,
+			TotalCount:      &totalCount,
+		},
+		KeyVersion: []KeyVersion{
+			KeyVersion{
+				ID: testKey,
+			},
+			KeyVersion{
+				ID: "5ngy2-kko9n-4mj5f-w3jer",
+			},
+		},
+	}
+
 	testKeys := &Keys{
 		Metadata: KeysMetadata{
 			CollectionType: "json",
@@ -739,6 +757,34 @@ func TestKeys(t *testing.T) {
 				assert.Equal(t, http.StatusBadGateway, err.(*Error).StatusCode)
 				assert.Equal(t, "err: bad gateway", err.(*Error).Message)
 				assert.NotEmpty(t, err.(*Error).CorrelationID)
+				return nil
+			},
+		},
+		{
+			"List Key Versions",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				//Successful call
+				MockAuthURL(keyURL, http.StatusOK, testKeyVersions)
+
+				limit := uint32(2)
+				offset := uint32(0)
+				totalCount := true
+				listkeyVersions := &ListKeyVersionsOptions{
+					Limit:      &limit,
+					Offset:     &offset,
+					TotalCount: &totalCount,
+				}
+
+				keyVersions, err := api.ListKeyVersions(ctx, testKey, listkeyVersions)
+				assert.NoError(t, err)
+				assert.Equal(t, testKey, keyVersions.KeyVersion[0].ID)
+				assert.Equal(t, *testKeyVersions.Metadata.TotalCount, *keyVersions.Metadata.TotalCount)
+
+				// Set it up to fail twice, with one retry
+				RetryMax = 1
+				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
+				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
+
 				return nil
 			},
 		},
@@ -2490,7 +2536,7 @@ func TestDisableKey(t *testing.T) {
 	}`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey+"/actions/disable").
+		Post("/api/v2/keys/" + testKey + "/actions/disable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2559,7 +2605,7 @@ func TestEnableKey(t *testing.T) {
 	`)
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+testKey+"/actions/enable").
+		Post("/api/v2/keys/" + testKey + "/actions/enable").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2589,7 +2635,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 	keyID := "4309-akld"
 
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID+"/actions/setKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/setKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -2608,7 +2654,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 	defer gock.Off()
 	keyID := "4839-adhf"
 	gock.New("http://example.com").
-		Post("/api/v2/keys/"+keyID+"/actions/unsetKeyForDeletion").
+		Post("/api/v2/keys/" + keyID + "/actions/unsetKeyForDeletion").
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
@@ -3481,6 +3527,338 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
+func TestListKeyVersions(t *testing.T) {
+	defer gock.Off()
+
+	// Case 1: when a user passes invalid value in limit
+	KeyVersionResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json",
+		},
+		"resources": [
+			{
+				"StatusCode": 400,
+				"Message": "Bad Request: KeyVersion(s) could not be retrieved: Please see for more details (INVALID_QUERY_PARAM_ERR)",
+				"CorrelationID": "63f9f89d-0ad3-486f-9b49-2470a78fa080",
+				"Reasons": [
+				  {
+					"Code": "INVALID_QUERY_PARAM_ERR",
+					"Message": "The query_param must be: an integer between 1 and 5000 (inclusive)",
+					"Status": 400,
+					"MoreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+				  }
+				]
+			  }
+		]
+		}`)
+
+	key_id := "2n4y2-4ko2n-4m23f-23j3r"
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + key_id + "/versions").
+		MatchParams(map[string]string{"limit": "0", "totalCount": "true"}).
+		Reply(400).Body(bytes.NewReader(KeyVersionResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	limit := uint32(0)
+	totalCount := true
+	listkeyVersions := &ListKeyVersionsOptions{
+		Limit:      &limit,
+		TotalCount: &totalCount,
+	}
+
+	keyVersion, err := c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	assert.Error(t, err)
+	assert.Nil(t, keyVersion)
+	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
+
+	// Case 2: When user enters valid values
+	KeyVersionResponse = []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json",
+			"totalCount": 3
+		},
+		"resources": [
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3p",
+				"creationDate": "2021-03-08T22:47:01Z"
+			},
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3q",
+				"creationDate": "2021-03-08T22:47:01Z"
+			},
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"creationDate": "2021-03-08T22:47:01Z"
+			}
+		]
+		}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + key_id + "/versions").
+		MatchParams(map[string]string{"limit": "3", "totalCount": "true"}).
+		Reply(200).Body(bytes.NewReader(KeyVersionResponse))
+
+	limit = uint32(3)
+	totalCount = true
+	listkeyVersions = &ListKeyVersionsOptions{
+		Limit:      &limit,
+		TotalCount: &totalCount,
+	}
+
+	keyVersion, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keyVersion)
+	assert.EqualValues(t, 3, *keyVersion.Metadata.TotalCount)
+
+	// Case 3: Calling ListKeyVersions with default values
+	KeyVersionResponse = []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3p",
+				"creationDate": "2021-03-08T22:47:01Z"
+			},
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3q",
+				"creationDate": "2021-03-08T22:47:01Z"
+			},
+			{
+				"id": "2n4y2-4ko2n-4m23f-23j3r",
+				"creationDate": "2021-03-08T22:47:01Z"
+			}
+		]
+		}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys/" + key_id + "/versions").
+		Reply(200).Body(bytes.NewReader(KeyVersionResponse))
+
+	listkeyVersions = &ListKeyVersionsOptions{}
+
+	keyVersion, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keyVersion)
+	assert.Nil(t, keyVersion.Metadata.TotalCount)
+}
+
+func TestListKeys(t *testing.T) {
+	defer gock.Off()
+
+	// Case 1 : When user sends the limit more than the total keys present in an instance, offset=0 and extractable=false
+	listKeyResponse := []byte(`{
+		"metadata": 
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key29March",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+			  		"alias01",
+			  		"alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-03-29T11:27:40Z",
+				"lastUpdateDate": "2022-04-19T11:28:27Z",
+				"lastRotateDate": "2022-04-08T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka1-42ka1-42ka1-42ka1",
+				"creationDate": "2022-04-08T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": false,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka4-12ka4-12ka4-12ka4",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12ka5",
+				"name": "Key1",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-04-12T08:30:34Z",
+				"lastUpdateDate": "2022-04-12T14:19:24Z",
+				"lastRotateDate": "2022-04-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka1-42ka1-42ka1-42ka2",
+				  "creationDate": "2022-04-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": false,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka4-12ka4-12ka4-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"limit": "3", "offset": "0", "extractable": "false"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	limit := uint32(3)
+	offset := uint32(0)
+	extractable := false
+	listKeysOptions := &ListKeysOptions{
+		Limit:       &limit,
+		Offset:      &offset,
+		Extractable: &extractable,
+	}
+
+	keys, err := c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+
+	/* 	Case 2 : When user sends the limit more than the total keys present in an instance, offset=0, extractable=true
+	and wants to list keys which has state either 1 or 2 */
+	listKeyResponse = []byte(`{
+		"metadata": 
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key29March",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+			  		"alias01",
+			  		"alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-03-29T11:27:40Z",
+				"lastUpdateDate": "2022-04-19T11:28:27Z",
+				"lastRotateDate": "2022-04-08T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka1-42ka1-42ka1-42ka1",
+				"creationDate": "2022-04-08T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka4-12ka4-12ka4-12ka4",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12ka5",
+				"name": "Key1",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-04-12T08:30:34Z",
+				"lastUpdateDate": "2022-04-12T14:19:24Z",
+				"lastRotateDate": "2022-04-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka1-42ka1-42ka1-42ka2",
+				  "creationDate": "2022-04-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka4-12ka4-12ka4-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"limit": "3", "offset": "0", "extractable": "true", "state": "1,2"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	extractable = true
+	fmt.Println(Active)
+	keyStates := []KeyState{KeyState(Active), KeyState(Suspended)}
+	listKeysOptions = &ListKeysOptions{
+		Limit:       &limit,
+		Offset:      &offset,
+		Extractable: &extractable,
+		State:       keyStates,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+
+	// Case 3: When a user passes invalid data
+	listKeyResponse = []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"StatusCode": 400,
+				"Message": "Bad Request: Keys could not be retrieved: Please see for more details (INVALID_QUERY_PARAM_ERR)",
+				"CorrelationID": "63f9f89d-0ad3-486f-9b49-2470a78fa080",
+				"Reasons": [
+				  {
+					"Code": "INVALID_QUERY_PARAM_ERR",
+					"Message": "The query_param must be: an integer between 1 and 5000 (inclusive)",
+					"Status": 400,
+					"MoreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+				  }
+				]
+			  }
+		]
+		}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"limit": "0", "offset": "0", "extractable": "true"}).
+		Reply(400).
+		Body(bytes.NewReader(listKeyResponse))
+
+	limit = uint32(0)
+	listKeysOptions = &ListKeysOptions{
+		Limit:       &limit,
+		Offset:      &offset,
+		Extractable: &extractable,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.Error(t, err)
+	assert.Nil(t, keys)
+	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
+}
+
 func TestRotate2WithoutPayload(t *testing.T) {
 	defer gock.Off()
 	keyID := "dummy-key-id"
@@ -3631,7 +4009,7 @@ func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
 	assert.Contains(t, err.Error(), "This root key was created with user-supplied key material")
 }
 
-func TestSyncAssociatedResources(t *testing.T){
+func TestSyncAssociatedResources(t *testing.T) {
 	defer gock.Off()
 	keyID := "dummy-key-id"
 
@@ -3650,7 +4028,7 @@ func TestSyncAssociatedResources(t *testing.T){
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
-func TestSyncAssociatedResourcesError(t *testing.T){
+func TestSyncAssociatedResourcesError(t *testing.T) {
 	defer gock.Off()
 	keyID := "dummy-key-id"
 	errorResp := []byte(`{
