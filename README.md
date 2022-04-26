@@ -171,3 +171,46 @@ dek = nil
 // Save the wrapped DEK for later.  Call Unwrap to use it, make
 // sure to specify the same AAD.
 ```
+### Fetching List Key Versions With Parameters.
+
+```go
+
+limit := uint32(2)
+offset := uint32(0)
+totalCount := true
+
+listkeyVersionsOptions := &kp.ListKeyVersionsOptions{
+  Limit : &limit,
+  Offset : &offset,
+  TotalCount : &totalCount,
+}
+
+keyVersions, err := client.ListKeyVersions(ctx, "key_id", listkeyVersionsOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keyVersions)
+```
+
+### Fetching List Key With Parameters.
+
+```go
+
+limit := uint32(5)
+offset := uint32(0)
+extractable := false
+keyStates := []kp.KeyState{kp.KeyState(kp.Active), kp.KeyState(kp.Suspended)}
+
+listKeysOptions := &kp.ListKeysOptions{
+  Limit : &limit,
+  Offset : &offset,
+  Extractable : &extractable,
+  State : keyStates,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
