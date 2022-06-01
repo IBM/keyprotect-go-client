@@ -293,7 +293,7 @@ type ListKeysOptions struct {
 	Limit       *uint32
 	Offset      *uint32
 	State       []KeyState
-	Search      *string
+	Sort        *string
 }
 
 // ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
@@ -325,8 +325,8 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 		if listKeysOptions.Extractable != nil {
 			values.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
 		}
-		if listKeysOptions.Search != nil {
-			values.Set("search", fmt.Sprint(*listKeysOptions.Search, ","))
+		if listKeysOptions.Sort != nil {
+			values.Set("sort", fmt.Sprint(*listKeysOptions.Sort))
 		}
 		req.URL.RawQuery = values.Encode()
 	}
@@ -336,7 +336,6 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 	if err != nil {
 		return nil, err
 	}
-
 	return &keys, nil
 }
 
