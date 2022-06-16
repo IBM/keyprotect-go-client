@@ -3455,8 +3455,6 @@ func TestWrapWithAlias(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, wrap)
-	// assert.NotEqual(t, wrap.Pla)
-	// assert.Contains(t, key.Aliases, alias)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
