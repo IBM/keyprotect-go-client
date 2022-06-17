@@ -508,3 +508,38 @@ func redact(s string, redactStrings []string) string {
 func noredact(s string, redactStrings []string) string {
 	return s
 }
+
+type SearchOpts func(s *string)
+
+func GetKeySearchQuery(searchStr *string, opts ...SearchOpts) (*string, error) {
+	for _, opt := range opts {
+		opt(searchStr)
+	}
+	return searchStr, nil
+}
+
+func buildSearcOpts(val string) SearchOpts {
+	return func(s *string) {
+		*s = val + ":" + *s
+	}
+}
+
+func WithExactMatch() SearchOpts {
+	return buildSearcOpts("exact")
+}
+
+func AddEscape() SearchOpts {
+	return buildSearcOpts("escape")
+}
+
+func ApplyNot() SearchOpts {
+	return buildSearcOpts("not")
+}
+
+func AddAliasScope() SearchOpts {
+	return buildSearcOpts("alias")
+}
+
+func AddKeyNameScope() SearchOpts {
+	return buildSearcOpts("name")
+}
