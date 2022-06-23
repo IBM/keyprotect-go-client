@@ -1552,7 +1552,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	// 				},
 	// 			},
 	// 		},
-	// 	},
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": true,
+	//				"attributes": {
+	//					"interval_month": 3
+	//				}
+	//			}
+	// 		},
+	// 	}'
 	// }
 
 	allPoliciesResponse := []byte(`{
@@ -1583,6 +1592,19 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 					"allowed_network": "public-and-private"
 					}
 				}
+			},
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": true,
+					"attributes": {
+						"interval_month": 3
+					}
+				}
 			}
 		]
 	}`)
@@ -1601,10 +1623,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		Enabled: true,
 		Network: "private-only",
 	}
+	intervalMonth := 2
+	rotationInstancePolicy := &RotationPolicyData{
+		Enabled:       true,
+		IntervalMonth: &intervalMonth,
+	}
 	policies := MultiplePolicies{
 		Metrics:        metrics,
 		DualAuthDelete: dualAuth,
 		AllowedNetwork: allowedNetwork,
+		Rotation:       rotationInstancePolicy,
 	}
 
 	gock.New("http://example.com").
@@ -1698,6 +1726,150 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 	assert.NotNil(t, dap)
 	assert.Equal(t, dap.PolicyType, DualAuthDelete)
 	assert.True(t, *(dap.PolicyData.Enabled))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetRotationInstancePolicyEnabled tests the methods that update and retrieve dual auth instance policy
+func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
+	defer gock.Off()
+
+	// rotationInstancePolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": true,
+	//				"attributes": {
+	//					"interval_month": 3
+	//				}
+	//			}
+	// 		},
+	// 	},
+	// }
+
+	rotationInstancePolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": true,
+					"attributes": {
+						"interval_month": 3
+					}
+				}
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", RotationInstancePolicy).
+		Reply(204)
+
+	err = c.SetRotationInstancePolicy(context.Background(), true, 3)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", RotationInstancePolicy).
+		Reply(200).
+		Body(bytes.NewReader(rotationInstancePolicyResponse))
+
+	rotation, err := c.GetRotationInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, rotation)
+	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
+	assert.True(t, *(rotation.PolicyData.Enabled))
+	assert.Equal(t, 3, *rotation.PolicyData.Attributes.IntervalMonth)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetRotationInstancePolicyDisabled tests the methods that update and retrieve dual auth instance policy
+func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
+	defer gock.Off()
+
+	// rotationInstancePolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": false,
+	//			}
+	// 		},
+	// 	},
+	// }
+
+	rotationInstancePolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": false
+				}
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", RotationInstancePolicy).
+		Reply(204)
+
+	err = c.SetRotationInstancePolicy(context.Background(), false, 3)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", RotationInstancePolicy).
+		Reply(200).
+		Body(bytes.NewReader(rotationInstancePolicyResponse))
+
+	rotation, err := c.GetRotationInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, rotation)
+	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
+	assert.False(t, *(rotation.PolicyData.Enabled))
+	//assert.Equal(t, 3, *rotation.PolicyData.Attributes.IntervalMonth)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -2239,6 +2411,56 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, badRequestErr.Reasons[0].Code, "BAD_BODY_ERR")
 	assert.Equal(t, badRequestErr.Reasons[0].Message, "Invalid body data was passed. Please ensure the data passed had valid formatting with no invalid characters: json: unknown field \"attributes\"%!(EXTRA []string=[])")
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+//TestSetRotationInstancePolicyError tests the methods set rotation instance policy to error out with attributes field.
+func TestSetRotationInstancePolicyError(t *testing.T) {
+	/*
+		Case-1 : When a user set the interval_month more 12 months in the request.
+	*/
+
+	defer gock.Off()
+	errorResponse := []byte(`
+	{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Instance policy could not be created: Please see "reasons" for more details (INVALID_FIELD_ERR)",
+			"reasons": [
+			  {
+				"code": "INVALID_FIELD_ERR",
+				"message": "The field "interval_month" must be: an integer between 1 and 12 (inclusive)",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": { "type": "field", "name": "interval_month" }
+			  }
+			]
+		  }
+		]
+	  }
+	`)
+
+	gock.New("http://example.com").
+		Put("/api/v2/instance/policies").
+		MatchParam("policy", RotationInstancePolicy).
+		Reply(400).
+		Body(bytes.NewReader(errorResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	err = c.SetRotationInstancePolicy(context.Background(), true, 13)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "INVALID_FIELD_ERR")
+	assert.Equal(t, http.StatusBadRequest, err.(*Error).StatusCode)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }

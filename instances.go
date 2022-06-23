@@ -36,6 +36,9 @@ const (
 	// KeyAccess defines the policy type as key create import access
 	KeyCreateImportAccess = "keyCreateImportAccess"
 
+	// RotationInstancePolicy defines the policy type as rotation instance policy
+	RotationInstancePolicy = "rotation"
+
 	// KeyAccess policy attributes
 	CreateRootKey     = "CreateRootKey"
 	CreateStandardKey = "CreateStandardKey"
@@ -43,7 +46,6 @@ const (
 	ImportStandardKey = "ImportStandardKey"
 	EnforceToken      = "EnforceToken"
 )
-
 
 // InstancePolicy represents a instance-level policy of a key as returned by the KP API.
 // this policy enables dual authorization for deleting a key
@@ -71,6 +73,7 @@ type Attributes struct {
 	ImportRootKey     *bool       `json:"import_root_key,omitempty"`
 	ImportStandardKey *bool       `json:"import_standard_key,omitempty"`
 	EnforceToken      *bool       `json:"enforce_token,omitempty"`
+	IntervalMonth     *int        `json:"interval_month,omitempty"`
 }
 
 // IPAddresses ...
@@ -185,6 +188,21 @@ func (c *Client) GetMetricsInstancePolicy(ctx context.Context) (*InstancePolicy,
 	return &policyResponse.Policies[0], nil
 }
 
+// some horrible english
+func (c *Client) GetRotationInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
+	policyResponse := InstancePolicies{}
+
+	err := c.getInstancePolicy(ctx, RotationInstancePolicy, &policyResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(policyResponse.Policies) == 0 {
+		return nil, nil
+	}
+	return &policyResponse.Policies[0], nil
+}
+
 // GetInstancePolicies retrieves all policies of an Instance.
 func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, error) {
 	policyresponse := InstancePolicies{}
@@ -238,6 +256,44 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	}
 
 	err := c.setInstancePolicy(ctx, DualAuthDelete, policyRequest)
+
+	return err
+}
+
+// some nice english
+func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth int) error {
+
+	policyData := PolicyData{}
+	if enable {
+		policyData = PolicyData{
+			Enabled: &enable,
+			Attributes: &Attributes{
+				IntervalMonth: &intervalMonth,
+			},
+		}
+	} else {
+		policyData = PolicyData{
+			Enabled: &enable,
+		}
+	}
+
+	policy := InstancePolicy{
+		PolicyType: RotationInstancePolicy,
+		PolicyData: policyData,
+	}
+
+	policyRequest := InstancePolicies{
+		Metadata: PoliciesMetadata{
+			CollectionType:   policyType,
+			NumberOfPolicies: 1,
+		},
+		Policies: []InstancePolicy{policy},
+	}
+
+	err := c.setInstancePolicy(ctx, RotationInstancePolicy, policyRequest)
+	if err != nil {
+		return err
+	}
 
 	return err
 }
@@ -394,21 +450,27 @@ type AllowedIPPolicyData struct {
 
 // KeyAccessInstancePolicyData defines the attribute input for the Key Create Import Access instance policy
 type KeyCreateImportAccessInstancePolicy struct {
-	Enabled bool
-	CreateRootKey bool
+	Enabled           bool
+	CreateRootKey     bool
 	CreateStandardKey bool
-	ImportRootKey bool
+	ImportRootKey     bool
 	ImportStandardKey bool
-	EnforceToken bool
+	EnforceToken      bool
+}
+
+type RotationPolicyData struct {
+	Enabled       bool
+	IntervalMonth *int
 }
 
 // MultiplePolicies defines the input for the SetInstancPolicies method that can hold multiple policy details
 type MultiplePolicies struct {
-	DualAuthDelete *BasicPolicyData
-	AllowedNetwork *AllowedNetworkPolicyData
-	AllowedIP      *AllowedIPPolicyData
-	Metrics        *BasicPolicyData
+	DualAuthDelete        *BasicPolicyData
+	AllowedNetwork        *AllowedNetworkPolicyData
+	AllowedIP             *AllowedIPPolicyData
+	Metrics               *BasicPolicyData
 	KeyCreateImportAccess *KeyCreateImportAccessInstancePolicy
+	Rotation              *RotationPolicyData
 }
 
 // SetInstancePolicies updates single or multiple policy details of an instance.
@@ -465,7 +527,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 		policy := InstancePolicy{
 			PolicyType: KeyCreateImportAccess,
 			PolicyData: PolicyData{
-				Enabled: &(policies.KeyCreateImportAccess.Enabled),
+				Enabled:    &(policies.KeyCreateImportAccess.Enabled),
 				Attributes: &Attributes{},
 			},
 		}
@@ -486,6 +548,24 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 			policy.PolicyData.Attributes.EnforceToken = &policies.KeyCreateImportAccess.EnforceToken
 		}
 
+		resPolicies = append(resPolicies, policy)
+	}
+
+	if policies.Rotation != nil {
+
+		policyData := PolicyData{}
+		attribute := Attributes{}
+		if policies.Rotation.IntervalMonth != nil {
+			attribute.IntervalMonth = policies.Rotation.IntervalMonth
+		}
+
+		policyData.Enabled = &policies.Rotation.Enabled
+		policyData.Attributes = &attribute
+
+		policy := InstancePolicy{
+			PolicyType: RotationInstancePolicy,
+			PolicyData: policyData,
+		}
 		resPolicies = append(resPolicies, policy)
 	}
 
