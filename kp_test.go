@@ -3420,6 +3420,84 @@ func TestGetPurgeKey(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
+func TestWrapWithAlias(t *testing.T) {
+	defer gock.Off()
+	keyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"plaintext": "tF9ss0W9HQUVkddcjSeGg/MqZFs2CVh/FFKLPLLnOwY=",
+				"ciphertext": "eyJjaXBoZXJ0ZXh0Ijoic1ZZRnZVcjdQanZXQ0tFakMwRFFWZktqQ3AyRmtiOFJOSDJSTkpZRzVmU1hWNDJScD\\ RDVythU0h3Y009IiwiaGFzaCI6IjVWNzNBbm9XdUxxM1BvZEZpd1AxQTdQMUZrTkZOajVPMmtmMkNxdVBxL0NRdFlOZnBvemp\\ iYUxjRDNCSWhxOGpKZ2JNR0xhMHB4dDA4cTYyc0RJMGRBPT0iLCJpdiI6Ilc1T2tNWFZuWDFCTERDUk51M05EUlE9PSIsInZl\\ cnNpb24iOiIzLjAuMCIsImhhbmRsZSI6IjRkZjg5ZGVlLWU3OTMtNGY5Ny05MGNjLTc1ZWQ5YjZlNWM4MiJ9",
+				"keyVersion": {
+				  "id": "f4877b07-40b4-4307-a306-eb98eeeea590",
+				  "creationDate": "2010-01-12T05:23:19+0000"
+				}
+			  }
+		]
+	}`)
+	alias := "domainblvd"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + alias + "/actions/wrap").
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+	plainText := "tF9ss0W9HQUVkddcjSeGg/MqZFs2CVh/FFKLPLLnOwY="
+
+	wrap, err := c.Wrap(context.Background(), alias, []byte(plainText), nil)
+	t.Logf("wrap value %s\n", wrap)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, wrap)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestUnWrapWithAlias(t *testing.T) {
+	defer gock.Off()
+	keyResponse := []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"plaintext": "tF9ss0W9HQUVkddcjSeGg/MqZFs2CVh/FFKLPLLnOwY=",
+				"keyVersion": {
+				  "id": "f4877b07-40b4-4307-a306-eb98eeeea590",
+				  "creationDate": "2010-01-12T05:23:19+0000"
+				}
+			  }
+		]
+	}`)
+	alias := "domainblvd"
+	gock.New("http://example.com").
+		Post("/api/v2/keys/" + alias + "/actions/unwrap").
+		Reply(200).
+		Body(bytes.NewReader(keyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+	plainText := "tF9ss0W9HQUVkddcjSeGg/MqZFs2CVh/FFKLPLLnOwY="
+	cipherText := "eyJjaXBoZXJ0ZXh0Ijoic1ZZRnZVcjdQanZXQ0tFakMwRFFWZktqQ3AyRmtiOFJOSDJSTkpZRzVmU1hWNDJScD"
+
+	recievedTxt, err := c.Unwrap(context.Background(), alias, []byte(cipherText), nil)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, plainText)
+	assert.NotEqual(t, recievedTxt, plainText)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
 func TestGetKeyWithAlias(t *testing.T) {
 	defer gock.Off()
 	keyResponse := []byte(`{
@@ -3656,7 +3734,7 @@ func TestListKeys(t *testing.T) {
 
 	// Case 1 : When user sends the limit more than the total keys present in an instance, offset=0 and extractable=false
 	listKeyResponse := []byte(`{
-		"metadata": 
+		"metadata":
 		{
 		  "collectionType": "application/vnd.ibm.kms.key+json",
 		  "collectionTotal": 2
@@ -3740,7 +3818,7 @@ func TestListKeys(t *testing.T) {
 	/* 	Case 2 : When user sends the limit more than the total keys present in an instance, offset=0, extractable=true
 	and wants to list keys which has state either 1 or 2 */
 	listKeyResponse = []byte(`{
-		"metadata": 
+		"metadata":
 		{
 		  "collectionType": "application/vnd.ibm.kms.key+json",
 		  "collectionTotal": 2

@@ -184,11 +184,11 @@ func ExampleClient_InstancePolicies() {
 		kp.DefaultTransport(),
 	)
 
-	policies := kp.MultiplePolicies {
-		DualAuthDelete : &kp.BasicPolicyData{
+	policies := kp.MultiplePolicies{
+		DualAuthDelete: &kp.BasicPolicyData{
 			Enabled: true,
 		},
-		AllowedNetwork : &kp.AllowedNetworkPolicyData{
+		AllowedNetwork: &kp.AllowedNetworkPolicyData{
 			Enabled: true,
 			Network: "public-and-private",
 		},
@@ -203,7 +203,7 @@ func ExampleClient_InstancePolicies() {
 	}
 
 	attributes := map[string]bool{
-		"CreateRootKey": true,
+		"CreateRootKey":     true,
 		"CreateStandardKey": true,
 	}
 	fmt.Println("Setting key create import access instance policy")
@@ -213,6 +213,5 @@ func ExampleClient_InstancePolicies() {
 	} else {
 		fmt.Println("Set Key Create Import Access instance policy")
 	}
-
 
 }
