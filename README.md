@@ -113,6 +113,31 @@ fmt.Println(key.ID, key.Name)
 crkID := key.ID
 ```
 
+### Generating a root key with policy overrides (CRK)
+
+```go
+enable := true
+// Specify policy data
+policy := kp.Policy{
+  Rotation: &kp.Rotation{
+      Enabled: &enable
+			Interval: 3,
+	},
+  DualAuth: &kp.DualAuth{
+    Enabled: &enable,
+  },
+}
+
+// Create a root key named MyRootKey with a rotation and a dualAuthDelete policy
+key, err := client.CreateRootKeyWithPolicyOverrides(ctx, "MyRootKey", nil, nil, policy)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(key.ID, key.Name)
+
+crkID := key.ID
+```
+
 ### Wrapping and Unwrapping a DEK using a specific Root Key.
 
 ```go

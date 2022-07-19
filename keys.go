@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -32,7 +33,9 @@ const (
 )
 
 var (
-	preferHeaders = []string{"return=minimal", "return=representation"}
+	preferHeaders               = []string{"return=minimal", "return=representation"}
+	keysPath                    = "keys"
+	keysWithPolicyOverridesPath = "keys_with_policy_overrides"
 )
 
 // PreferReturn designates the value for the "Prefer" header.
@@ -80,6 +83,7 @@ type Key struct {
 	PurgeAllowedFrom    *time.Time  `json:"purgeAllowedFrom,omitempty"`
 	PurgeScheduledOn    *time.Time  `json:"purgeScheduledOn,omitempty"`
 	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
+	Rotation            *Rotation   `json:"rotation,omitempty"`
 }
 
 // KeysMetadata represents the metadata of a collection of keys.
@@ -209,6 +213,14 @@ func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration 
 }
 
 func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
+	return c.createKeyResource(ctx, key, keysPath)
+}
+
+func (c *Client) createKeyWithPolicyOverride(ctx context.Context, key Key) (*Key, error) {
+	return c.createKeyResource(ctx, key, keysWithPolicyOverridesPath)
+}
+
+func (c *Client) createKeyResource(ctx context.Context, key Key, path string) (*Key, error) {
 	keysRequest := Keys{
 		Metadata: KeysMetadata{
 			CollectionType: keyType,
@@ -217,11 +229,11 @@ func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
 		Keys: []Key{key},
 	}
 
-	req, err := c.newRequest("POST", "keys", &keysRequest)
+	req, err := c.newRequest(http.MethodPost, path, &keysRequest)
 	if err != nil {
 		return nil, err
 	}
-
+	req.Header.Set("Prefer", preferHeaders[ReturnRepresentation])
 	keysResponse := Keys{}
 	if _, err := c.do(ctx, req, &keysResponse); err != nil {
 		return nil, err
@@ -258,6 +270,41 @@ func (c *Client) SetKeyRing(ctx context.Context, idOrAlias, newKeyRingID string)
 		return nil, err
 	}
 	return &response.Keys[0], nil
+}
+
+// CreateKeyWithPolicyOverride creates a new KP key with given key policy details
+func (c *Client) CreateKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateImportedKeyWithPolicyOverride(ctx, name, expiration, "", "", "", extractable, aliases, policy)
+}
+
+// CreateImportedKeyWithPolicyOverride creates a new Imported KP key from the given key material and with given key policy details
+func (c *Client) CreateImportedKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256)
+
+	key.Rotation = policy.Rotation
+	key.DualAuthDelete = policy.DualAuth
+
+	return c.createKeyWithPolicyOverride(ctx, key)
+}
+
+// CreateRootKeyWithPolicyOverride creates a new, non-extractable key resource without key material and with given key policy details
+func (c *Client) CreateRootKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateKeyWithPolicyOverride(ctx, name, expiration, false, aliases, policy)
+}
+
+// CreateStandardKeyWithPolicyOverride creates a new, extractable key resource without key material and with given key policy details
+func (c *Client) CreateStandardKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateKeyWithPolicyOverride(ctx, name, expiration, true, aliases, policy)
+}
+
+// CreateImportedRootKeyWithPolicyOverride creates a new, non-extractable key resource with the given key material and with given key policy details
+func (c *Client) CreateImportedRootKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateImportedKeyWithPolicyOverride(ctx, name, expiration, payload, encryptedNonce, iv, false, aliases, policy)
+}
+
+// CreateImportedStandardKeyWithPolicyOverride creates a new, extractable key resource with the given key material and with given key policy details
+func (c *Client) CreateImportedStandardKeyWithPolicyOverride(ctx context.Context, name string, expiration *time.Time, payload string, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateImportedKeyWithPolicyOverride(ctx, name, expiration, payload, "", "", true, aliases, policy)
 }
 
 // GetKeys retrieves a collection of keys that can be paged through.

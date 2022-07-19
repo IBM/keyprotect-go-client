@@ -53,7 +53,7 @@ func NewTestURL(paths ...string) string {
 	return NewTestClientConfig().BaseURL + strings.Join(paths, "/")
 }
 
-// NewTestClient constructs and returns a new API and request ccontext.
+// NewTestClient constructs and returns a new API and request context.
 //
 func NewTestClient(t *testing.T, c *ClientConfig) (*API, context.Context, error) {
 	if c == nil {
@@ -839,6 +839,145 @@ func TestKeys(t *testing.T) {
 		},
 	}
 	cases.Run(t)
+}
+
+// Tests the API for Create Key With Policies Overrides
+//
+func TestKeyWithPolicyOverrides(t *testing.T) {
+	keyWithPolicyOverridesURL := NewTestURL("/api/v2/keys_with_policy_overrides")
+	enableTrue := true
+	testKeyID := "6699b1ba-e17e-4463-8461-16a374b9da90"
+	keysMetadata := KeysMetadata{
+		CollectionType: "json",
+		NumberOfKeys:   1,
+	}
+	rotPolicy := &Rotation{
+		Enabled:  &enableTrue,
+		Interval: 3,
+	}
+	daPolicy := Policy{
+		DualAuth: &DualAuth{
+			Enabled: &enableTrue,
+		},
+	}
+	allPolicies := Policy{
+		Rotation: rotPolicy,
+		DualAuth: daPolicy.DualAuth,
+	}
+	aliases := []string{"alias1", "alias2"}
+	payload := "test string"
+	testGenRootKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "GenRootKey",
+				Extractable:    false,
+				DualAuthDelete: daPolicy.DualAuth,
+				Rotation:       rotPolicy,
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+
+	testImportedRootKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "ImportedRootKey",
+				Extractable:    false,
+				DualAuthDelete: daPolicy.DualAuth,
+				Payload:        "Payload string",
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+
+	testImportedStdKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "ImportedStdKey",
+				Extractable:    true,
+				DualAuthDelete: daPolicy.DualAuth,
+				Payload:        "Payload string",
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+	testGenStdKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "GenStdKey",
+				Extractable:    true,
+				DualAuthDelete: daPolicy.DualAuth,
+				Payload:        "Payload string",
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+
+	cases := TestCases{
+		{
+			"Create Key With Policy Overrides",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenStdKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedStdKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
+
+				// Non-imported Root Key
+				key, err := api.CreateRootKeyWithPolicyOverride(ctx, "test", nil, aliases, allPolicies)
+				assert.NoError(t, err)
+				assert.Equal(t, enableTrue, *key.Rotation.Enabled)
+				assert.Equal(t, 3, key.Rotation.Interval)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				// Non-imported Standard Key
+				key, err = api.CreateStandardKeyWithPolicyOverride(ctx, "", nil, aliases, daPolicy)
+				assert.NoError(t, err)
+				assert.Nil(t, key.Rotation)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				// Imported Standard Key
+				key, err = api.CreateImportedStandardKeyWithPolicyOverride(ctx, "", nil, payload, aliases, daPolicy)
+				assert.NoError(t, err)
+				assert.Nil(t, key.Rotation)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				// Imported Root Key
+				key, err = api.CreateImportedRootKeyWithPolicyOverride(ctx, "test", nil, payload, "abc", "", aliases, daPolicy)
+				assert.NoError(t, err)
+				assert.Nil(t, key.Rotation)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				// Non-imported Key
+				key, err = api.CreateKeyWithPolicyOverride(ctx, "test", nil, false, aliases, allPolicies)
+				assert.NoError(t, err)
+				assert.NotNil(t, key.Rotation)
+				assert.Equal(t, 3, key.Rotation.Interval)
+				assert.Equal(t, enableTrue, *key.Rotation.Enabled)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				// Imported Key
+				key, err = api.CreateImportedKeyWithPolicyOverride(ctx, "test", nil, "", "", "", false, aliases, daPolicy)
+				assert.NoError(t, err)
+				assert.Nil(t, key.Rotation)
+				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
+
+				return nil
+			},
+		},
+	}
+
+	cases.Run(t)
+
 }
 
 // Tests the API for misc. funcionality.
