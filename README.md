@@ -27,7 +27,7 @@ This client expects that you have an existing IBM Cloud Key Protect Service Inst
 
 Build a client with `ClientConfig` and `New`, then use the client to do some operations.
 ```go
-import "github.com/IBM/keyprotect-go-client"
+import kp "github.com/IBM/keyprotect-go-client"
 
 // Use your IAM API Key and your KeyProtect Service Instance GUID/UUID to create a ClientConfig
 cc := kp.ClientConfig{
