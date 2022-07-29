@@ -29,6 +29,7 @@ type ListKeysOptions struct {
 	Offset      *uint32
 	State       []KeyState
 	Sort        *string
+	Search      *string
 }
 
 // ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
@@ -59,6 +60,9 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 		}
 		if listKeysOptions.Extractable != nil {
 			values.Set("extractable", fmt.Sprint(*listKeysOptions.Extractable))
+		}
+		if listKeysOptions.Search != nil {
+			values.Set("search", fmt.Sprint(*listKeysOptions.Search, ","))
 		}
 		if listKeysOptions.Sort != nil {
 			values.Set("sort", fmt.Sprint(*listKeysOptions.Sort))
@@ -171,4 +175,39 @@ func WithState() SortByOpts {
 
 func WithStateDesc() SortByOpts {
 	return buildSortOpts("-state")
+}
+
+type SearchOpts func(s *string)
+
+func GetKeySearchQuery(searchStr *string, opts ...SearchOpts) (*string, error) {
+	for _, opt := range opts {
+		opt(searchStr)
+	}
+	return searchStr, nil
+}
+
+func buildSearcOpts(val string) SearchOpts {
+	return func(s *string) {
+		*s = val + ":" + *s
+	}
+}
+
+func WithExactMatch() SearchOpts {
+	return buildSearcOpts("exact")
+}
+
+func AddEscape() SearchOpts {
+	return buildSearcOpts("escape")
+}
+
+func ApplyNot() SearchOpts {
+	return buildSearcOpts("not")
+}
+
+func AddAliasScope() SearchOpts {
+	return buildSearcOpts("alias")
+}
+
+func AddKeyNameScope() SearchOpts {
+	return buildSearcOpts("name")
 }
