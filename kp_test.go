@@ -4145,3 +4145,200 @@ func TestSyncAssociatedResourcesError(t *testing.T) {
 	assert.Contains(t, err.Error(), "The key was updated recently: Please wait and try again: Sync cannot be performed until at least")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
+func TestListKeySort(t *testing.T) {
+	defer gock.Off()
+
+	// Case 1 : When user sort list key based on creation date
+	listKeyResponse := []byte(`{
+		"metadata":
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key01June",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+                    "alias01",
+                    "alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-06-01T11:27:40Z",
+				"lastUpdateDate": "2022-06-12T11:28:27Z",
+				"lastRotateDate": "2022-06-08T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka2-42ka2-42ka2-42ka2",
+				"creationDate": "2022-06-08T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12ka5",
+				"name": "Key1",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-06-12T08:30:34Z",
+				"lastUpdateDate": "2022-06-12T14:19:24Z",
+				"lastRotateDate": "2022-06-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka2-42ka2-42ka2-42ka2",
+				  "creationDate": "2022-06-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"sort": "creationDate,state"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	sortStr := GetKeySortStr(WithCreationDate(), WithState())
+
+	listKeysOptions := &ListKeysOptions{
+		Sort: sortStr,
+	}
+	keys, err := c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	/* 	Case 2 : When user wants to sort the keys in descending order based on last rotated date */
+	listKeyResponse = []byte(`{
+		"metadata":
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key01June",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+                    "alias01",
+                    "alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-06-01T11:27:40Z",
+				"lastUpdateDate": "2022-06-20T11:28:27Z",
+				"lastRotateDate": "2022-06-18T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka1-42ka1-42ka1-42ka1",
+				"creationDate": "2022-06-18T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12ka5",
+				"name": "Key2",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-06-06T08:30:34Z",
+				"lastUpdateDate": "2022-06-12T14:19:24Z",
+				"lastRotateDate": "2022-06-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka1-42ka1-42ka1-42ka2",
+				  "creationDate": "2022-06-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka3-12ka3-12ka3-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"sort": "-lastRotateDate"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	sortStr = GetKeySortStr(WithLastRotateDateDesc())
+	listKeysOptions = &ListKeysOptions{
+		Sort: sortStr,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	// Case 3: When a user passes invalid data
+	listKeyResponse = []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"StatusCode": 400,
+				"Message": "Bad Request: Keys could not be retrieved: Please see for more details (INVALID_QUERY_PARAM_ERR)",
+				"CorrelationID": "63f9f89d-0ad3-486f-9b49-2470a78fb742",
+				"Reasons": [
+				  {
+					"Code": "INVALID_QUERY_PARAM_ERR",
+					"Message": "The query_param must be: a valid string from one of this [id,creationDate,deletionDate,expirationDate,
+							    extractable,imported,lastRotateDate,lastUpdateDate,state] for descending add '-' in the begining of the string"
+					"Status": 400,
+					"MoreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+				  }
+				]
+			  }
+		]
+		}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"sort": "ids"}).
+		Reply(400).
+		Body(bytes.NewReader(listKeyResponse))
+
+	sort := "ids"
+	listKeysOptions = &ListKeysOptions{
+		Sort: &sort,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.Error(t, err)
+	assert.Nil(t, keys)
+	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}

@@ -214,3 +214,35 @@ if err != nil {
 }
 fmt.Println(keys)
 ```
+
+### Fetching List Key In Sorted Ascending Order Based On Paramaeters.
+
+```go
+srtStr, _ := kp.GetKeySortStr(kp.WithCreationDate(), kp.WithImported())
+
+listKeysOptions := &kp.ListKeysOptions{
+  Sort:srtStr,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
+
+### Fetching List Key In Sorted Descending Order Based On Paramaeters.
+
+```go
+srtStr, _ := GetKeySortStr(WithCreationDateDesc(), WithImportedDesc())
+
+listKeysOptions := &ListKeysOptions{
+  Sort: srtStr,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
