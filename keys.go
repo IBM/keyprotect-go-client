@@ -80,7 +80,6 @@ type Key struct {
 	PurgeAllowedFrom    *time.Time  `json:"purgeAllowedFrom,omitempty"`
 	PurgeScheduledOn    *time.Time  `json:"purgeScheduledOn,omitempty"`
 	DualAuthDelete      *DualAuth   `json:"dualAuthDelete,omitempty"`
-	Search              string      `json:"search,omitempty"`
 }
 
 // KeysMetadata represents the metadata of a collection of keys.
