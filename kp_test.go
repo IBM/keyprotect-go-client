@@ -4342,3 +4342,121 @@ func TestListKeySort(t *testing.T) {
 	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
+
+func TestListKeySearch(t *testing.T) {
+	defer gock.Off()
+
+	// Case 1 : Using alias method
+	listKeyResponse := []byte(`{
+        "metadata":
+        {
+          "collectionType": "application/vnd.ibm.kms.key+json",
+          "collectionTotal": 1
+        },
+        "resources": [
+            {
+                "id": "12ka4-12ka4-12ka4-12ka4",
+                "name": "Key01June",
+                "type": "application/vnd.ibm.kms.key+json",
+                "aliases": [
+                    "aliasNew"
+                ],
+                "algorithmType": "AES",
+                "createdBy": "IBMid-55xxxxx",
+                "creationDate": "2022-06-01T11:27:40Z",
+                "lastUpdateDate": "2022-06-12T11:28:27Z",
+                "lastRotateDate": "2022-06-08T06:34:10Z",
+                "keyVersion": {
+                "id": "42ka2-42ka2-42ka2-42ka2",
+                "creationDate": "2022-06-08T06:34:10Z"
+                },
+                "keyRingID": "default",
+                "extractable": true,
+                "state": 2,
+                "crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+                "deleted": false,
+                "dualAuthDelete": {
+                "enabled": false
+                }
+            }
+        ]
+    }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"search": "alias:"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	searchStr := "aliasNew"
+	srcStr2, _ := GetKeySearchQuery(&searchStr, AddAliasScope())
+	listKeysOptions := &ListKeysOptions{
+		Search: srcStr2,
+	}
+
+	keys, err := c.ListKeys(context.Background(), listKeysOptions)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+
+	/*  Case 2 : Using Escape function */
+	listKeyResponse = []byte(`{
+        "metadata":
+        {
+          "collectionType": "application/vnd.ibm.kms.key+json",
+          "collectionTotal": 1
+        },
+        "resources": [
+            {
+                "id": "12ka4-12ka4-12ka4-12ka4",
+                "name": "Key16June",
+                "type": "application/vnd.ibm.kms.key+json",
+                "aliases": [
+                    "alias01",
+                    "alias1"
+                ],
+                "algorithmType": "AES",
+                "createdBy": "IBMid-55xxxxx",
+                "creationDate": "2022-06-01T11:27:40Z",
+                "lastUpdateDate": "2022-06-20T11:28:27Z",
+                "lastRotateDate": "2022-06-18T06:34:10Z",
+                "keyVersion": {
+                "id": "42ka1-42ka1-42ka1-42ka1",
+                "creationDate": "2022-06-18T06:34:10Z"
+                },
+                "keyRingID": "default",
+                "extractable": true,
+                "state": 2,
+                "crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+                "deleted": false,
+                "dualAuthDelete": {
+                "enabled": false
+                }
+            }
+        ]
+    }`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"search": "escape"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	searchStr = "Key16June"
+	srcStr2, _ = GetKeySearchQuery(&searchStr, AddEscape())
+	fmt.Printf("%s\n", *srcStr2)
+
+	listKeysOptions = &ListKeysOptions{
+		Search: srcStr2,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	assert.NoError(t, err)
+
+}
