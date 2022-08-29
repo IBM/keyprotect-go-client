@@ -1543,6 +1543,12 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	// 				"enabled": true,
 	// 			},
 	// 		},
+	//		{
+	// 			"policy_type": "metrics",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 			},
+	// 		},
 	// 		{
 	// 			"policy_type": "allowedNetwork",
 	// 			"policy_data": map[string]interface{}{
@@ -1576,6 +1582,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 				"lastUpdated": "2020-06-08T17:11:38Z",
 				"updatedBy": "xyz6",
 				"policy_type": "dualAuthDelete",
+				"policy_data": {
+				"enabled": true
+				}
+			},
+			{
+				"createdBy": "pqr",
+				"creationDate": "2022-04-22T15:16:23Z",
+				"lastUpdated": "2022-06-08T17:11:38Z",
+				"updatedBy": "pqr",
+				"policy_type": "metrics",
 				"policy_data": {
 				"enabled": true
 				}
@@ -1623,7 +1639,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		Enabled: true,
 		Network: "private-only",
 	}
-	intervalMonth := 2
+	intervalMonth := 3
 	rotationInstancePolicy := &RotationPolicyData{
 		Enabled:       true,
 		IntervalMonth: &intervalMonth,
@@ -1654,7 +1670,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
-	assert.Greater(t, len(ap), -1)
+	assert.Equal(t, len(ap), 4)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 
@@ -2419,7 +2435,7 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 //TestSetRotationInstancePolicyError tests the methods set rotation instance policy to error out with attributes field.
 func TestSetRotationInstancePolicyError(t *testing.T) {
 	/*
-		Case-1 : When a user set the interval_month more 12 months in the request.
+		Case-1 : When a user set the interval_month greater than 12 months in the request.
 	*/
 
 	defer gock.Off()

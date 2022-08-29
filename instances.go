@@ -263,7 +263,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	return err
 }
 
-// SetAllowedIPInstancePolices updates the rotation instance policy details associated with an instance.
+// SetRotationInstancePolicy updates the rotation instance policy details associated with an instance.
 // For more information can refet to the Key Protect docs in the link below:
 // will update soon
 func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth *int) error {
