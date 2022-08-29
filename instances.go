@@ -17,6 +17,7 @@ package kp
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 )
@@ -64,7 +65,7 @@ type PolicyData struct {
 	Attributes *Attributes `json:"attributes,omitempty"`
 }
 
-// Attributes contains the detals of allowed network policy type
+// Attributes contains the details of an instance policy
 type Attributes struct {
 	AllowedNetwork    *string     `json:"allowed_network,omitempty"`
 	AllowedIP         IPAddresses `json:"allowed_ip,omitempty"`
@@ -157,7 +158,7 @@ func (c *Client) GetKeyCreateImportAccessInstancePolicy(ctx context.Context) (*I
 }
 
 func (c *Client) getInstancePolicy(ctx context.Context, policyType string, policyResponse *InstancePolicies) error {
-	req, err := c.newRequest("GET", "instance/policies", nil)
+	req, err := c.newRequest(http.MethodGet, "instance/policies", nil)
 	if err != nil {
 		return err
 	}
@@ -188,7 +189,9 @@ func (c *Client) GetMetricsInstancePolicy(ctx context.Context) (*InstancePolicy,
 	return &policyResponse.Policies[0], nil
 }
 
-// some horrible english
+// GetRotationInstancePolicy retrieves the rotation policy details associated with the instance
+// For more information can refer the Key Protect docs in the link below:
+// will be updated soon.
 func (c *Client) GetRotationInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
@@ -207,7 +210,7 @@ func (c *Client) GetRotationInstancePolicy(ctx context.Context) (*InstancePolicy
 func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, error) {
 	policyresponse := InstancePolicies{}
 
-	req, err := c.newRequest("GET", "instance/policies", nil)
+	req, err := c.newRequest(http.MethodGet, "instance/policies", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +224,7 @@ func (c *Client) GetInstancePolicies(ctx context.Context) ([]InstancePolicy, err
 }
 
 func (c *Client) setInstancePolicy(ctx context.Context, policyType string, policyRequest InstancePolicies) error {
-	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	req, err := c.newRequest(http.MethodPut, "instance/policies", &policyRequest)
 	if err != nil {
 		return err
 	}
@@ -260,26 +263,21 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	return err
 }
 
-// some nice english
-func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth int) error {
+// SetAllowedIPInstancePolices updates the rotation instance policy details associated with an instance.
+// For more information can refet to the Key Protect docs in the link below:
+// will update soon
+func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth *int) error {
 
-	policyData := PolicyData{}
-	if enable {
-		policyData = PolicyData{
+	rotationPolicyData := InstancePolicy{
+		PolicyType: RotationInstancePolicy,
+		PolicyData: PolicyData{
 			Enabled: &enable,
-			Attributes: &Attributes{
-				IntervalMonth: &intervalMonth,
-			},
-		}
-	} else {
-		policyData = PolicyData{
-			Enabled: &enable,
-		}
+		},
 	}
 
-	policy := InstancePolicy{
-		PolicyType: RotationInstancePolicy,
-		PolicyData: policyData,
+	if intervalMonth != nil {
+		rotationPolicyData.PolicyData.Attributes = &Attributes{}
+		rotationPolicyData.PolicyData.Attributes.IntervalMonth = intervalMonth
 	}
 
 	policyRequest := InstancePolicies{
@@ -287,7 +285,7 @@ func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, int
 			CollectionType:   policyType,
 			NumberOfPolicies: 1,
 		},
-		Policies: []InstancePolicy{policy},
+		Policies: []InstancePolicy{rotationPolicyData},
 	}
 
 	err := c.setInstancePolicy(ctx, RotationInstancePolicy, policyRequest)
@@ -554,13 +552,13 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 	if policies.Rotation != nil {
 
 		policyData := PolicyData{}
+		policyData.Enabled = &policies.Rotation.Enabled
+
 		attribute := Attributes{}
 		if policies.Rotation.IntervalMonth != nil {
 			attribute.IntervalMonth = policies.Rotation.IntervalMonth
+			policyData.Attributes = &attribute
 		}
-
-		policyData.Enabled = &policies.Rotation.Enabled
-		policyData.Attributes = &attribute
 
 		policy := InstancePolicy{
 			PolicyType: RotationInstancePolicy,
@@ -579,7 +577,7 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 
 	policyresponse := Policies{}
 
-	req, err := c.newRequest("PUT", "instance/policies", &policyRequest)
+	req, err := c.newRequest(http.MethodPut, "instance/policies", &policyRequest)
 	if err != nil {
 		return err
 	}
@@ -606,7 +604,7 @@ type privatePort struct {
 func (c *Client) GetAllowedIPPrivateNetworkPort(ctx context.Context) (int, error) {
 	var portResponse portResponse
 
-	req, err := c.newRequest("GET", "instance/allowed_ip_port", nil)
+	req, err := c.newRequest(http.MethodGet, "instance/allowed_ip_port", nil)
 	if err != nil {
 		return 0, err
 	}

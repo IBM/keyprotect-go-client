@@ -1784,7 +1784,8 @@ func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
 		MatchParam("policy", RotationInstancePolicy).
 		Reply(204)
 
-	err = c.SetRotationInstancePolicy(context.Background(), true, 3)
+	intervalMonth := 3
+	err = c.SetRotationInstancePolicy(context.Background(), true, &intervalMonth)
 
 	assert.NoError(t, err)
 
@@ -1800,7 +1801,7 @@ func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
 	assert.NotNil(t, rotation)
 	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
 	assert.True(t, *(rotation.PolicyData.Enabled))
-	assert.Equal(t, 3, *rotation.PolicyData.Attributes.IntervalMonth)
+	assert.Equal(t, intervalMonth, *rotation.PolicyData.Attributes.IntervalMonth)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -1853,7 +1854,8 @@ func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
 		MatchParam("policy", RotationInstancePolicy).
 		Reply(204)
 
-	err = c.SetRotationInstancePolicy(context.Background(), false, 3)
+	intervalMonth := 3
+	err = c.SetRotationInstancePolicy(context.Background(), false, &intervalMonth)
 
 	assert.NoError(t, err)
 
@@ -1869,7 +1871,6 @@ func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
 	assert.NotNil(t, rotation)
 	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
 	assert.False(t, *(rotation.PolicyData.Enabled))
-	//assert.Equal(t, 3, *rotation.PolicyData.Attributes.IntervalMonth)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -2456,7 +2457,8 @@ func TestSetRotationInstancePolicyError(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.SetRotationInstancePolicy(context.Background(), true, 13)
+	intervalMonth := 13
+	err = c.SetRotationInstancePolicy(context.Background(), true, &intervalMonth)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "INVALID_FIELD_ERR")
