@@ -336,3 +336,52 @@ func TestKeyRotationPolicy(t *testing.T) {
 	_, err = c.DeleteKey(ctx, keyID, 0)
 	assert.NoError(err)
 }
+
+func TestCreateKeyWithPolicyOverrides(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	// Creating instance rotation policy
+	intervalMonth := 5
+	err = c.SetRotationInstancePolicy(ctx, true, &intervalMonth)
+	assert.NoError(err)
+
+	// Creating a key
+	crk1, err := c.CreateKey(ctx, "root", nil, false)
+	assert.NoError(err)
+
+	// Fetching rotation key policies for the above created key
+	// and assert rotation policy and interval month from instance policy
+	policy, err := c.GetRotationPolicy(ctx, crk1.ID)
+	assert.NoError(err)
+	assert.NotNil(policy.Rotation)
+	assert.EqualValues(policy.Rotation.Interval, intervalMonth)
+
+	// Creating a key with policy overrides with a different interval month
+	intervalMonth = 3
+	crk2, err := c.CreateRootKeyWithPolicyOverrides(ctx, "rootKeyWithPolicyOverrides", nil, nil, Policy{
+		Rotation: &Rotation{
+			Interval: intervalMonth,
+		},
+	})
+	assert.NoError(err)
+	assert.NotNil(crk2.Rotation)
+	assert.EqualValues(crk2.Rotation.Interval, intervalMonth)
+
+	// Creating a key with policy overrides with no policies
+	crk3, err := c.CreateRootKeyWithPolicyOverrides(ctx, "rootKeyWithPolicyOverrides", nil, nil, Policy{})
+	assert.NoError(err)
+	assert.Nil(crk3.Rotation)
+
+	// deleting the keys
+	_, err = c.DeleteKey(ctx, crk1.ID, 0)
+	assert.NoError(err)
+	_, err = c.DeleteKey(ctx, crk2.ID, 0)
+	assert.NoError(err)
+	_, err = c.DeleteKey(ctx, crk3.ID, 0)
+	assert.NoError(err)
+}

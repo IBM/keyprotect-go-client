@@ -120,11 +120,11 @@ enable := true
 // Specify policy data
 policy := kp.Policy{
   Rotation: &kp.Rotation{
-      Enabled: &enable
-			Interval: 3,
-	},
+    Enabled:  &enable,
+    Interval: 3,
+  },
   DualAuth: &kp.DualAuth{
-    Enabled: &enable,
+    Enabled:  &enable,
   },
 }
 
