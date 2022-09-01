@@ -23,8 +23,6 @@ import (
 
 const (
 	policyType = "application/vnd.ibm.kms.policy+json"
-
-	RotationPolicy = "rotation"
 )
 
 // Policy represents a policy as returned by the KP API.

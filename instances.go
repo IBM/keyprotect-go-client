@@ -37,8 +37,8 @@ const (
 	// KeyAccess defines the policy type as key create import access
 	KeyCreateImportAccess = "keyCreateImportAccess"
 
-	// RotationInstancePolicy defines the policy type as rotation instance policy
-	RotationInstancePolicy = "rotation"
+	//RotationPolicy defines the policy type as rotation
+	RotationPolicy = "rotation"
 
 	// KeyAccess policy attributes
 	CreateRootKey     = "CreateRootKey"
@@ -195,7 +195,7 @@ func (c *Client) GetMetricsInstancePolicy(ctx context.Context) (*InstancePolicy,
 func (c *Client) GetRotationInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
-	err := c.getInstancePolicy(ctx, RotationInstancePolicy, &policyResponse)
+	err := c.getInstancePolicy(ctx, RotationPolicy, &policyResponse)
 	if err != nil {
 		return nil, err
 	}
@@ -269,15 +269,16 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth *int) error {
 
 	rotationPolicyData := InstancePolicy{
-		PolicyType: RotationInstancePolicy,
+		PolicyType: RotationPolicy,
 		PolicyData: PolicyData{
 			Enabled: &enable,
 		},
 	}
 
 	if intervalMonth != nil {
-		rotationPolicyData.PolicyData.Attributes = &Attributes{}
-		rotationPolicyData.PolicyData.Attributes.IntervalMonth = intervalMonth
+		rotationPolicyData.PolicyData.Attributes = &Attributes{
+			IntervalMonth: intervalMonth,
+		}
 	}
 
 	policyRequest := InstancePolicies{
@@ -288,7 +289,7 @@ func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, int
 		Policies: []InstancePolicy{rotationPolicyData},
 	}
 
-	err := c.setInstancePolicy(ctx, RotationInstancePolicy, policyRequest)
+	err := c.setInstancePolicy(ctx, RotationPolicy, policyRequest)
 	if err != nil {
 		return err
 	}
@@ -550,20 +551,18 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 	}
 
 	if policies.Rotation != nil {
-
-		policyData := PolicyData{}
-		policyData.Enabled = &policies.Rotation.Enabled
-
-		attribute := Attributes{}
-		if policies.Rotation.IntervalMonth != nil {
-			attribute.IntervalMonth = policies.Rotation.IntervalMonth
-			policyData.Attributes = &attribute
-		}
-
 		policy := InstancePolicy{
-			PolicyType: RotationInstancePolicy,
-			PolicyData: policyData,
+			PolicyType: RotationPolicy,
+			PolicyData: PolicyData{
+				Enabled: &policies.Rotation.Enabled,
+			},
 		}
+		if policies.Rotation.IntervalMonth != nil {
+			policy.PolicyData.Attributes = &Attributes{
+				IntervalMonth: policies.Rotation.IntervalMonth,
+			}
+		}
+
 		resPolicies = append(resPolicies, policy)
 	}
 

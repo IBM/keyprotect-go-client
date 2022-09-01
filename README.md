@@ -220,10 +220,16 @@ fmt.Println(keys)
 ```go
 
 intervalMonth := 3
-enable := false
+enable := true
 
-err := client.SetRotationInstancePolicy(ctx, enable, &intervalMonth)
+err := client.SetRotationInstancePolicy(context.Background(), enable, &intervalMonth)
 if err != nil {
     fmt.Println(err)
 }
+
+rotationInstancePolicy, err := client.GetRotationInstancePolicy(context.Background())
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(rotationInstancePolicy)
 ```

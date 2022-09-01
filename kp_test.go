@@ -1640,7 +1640,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		Network: "private-only",
 	}
 	intervalMonth := 3
-	rotationInstancePolicy := &RotationPolicyData{
+	rotation := &RotationPolicyData{
 		Enabled:       true,
 		IntervalMonth: &intervalMonth,
 	}
@@ -1648,7 +1648,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		Metrics:        metrics,
 		DualAuthDelete: dualAuth,
 		AllowedNetwork: allowedNetwork,
-		Rotation:       rotationInstancePolicy,
+		Rotation:       rotation,
 	}
 
 	gock.New("http://example.com").
@@ -1746,8 +1746,8 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
 
-// TestSetAndGetRotationInstancePolicyEnabled tests the methods that update and retrieve dual auth instance policy
-func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
+// TestSetAndGetRotationInstancePolicy tests the methods that update and retrieve rotation instance policy
+func TestSetAndGetRotationInstancePolicy(t *testing.T) {
 	defer gock.Off()
 
 	// rotationInstancePolicyRequest := map[string]interface{}{
@@ -1797,7 +1797,7 @@ func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
-		MatchParam("policy", RotationInstancePolicy).
+		MatchParam("policy", RotationPolicy).
 		Reply(204)
 
 	intervalMonth := 3
@@ -1807,7 +1807,7 @@ func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", RotationInstancePolicy).
+		MatchParam("policy", RotationPolicy).
 		Reply(200).
 		Body(bytes.NewReader(rotationInstancePolicyResponse))
 
@@ -1815,16 +1815,11 @@ func TestSetAndGetRotationInstancePolicyEnabled(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, rotation)
-	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
+	assert.Equal(t, rotation.PolicyType, RotationPolicy)
 	assert.True(t, *(rotation.PolicyData.Enabled))
 	assert.Equal(t, intervalMonth, *rotation.PolicyData.Attributes.IntervalMonth)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
-}
-
-// TestSetAndGetRotationInstancePolicyDisabled tests the methods that update and retrieve dual auth instance policy
-func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
-	defer gock.Off()
 
 	// rotationInstancePolicyRequest := map[string]interface{}{
 	// 	"metadata": map[string]interface{}{
@@ -1841,7 +1836,7 @@ func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
 	// 	},
 	// }
 
-	rotationInstancePolicyResponse := []byte(`{
+	rotationInstancePolicyResponse = []byte(`{
 		"metadata":{
 			"collectionType":"application/vnd.ibm.kms.policy+json",
 			"collectionTotal":1
@@ -1860,32 +1855,30 @@ func TestSetAndGetRotationInstancePolicyDisabled(t *testing.T) {
 		]
 	}`)
 
-	c, _, err := NewTestClient(t, nil)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
 	gock.New("http://example.com").
 		Put("/instance/policies").
-		MatchParam("policy", RotationInstancePolicy).
+		MatchParam("policy", RotationPolicy).
 		Reply(204)
 
-	intervalMonth := 3
-	err = c.SetRotationInstancePolicy(context.Background(), false, &intervalMonth)
+	err = c.SetRotationInstancePolicy(context.Background(), false, nil)
 
 	assert.NoError(t, err)
 
 	gock.New("http://example.com").
 		Get("/instance/policies").
-		MatchParam("policy", RotationInstancePolicy).
+		MatchParam("policy", RotationPolicy).
 		Reply(200).
 		Body(bytes.NewReader(rotationInstancePolicyResponse))
 
-	rotation, err := c.GetRotationInstancePolicy(context.Background())
+	rotation, err = c.GetRotationInstancePolicy(context.Background())
 
 	assert.NoError(t, err)
 	assert.NotNil(t, rotation)
-	assert.Equal(t, rotation.PolicyType, RotationInstancePolicy)
+	assert.Equal(t, rotation.PolicyType, RotationPolicy)
 	assert.False(t, *(rotation.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
@@ -2464,7 +2457,7 @@ func TestSetRotationInstancePolicyError(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/api/v2/instance/policies").
-		MatchParam("policy", RotationInstancePolicy).
+		MatchParam("policy", RotationPolicy).
 		Reply(400).
 		Body(bytes.NewReader(errorResponse))
 
