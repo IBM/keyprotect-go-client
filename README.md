@@ -267,3 +267,23 @@ if err != nil {
 fmt.Println(keys)
 
 ```
+
+### Enable or disable Instance Rotation Policy.
+
+```go
+
+intervalMonth := 3
+enable := true
+
+err := client.SetRotationInstancePolicy(context.Background(), enable, &intervalMonth)
+if err != nil {
+    fmt.Println(err)
+}
+
+rotationInstancePolicy, err := client.GetRotationInstancePolicy(context.Background())
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(rotationInstancePolicy)
+```
+

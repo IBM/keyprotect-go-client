@@ -22,9 +22,13 @@ import (
 )
 
 const (
-	policyType = "application/vnd.ibm.kms.policy+json"
+	// DualAuthDelete defines the policy type as dual auth delete
+	DualAuthDelete = "dualAuthDelete"
 
+	//RotationPolicy defines the policy type as rotation
 	RotationPolicy = "rotation"
+
+	policyType = "application/vnd.ibm.kms.policy+json"
 )
 
 // Policy represents a policy as returned by the KP API.
