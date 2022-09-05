@@ -22,6 +22,12 @@ import (
 )
 
 const (
+	// DualAuthDelete defines the policy type as dual auth delete
+	DualAuthDelete = "dualAuthDelete"
+
+	//RotationPolicy defines the policy type as rotation
+	RotationPolicy = "rotation"
+
 	policyType = "application/vnd.ibm.kms.policy+json"
 )
 

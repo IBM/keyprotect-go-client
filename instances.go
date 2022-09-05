@@ -23,9 +23,6 @@ import (
 )
 
 const (
-	// DualAuthDelete defines the policy type as dual auth delete
-	DualAuthDelete = "dualAuthDelete"
-
 	// AllowedNetwork defines the policy type as allowed network
 	AllowedNetwork = "allowedNetwork"
 
@@ -36,9 +33,6 @@ const (
 	Metrics = "metrics"
 	// KeyAccess defines the policy type as key create import access
 	KeyCreateImportAccess = "keyCreateImportAccess"
-
-	//RotationPolicy defines the policy type as rotation
-	RotationPolicy = "rotation"
 
 	// KeyAccess policy attributes
 	CreateRootKey     = "CreateRootKey"
@@ -190,8 +184,6 @@ func (c *Client) GetMetricsInstancePolicy(ctx context.Context) (*InstancePolicy,
 }
 
 // GetRotationInstancePolicy retrieves the rotation policy details associated with the instance
-// For more information can refer the Key Protect docs in the link below:
-// will be updated soon.
 func (c *Client) GetRotationInstancePolicy(ctx context.Context) (*InstancePolicy, error) {
 	policyResponse := InstancePolicies{}
 
@@ -263,10 +255,7 @@ func (c *Client) SetDualAuthInstancePolicy(ctx context.Context, enable bool) err
 	return err
 }
 
-// SetRotationInstancePolicy updates the rotation instance policy details associated with an instance.
-// For more information can refet to the Key Protect docs in the link below:
-// will update soon
-func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth *int) error {
+func addRotationInstancePolicyData(enable bool, intervalMonth *int) (InstancePolicy, error) {
 
 	rotationPolicyData := InstancePolicy{
 		PolicyType: RotationPolicy,
@@ -275,10 +264,25 @@ func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, int
 		},
 	}
 
-	if intervalMonth != nil {
+	if enable && intervalMonth == nil {
+		return InstancePolicy{}, fmt.Errorf("Interval Month is required to enable rotation instance policy")
+	} else if !enable && intervalMonth != nil {
+		return InstancePolicy{}, fmt.Errorf("Interval Month should only be provided if the policy is being enabled")
+	} else if intervalMonth != nil {
 		rotationPolicyData.PolicyData.Attributes = &Attributes{
 			IntervalMonth: intervalMonth,
 		}
+	}
+
+	return rotationPolicyData, nil
+}
+
+// SetRotationInstancePolicy updates the rotation instance policy details associated with an instance.
+func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, intervalMonth *int) error {
+
+	rotationPolicyData, err := addRotationInstancePolicyData(enable, intervalMonth)
+	if err != nil {
+		return err
 	}
 
 	policyRequest := InstancePolicies{
@@ -289,10 +293,7 @@ func (c *Client) SetRotationInstancePolicy(ctx context.Context, enable bool, int
 		Policies: []InstancePolicy{rotationPolicyData},
 	}
 
-	err := c.setInstancePolicy(ctx, RotationPolicy, policyRequest)
-	if err != nil {
-		return err
-	}
+	err = c.setInstancePolicy(ctx, RotationPolicy, policyRequest)
 
 	return err
 }
@@ -551,16 +552,9 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 	}
 
 	if policies.Rotation != nil {
-		policy := InstancePolicy{
-			PolicyType: RotationPolicy,
-			PolicyData: PolicyData{
-				Enabled: &policies.Rotation.Enabled,
-			},
-		}
-		if policies.Rotation.IntervalMonth != nil {
-			policy.PolicyData.Attributes = &Attributes{
-				IntervalMonth: policies.Rotation.IntervalMonth,
-			}
+		policy, err := addRotationInstancePolicyData(policies.Rotation.Enabled, policies.Rotation.IntervalMonth)
+		if err != nil {
+			return err
 		}
 
 		resPolicies = append(resPolicies, policy)

@@ -215,7 +215,7 @@ if err != nil {
 fmt.Println(keys)
 ```
 
-### Enable/Disable Instance Rotation Policy.
+### Enable or disable Instance Rotation Policy.
 
 ```go
 

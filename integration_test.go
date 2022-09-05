@@ -238,3 +238,59 @@ func TestExtractableKey(t *testing.T) {
 		}
 	}
 }
+
+func TestRotationInstancePolicy(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	// creating instance rotation policy
+	intervalMonth := 3
+	err = c.SetRotationInstancePolicy(ctx, true, &intervalMonth)
+	assert.NoError(err)
+
+	// getting instance rotation policy
+	rotationPolicy, err := c.GetRotationInstancePolicy(context.Background())
+	assert.NoError(err)
+	assert.EqualValues(*rotationPolicy.PolicyData.Attributes.IntervalMonth, intervalMonth)
+	assert.True(*rotationPolicy.PolicyData.Enabled)
+
+	//creating a key
+	crk, err := c.CreateKey(ctx, "root", nil, false)
+	assert.NoError(err)
+
+	// Fetching rotation key policies for the above created key
+	policy, err := c.GetRotationPolicy(ctx, crk.ID)
+	assert.NoError(err)
+	assert.EqualValues(policy.Rotation.Interval, intervalMonth)
+
+	// deleting the key
+	_, err = c.DeleteKey(ctx, crk.ID, 0)
+	assert.NoError(err)
+
+	//disable the instance rotation policy
+	err = c.SetRotationInstancePolicy(ctx, false, nil)
+	assert.NoError(err)
+
+	// verify if rotation policy is disabled or not
+	rotationPolicy, err = c.GetRotationInstancePolicy(context.Background())
+	assert.NoError(err)
+	assert.False(*rotationPolicy.PolicyData.Enabled)
+
+	// creating a key
+	crk, err = c.CreateKey(ctx, "root", nil, false)
+	assert.NoError(err)
+
+	// created key should not have any key rotation policies associated with it.
+	policy, err = c.GetRotationPolicy(ctx, crk.ID)
+	assert.NoError(err)
+	assert.Nil(policy)
+
+	// deleting the key
+	_, err = c.DeleteKey(ctx, crk.ID, 0)
+	assert.NoError(err)
+
+}
