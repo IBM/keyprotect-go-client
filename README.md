@@ -234,9 +234,9 @@ fmt.Println(keys)
 ### Fetching List Key In Sorted Descending Order Based On Paramaeters.
 
 ```go
-srtStr, _ := GetKeySortStr(WithCreationDateDesc(), WithImportedDesc())
+srtStr, _ := kp.GetKeySortStr(WithCreationDateDesc(), WithImportedDesc())
 
-listKeysOptions := &ListKeysOptions{
+listKeysOptions := &kp.ListKeysOptions{
   Sort: srtStr,
 }
 
@@ -287,3 +287,50 @@ if err != nil {
 fmt.Println(rotationInstancePolicy)
 ```
 
+### Set Key Rotation Policy
+
+#### Without Enabled param
+
+```go
+
+rotationInterval := 3
+keyRotationPolicy, err := client.SetRotationPolicy(context.Background(), "key_id_or_alias", rotationInterval)
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(keyRotationPolicy)
+```
+#### With Enabled param
+
+```go
+
+rotationInterval := 3
+enabled := true
+keyRotationPolicy, err := client.SetRotationPolicy(context.Background(), "key_id_or_alias", rotationInterval, enabled)
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(keyRotationPolicy)
+```
+
+### Enable Key Rotation Policy
+
+```go
+
+keyRotationPolicy, err := client.EnableRotationPolicy(context.Background(), "key_id_or_alias")
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(keyRotationPolicy)
+```
+
+### Disable Key Rotation Policy
+
+```go
+
+keyRotationPolicy, err := client.DisableRotationPolicy(context.Background(), "key_id_or_alias")
+if err != nil {
+  fmt.Println(err)
+}
+fmt.Println(keyRotationPolicy)
+```
