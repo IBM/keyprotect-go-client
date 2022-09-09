@@ -294,3 +294,45 @@ func TestRotationInstancePolicy(t *testing.T) {
 	assert.NoError(err)
 
 }
+
+func TestKeyRotationPolicy(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	// Creating a key
+	key, err := c.CreateKey(ctx, "root", nil, false)
+	assert.NoError(err)
+	keyID := key.ID
+
+	keyPolicies, err := c.GetPolicies(ctx, keyID)
+	assert.NoError(err)
+	assert.EqualValues(0, len(keyPolicies))
+
+	keyRotaionPolicy, err := c.SetRotationPolicy(ctx, keyID, 3, false)
+	assert.NoError(err)
+	assert.NotNil(keyRotaionPolicy)
+
+	keyRotaionPolicy, err = c.GetRotationPolicy(ctx, keyID)
+	assert.NoError(err)
+	assert.NotNil(keyRotaionPolicy)
+	assert.False(*keyRotaionPolicy.Rotation.Enabled)
+	assert.EqualValues(3, keyRotaionPolicy.Rotation.Interval)
+
+	keyRotaionPolicy, err = c.EnableRotationPolicy(ctx, keyID)
+	assert.NoError(err)
+	assert.NotNil(keyRotaionPolicy)
+
+	keyRotaionPolicy, err = c.GetRotationPolicy(ctx, keyID)
+	assert.NoError(err)
+	assert.NotNil(keyRotaionPolicy)
+	assert.True(*keyRotaionPolicy.Rotation.Enabled)
+	assert.EqualValues(3, keyRotaionPolicy.Rotation.Interval)
+
+	// deleting the keys
+	_, err = c.DeleteKey(ctx, keyID, 0)
+	assert.NoError(err)
+}
