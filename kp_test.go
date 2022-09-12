@@ -1543,6 +1543,12 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	// 				"enabled": true,
 	// 			},
 	// 		},
+	//		{
+	// 			"policy_type": "metrics",
+	// 			"policy_data": map[string]interface{}{
+	// 				"enabled": true,
+	// 			},
+	// 		},
 	// 		{
 	// 			"policy_type": "allowedNetwork",
 	// 			"policy_data": map[string]interface{}{
@@ -1552,7 +1558,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	// 				},
 	// 			},
 	// 		},
-	// 	},
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": true,
+	//				"attributes": {
+	//					"interval_month": 3
+	//				}
+	//			}
+	// 		},
+	// 	}'
 	// }
 
 	allPoliciesResponse := []byte(`{
@@ -1572,6 +1587,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 				}
 			},
 			{
+				"createdBy": "pqr",
+				"creationDate": "2022-04-22T15:16:23Z",
+				"lastUpdated": "2022-06-08T17:11:38Z",
+				"updatedBy": "pqr",
+				"policy_type": "metrics",
+				"policy_data": {
+				"enabled": true
+				}
+			},
+			{
 				"createdBy": "1ab2c4d",
 				"creationDate": "2020-04-22T15:14:29Z",
 				"lastUpdated": "2020-06-08T17:11:38Z",
@@ -1581,6 +1606,19 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 				"enabled": true,
 				"attributes": {
 					"allowed_network": "public-and-private"
+					}
+				}
+			},
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": true,
+					"attributes": {
+						"interval_month": 3
 					}
 				}
 			}
@@ -1601,10 +1639,16 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 		Enabled: true,
 		Network: "private-only",
 	}
+	intervalMonth := 3
+	rotation := &RotationPolicyData{
+		Enabled:       true,
+		IntervalMonth: &intervalMonth,
+	}
 	policies := MultiplePolicies{
 		Metrics:        metrics,
 		DualAuthDelete: dualAuth,
 		AllowedNetwork: allowedNetwork,
+		Rotation:       rotation,
 	}
 
 	gock.New("http://example.com").
@@ -1626,7 +1670,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, ap)
-	assert.Greater(t, len(ap), -1)
+	assert.Equal(t, len(ap), 4)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 
@@ -1698,6 +1742,144 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 	assert.NotNil(t, dap)
 	assert.Equal(t, dap.PolicyType, DualAuthDelete)
 	assert.True(t, *(dap.PolicyData.Enabled))
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestSetAndGetRotationInstancePolicy tests the methods that update and retrieve rotation instance policy
+func TestSetAndGetRotationInstancePolicy(t *testing.T) {
+	defer gock.Off()
+
+	// rotationInstancePolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": true,
+	//				"attributes": {
+	//					"interval_month": 3
+	//				}
+	//			}
+	// 		},
+	// 	},
+	// }
+
+	rotationInstancePolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": true,
+					"attributes": {
+						"interval_month": 3
+					}
+				}
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(204)
+
+	intervalMonth := 3
+	err = c.SetRotationInstancePolicy(context.Background(), true, &intervalMonth)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(200).
+		Body(bytes.NewReader(rotationInstancePolicyResponse))
+
+	rotation, err := c.GetRotationInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, rotation)
+	assert.Equal(t, rotation.PolicyType, RotationPolicy)
+	assert.True(t, *(rotation.PolicyData.Enabled))
+	assert.Equal(t, intervalMonth, *rotation.PolicyData.Attributes.IntervalMonth)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+
+	// rotationInstancePolicyRequest := map[string]interface{}{
+	// 	"metadata": map[string]interface{}{
+	// 		"collectionType":  "application/vnd.ibm.kms.policy+json",
+	// 		"collectionTotal": 1,
+	// 	},
+	// 	"resources": []map[string]interface{}{
+	// 		{
+	// 			"policy_type": "rotation",
+	//			"policy_data": {
+	//				"enabled": false,
+	//			}
+	// 		},
+	// 	},
+	// }
+
+	rotationInstancePolicyResponse = []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources": [
+			{
+				"createdBy": "abc",
+				"creationDate": "2022-06-23T15:16:23Z",
+				"lastUpdated": "2022-06-23T17:11:38Z",
+				"updatedBy": "abc",
+				"policy_type": "rotation",
+				"policy_data": {
+					"enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/instance/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(204)
+
+	err = c.SetRotationInstancePolicy(context.Background(), false, nil)
+
+	assert.NoError(t, err)
+
+	gock.New("http://example.com").
+		Get("/instance/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(200).
+		Body(bytes.NewReader(rotationInstancePolicyResponse))
+
+	rotation, err = c.GetRotationInstancePolicy(context.Background())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, rotation)
+	assert.Equal(t, rotation.PolicyType, RotationPolicy)
+	assert.False(t, *(rotation.PolicyData.Enabled))
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
 }
@@ -2243,6 +2425,57 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
+//TestSetRotationInstancePolicyError tests the methods set rotation instance policy to error out with attributes field.
+func TestSetRotationInstancePolicyError(t *testing.T) {
+	/*
+		Case-1 : When a user set the interval_month greater than 12 months in the request.
+	*/
+
+	defer gock.Off()
+	errorResponse := []byte(`
+	{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.error+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"errorMsg": "Bad Request: Instance policy could not be created: Please see "reasons" for more details (INVALID_FIELD_ERR)",
+			"reasons": [
+			  {
+				"code": "INVALID_FIELD_ERR",
+				"message": "The field "interval_month" must be: an integer between 1 and 12 (inclusive)",
+				"status": 400,
+				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
+				"target": { "type": "field", "name": "interval_month" }
+			  }
+			]
+		  }
+		]
+	  }
+	`)
+
+	gock.New("http://example.com").
+		Put("/api/v2/instance/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(400).
+		Body(bytes.NewReader(errorResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	intervalMonth := 13
+	err = c.SetRotationInstancePolicy(context.Background(), true, &intervalMonth)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "INVALID_FIELD_ERR")
+	assert.Equal(t, http.StatusBadRequest, err.(*Error).StatusCode)
+
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
 // TestSetKeyPolicies tests the methods that set key policy which makes a request to Key Protect API to set Policies for a key
 func TestSetKeyPolicies(t *testing.T) {
 	defer gock.Off()
@@ -2257,7 +2490,7 @@ func TestSetKeyPolicies(t *testing.T) {
 				"id":"er482407-6e3c-4f14-56b5-caceadd",
 				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
 				"rotation":{
-				"interval_month":6
+					"interval_month":6
 				},
 				"createdBy":"test_user3",
 				"creationDate":"2020-05-07T21:52:22Z",
@@ -2335,10 +2568,10 @@ func TestSetKeyPolicies(t *testing.T) {
 
 	gock.New("http://example.com").
 		Put("/api/v2/keys/"+testKey+"/policies").
-		MatchParam("policy", "rotation").
+		MatchParam("policy", RotationPolicy).
 		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
 
-	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 4)
+	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 6)
 	assert.Nil(t, err)
 	assert.NotNil(t, rotationPolicy)
 	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
@@ -2366,6 +2599,135 @@ func TestSetKeyPolicies(t *testing.T) {
 	assert.Equal(t, 6, policy.Rotation.Interval)
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called!")
+}
+
+// TestEnabeOrDisableRotationPolicy test the method that enables/disables key rotation policy which makes a request to Key Protect API to enable/disable the rotation key policy
+
+func TestEnabeOrDisableRotationPolicy(t *testing.T) {
+	defer gock.Off()
+	testKey := "2n4y2-4ko2n-4m23f-23j3r"
+	allPoliciesResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":2
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+					"enabled":false,
+					"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			},
+			{
+				"id":"9bfye029-60e2-4cc6-82d7-a900716",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"dualAuthDelete":{
+					"enabled":true
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:53:51Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-07T21:53:51Z"
+			}
+		]
+	}`)
+
+	rotationPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+					"enabled":true,
+					"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			}
+		]
+	}`)
+
+	disabledRotationPolicyResponse := []byte(`{
+		"metadata":{
+			"collectionType":"application/vnd.ibm.kms.policy+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"id":"er482407-6e3c-4f14-56b5-caceadd",
+				"crn":"crn:v5:dummy-env:dummy-service:dummy-region:dummy-details::",
+				"rotation":{
+					"enabled":false,
+					"interval_month":6
+				},
+				"createdBy":"test_user3",
+				"creationDate":"2020-05-07T21:52:22Z",
+				"updatedBy":"test_user3",
+				"lastUpdateDate":"2020-05-08T03:55:52Z"
+			}
+		]
+	}`)
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	rotationPolicy, err := c.SetRotationPolicy(context.Background(), testKey, 6, true)
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.True(t, *rotationPolicy.Rotation.Enabled)
+	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(200).Body(bytes.NewReader(disabledRotationPolicyResponse))
+
+	rotationPolicy, err = c.DisableRotationPolicy(context.Background(), testKey)
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.False(t, *rotationPolicy.Rotation.Enabled)
+	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/"+testKey+"/policies").
+		MatchParam("policy", RotationPolicy).
+		Reply(200).Body(bytes.NewReader(rotationPolicyResponse))
+
+	rotationPolicy, err = c.EnableRotationPolicy(context.Background(), testKey)
+	assert.Nil(t, err)
+	assert.NotNil(t, rotationPolicy)
+	assert.True(t, *rotationPolicy.Rotation.Enabled)
+	assert.Equal(t, 6, rotationPolicy.Rotation.Interval)
+
+	gock.New("http://example.com").
+		Put("/api/v2/keys/" + testKey + "/policies").
+		Reply(200).Body(bytes.NewReader(allPoliciesResponse))
+
+	allpolicies, err := c.SetPolicies(context.Background(), testKey, true, 6, true, true, false)
+	assert.Nil(t, err)
+	assert.NotNil(t, allpolicies)
+	assert.False(t, *(allpolicies[0].Rotation.Enabled))
+	assert.Equal(t, 6, allpolicies[0].Rotation.Interval)
+	assert.True(t, *(allpolicies[1].DualAuth.Enabled))
 }
 
 // TestGetKeyPolicies tests the methods that get key policy method which makes a request to Key Protect end point to retrieve key policies
@@ -3882,7 +4244,6 @@ func TestListKeys(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	extractable = true
-	fmt.Println(Active)
 	keyStates := []KeyState{KeyState(Active), KeyState(Suspended)}
 	listKeysOptions = &ListKeysOptions{
 		Limit:       &limit,
@@ -4449,7 +4810,6 @@ func TestListKeySearch(t *testing.T) {
 
 	searchStr = "Key16June"
 	srcStr2, _ = GetKeySearchQuery(&searchStr, AddEscape())
-	fmt.Printf("%s\n", *srcStr2)
 
 	listKeysOptions = &ListKeysOptions{
 		Search: srcStr2,
