@@ -369,13 +369,24 @@ func TestCreateKeyWithPolicyOverrides(t *testing.T) {
 		},
 	})
 	assert.NoError(err)
-	assert.NotNil(crk2.Rotation)
-	assert.EqualValues(crk2.Rotation.Interval, intervalMonth)
+
+	// Fetching rotation key policies for the above created key
+	// and assert rotation policy and interval month change
+	policy, err = c.GetRotationPolicy(ctx, crk2.ID)
+	assert.NoError(err)
+	assert.NotNil(policy.Rotation)
+	assert.EqualValues(policy.Rotation.Interval, intervalMonth)
 
 	// Creating a key with policy overrides with no policies
 	crk3, err := c.CreateRootKeyWithPolicyOverrides(ctx, "rootKeyWithPolicyOverrides", nil, nil, Policy{})
 	assert.NoError(err)
-	assert.Nil(crk3.Rotation)
+
+	// Fetching rotation key policies for the above created key
+	// and assert no rotation policy
+	policy, err = c.GetRotationPolicy(ctx, crk3.ID)
+	assert.NoError(err)
+	assert.Nil(policy.Rotation)
+	assert.EqualValues(policy.Rotation.Interval, intervalMonth)
 
 	// deleting the keys
 	_, err = c.DeleteKey(ctx, crk1.ID, 0)

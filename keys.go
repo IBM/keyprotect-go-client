@@ -238,9 +238,6 @@ func (c *Client) createKeyResource(ctx context.Context, key Key, path string) (*
 	if err != nil {
 		return nil, err
 	}
-	if path == keysWithPolicyOverridesPath {
-		req.Header.Set("Prefer", preferHeaders[ReturnRepresentation])
-	}
 	keysResponse := Keys{}
 	if _, err := c.do(ctx, req, &keysResponse); err != nil {
 		return nil, err

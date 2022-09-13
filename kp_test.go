@@ -947,43 +947,28 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
 
 				// Non-imported Root Key
-				key, err := api.CreateRootKeyWithPolicyOverrides(ctx, "test", nil, aliases, allPolicies)
+				_, err := api.CreateRootKeyWithPolicyOverrides(ctx, "test", nil, aliases, allPolicies)
 				assert.NoError(t, err)
-				assert.Equal(t, enableTrue, *key.Rotation.Enabled)
-				assert.Equal(t, 3, key.Rotation.Interval)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				// Non-imported Standard Key
-				key, err = api.CreateStandardKeyWithPolicyOverrides(ctx, "", nil, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateStandardKeyWithPolicyOverrides(ctx, "", nil, aliases, Policy{DualAuth: daPolicy})
 				assert.NoError(t, err)
-				assert.Nil(t, key.Rotation)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				// Imported Standard Key
-				key, err = api.CreateImportedStandardKeyWithPolicyOverrides(ctx, "", nil, payload, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateImportedStandardKeyWithPolicyOverrides(ctx, "", nil, payload, aliases, Policy{DualAuth: daPolicy})
 				assert.NoError(t, err)
-				assert.Nil(t, key.Rotation)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				// Imported Root Key
-				key, err = api.CreateImportedRootKeyWithPolicyOverrides(ctx, "test", nil, payload, "abc", "", aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateImportedRootKeyWithPolicyOverrides(ctx, "test", nil, payload, "abc", "", aliases, Policy{DualAuth: daPolicy})
 				assert.NoError(t, err)
-				assert.Nil(t, key.Rotation)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				// Non-imported Key
-				key, err = api.CreateKeyWithPolicyOverrides(ctx, "test", nil, false, aliases, allPolicies)
+				_, err = api.CreateKeyWithPolicyOverrides(ctx, "test", nil, false, aliases, allPolicies)
 				assert.NoError(t, err)
-				assert.NotNil(t, key.Rotation)
-				assert.Equal(t, 3, key.Rotation.Interval)
-				assert.Equal(t, enableTrue, *key.Rotation.Enabled)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				// Imported Key
-				key, err = api.CreateImportedKeyWithPolicyOverrides(ctx, "test", nil, payload, "", "", false, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateImportedKeyWithPolicyOverrides(ctx, "test", nil, payload, "", "", false, aliases, Policy{DualAuth: daPolicy})
 				assert.NoError(t, err)
-				assert.Nil(t, key.Rotation)
-				assert.Equal(t, enableTrue, *key.DualAuthDelete.Enabled)
 
 				return nil
 			},
@@ -993,7 +978,7 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusBadRequest, errorString)
 				// Non-imported Standard Key with rotation policy should throw error
-				_, err := api.CreateStandardKeyWithPolicyOverrides(ctx, "", nil, aliases, Policy{Rotation: rotPolicy})
+				_, err := api.CreateStandardKeyWithPolicyOverrides(ctx, "test", nil, aliases, Policy{Rotation: rotPolicy})
 				assert.Error(t, err)
 				return nil
 			},
