@@ -276,6 +276,19 @@ func (c *Client) SetKeyRing(ctx context.Context, idOrAlias, newKeyRingID string)
 	return &response.Keys[0], nil
 }
 
+// CreateImportedKeyWithPolicyOverridesWithSHA1 creates a new KP key with policy overrides from the given key material
+// and key policy details using RSAES OAEP SHA 1 as encryption algorithm.
+func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
+	/*
+	 Setting the value of rotationInterval to -1 in case user passes 0 value as we want to retain the param `interval_month` after marshalling so that we can get correct error msg from REST API saying interval_month should be between 1 to 12 Otherwise the param would not be sent to REST API in case of value 0 and it would throw error saying interval_month is missing
+	*/
+	if policy.Rotation != nil && policy.Rotation.Interval == 0 {
+		policy.Rotation.Interval = -1
+	}
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1, &policy)
+	return c.createKeyWithPolicyOverrides(ctx, key)
+}
+
 // CreateKeyWithPolicyOverrides creates a new KP key with given key policy details
 func (c *Client) CreateKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string, policy Policy) (*Key, error) {
 	return c.CreateImportedKeyWithPolicyOverrides(ctx, name, expiration, "", "", "", extractable, aliases, policy)
