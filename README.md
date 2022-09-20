@@ -113,7 +113,7 @@ fmt.Println(key.ID, key.Name)
 crkID := key.ID
 ```
 
-### Wrapping and Unwrapping a DEK using a specific Root Key.
+### Wrapping and Unwrapping a DEK using a specific Root Key
 
 ```go
 myDEK := []byte{"thisisadataencryptionkey"}
@@ -171,7 +171,51 @@ dek = nil
 // Save the wrapped DEK for later.  Call Unwrap to use it, make
 // sure to specify the same AAD.
 ```
-### Fetching List Key Versions With Parameters.
+
+### Fetching keys based on query parameters
+
+```go
+
+limit := uint32(5)
+offset := uint32(0)
+extractable := false
+keyStates := []kp.KeyState{kp.KeyState(kp.Active), kp.KeyState(kp.Suspended)}
+searchStr := "foobar"
+searchQuery, _ := kp.GetKeySearchQuery(&searchStr, kp.ApplyNot(), kp.AddAliasScope())
+
+listKeysOptions := &kp.ListKeysOptions{
+  Limit : &limit,
+  Offset : &offset,
+  Extractable : &extractable,
+  State : keyStates,
+  Search: searchQuery,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
+
+### Fetching keys in ascending or descending sorted order of parameters
+
+```go
+srtStr, _ := kp.GetKeySortStr(kp.WithCreationDate(), WithImportedDesc())
+
+listKeysOptions := &kp.ListKeysOptions{
+  Sort:srtStr,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
+For more information about KeySearch visit: https://cloud.ibm.com/apidocs/key-protect#kp-get-key-search-api
+
+### Fetching key versions based on query parameters
 
 ```go
 
@@ -192,83 +236,7 @@ if err != nil {
 fmt.Println(keyVersions)
 ```
 
-### Fetching List Key With Parameters.
-
-```go
-
-limit := uint32(5)
-offset := uint32(0)
-extractable := false
-keyStates := []kp.KeyState{kp.KeyState(kp.Active), kp.KeyState(kp.Suspended)}
-
-listKeysOptions := &kp.ListKeysOptions{
-  Limit : &limit,
-  Offset : &offset,
-  Extractable : &extractable,
-  State : keyStates,
-}
-
-keys, err := client.ListKeys(ctx, listKeysOptions)
-if err != nil {
-    fmt.Println(err)
-}
-fmt.Println(keys)
-```
-
-### Fetching List Key In Sorted Ascending Order Based On Paramaeters.
-
-```go
-srtStr, _ := kp.GetKeySortStr(kp.WithCreationDate(), kp.WithImported())
-
-listKeysOptions := &kp.ListKeysOptions{
-  Sort:srtStr,
-}
-
-keys, err := client.ListKeys(ctx, listKeysOptions)
-if err != nil {
-    fmt.Println(err)
-}
-fmt.Println(keys)
-```
-
-### Fetching List Key In Sorted Descending Order Based On Paramaeters.
-
-```go
-srtStr, _ := kp.GetKeySortStr(WithCreationDateDesc(), WithImportedDesc())
-
-listKeysOptions := &kp.ListKeysOptions{
-  Sort: srtStr,
-}
-
-keys, err := client.ListKeys(ctx, listKeysOptions)
-if err != nil {
-    fmt.Println(err)
-}
-fmt.Println(keys)
-```
-
-For more information about KeySearch visit: https://cloud.ibm.com/apidocs/key-protect#kp-get-key-search-api
-
-### Using Search functionality in list Keys API
-
-```go
-
-searchStr := "foobar"
-srcStr2, _ := kp.GetKeySearchQuery(&searchStr, kp.ApplyNot(), kp.AddAliasScope())
-
-listKeysOptions := &kp.ListKeysOptions{
-		Search: srcStr2,
-	}
-
-keys, err := client.ListKeys(ctx, listKeysOptions)
-if err != nil {
-		fmt.Println(err)
-	}
-fmt.Println(keys)
-
-```
-
-### Enable or disable Instance Rotation Policy.
+### Enable instance rotation policy
 
 ```go
 
@@ -287,20 +255,7 @@ if err != nil {
 fmt.Println(rotationInstancePolicy)
 ```
 
-### Set Key Rotation Policy
-
-#### Without Enabled param
-
-```go
-
-rotationInterval := 3
-keyRotationPolicy, err := client.SetRotationPolicy(context.Background(), "key_id_or_alias", rotationInterval)
-if err != nil {
-  fmt.Println(err)
-}
-fmt.Println(keyRotationPolicy)
-```
-#### With Enabled param
+### Set key rotation policy
 
 ```go
 
@@ -313,22 +268,11 @@ if err != nil {
 fmt.Println(keyRotationPolicy)
 ```
 
-### Enable Key Rotation Policy
+### Enable key rotation policy
 
 ```go
 
 keyRotationPolicy, err := client.EnableRotationPolicy(context.Background(), "key_id_or_alias")
-if err != nil {
-  fmt.Println(err)
-}
-fmt.Println(keyRotationPolicy)
-```
-
-### Disable Key Rotation Policy
-
-```go
-
-keyRotationPolicy, err := client.DisableRotationPolicy(context.Background(), "key_id_or_alias")
 if err != nil {
   fmt.Println(err)
 }
