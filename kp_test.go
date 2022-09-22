@@ -53,7 +53,7 @@ func NewTestURL(paths ...string) string {
 	return NewTestClientConfig().BaseURL + strings.Join(paths, "/")
 }
 
-// NewTestClient constructs and returns a new API and request ccontext.
+// NewTestClient constructs and returns a new API and request context.
 //
 func NewTestClient(t *testing.T, c *ClientConfig) (*API, context.Context, error) {
 	if c == nil {
@@ -839,6 +839,174 @@ func TestKeys(t *testing.T) {
 		},
 	}
 	cases.Run(t)
+}
+
+// Tests the API for Create Key With Policies Overrides
+//
+func TestKeyWithPolicyOverrides(t *testing.T) {
+	keyWithPolicyOverridesURL := NewTestURL("/api/v2/keys_with_policy_overrides")
+	enableTrue := true
+	testKeyID := "6699b1ba-e17e-4463-8461-16a374b9da90"
+	keysMetadata := KeysMetadata{
+		CollectionType: "json",
+		NumberOfKeys:   1,
+	}
+	rotPolicy := &Rotation{
+		Enabled:  &enableTrue,
+		Interval: 3,
+	}
+	daPolicy := &DualAuth{
+		Enabled: &enableTrue,
+	}
+	allPolicies := Policy{
+		Rotation: rotPolicy,
+		DualAuth: daPolicy,
+	}
+	aliases := []string{"alias1", "alias2"}
+	payload := "Y2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2M="
+	testGenRootKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "GenRootKey",
+				Extractable:    false,
+				DualAuthDelete: daPolicy,
+				Rotation:       rotPolicy,
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+
+	testImportedKeyWithPoliciesSHA1 := &Keys{
+		Metadata: KeysMetadata{
+			CollectionType: "json",
+			NumberOfKeys:   1,
+		},
+		Keys: []Key{
+			Key{
+				ID:                  testKeyID,
+				Name:                "Key",
+				Extractable:         false,
+				EncryptionAlgorithm: AlgorithmRSAOAEP1,
+			},
+		},
+	}
+
+	testImportedRootKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "ImportedRootKey",
+				Extractable:    false,
+				DualAuthDelete: daPolicy,
+				Payload:        payload,
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+
+	testImportedStdKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "ImportedStdKey",
+				Extractable:    true,
+				DualAuthDelete: daPolicy,
+				Payload:        payload,
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+	testGenStdKeyWithPolicies := &Keys{
+		Metadata: keysMetadata,
+		Keys: []Key{
+			Key{
+				ID:             testKeyID,
+				Name:           "GenStdKey",
+				Extractable:    true,
+				DualAuthDelete: daPolicy,
+				Aliases:        []string{"alias1", "alias2"},
+			},
+		},
+	}
+	errorString := []byte(`{
+		"metadata": {
+			"collectionType":"application/vnd.ibm.kms.error+json",
+			"collectionTotal":1
+		},
+		"resources":[
+			{
+				"errorMsg":"Bad Request: Key could not be created: Please see reasons for more details (KEY_ROOT_REQ_ERR)",
+				"reasons":[
+					{
+						"code":"KEY_ROOT_REQ_ERR",
+						"message":"Requested action can only be completed with a root key: Rotation policy cannot be set on a standard key",
+						"status":400,
+						"moreInfo":"https://cloud.ibm.com/apidocs/key-protect"
+					}]
+		}]
+	}`)
+
+	cases := TestCases{
+		{
+			"Create Key With Policy Overrides",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenStdKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedStdKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedKeyWithPoliciesSHA1)
+
+				// Non-imported Root Key
+				_, err := api.CreateRootKeyWithPolicyOverrides(ctx, "test", nil, aliases, allPolicies)
+				assert.NoError(t, err)
+
+				// Non-imported Standard Key
+				_, err = api.CreateStandardKeyWithPolicyOverrides(ctx, "", nil, aliases, Policy{DualAuth: daPolicy})
+				assert.NoError(t, err)
+
+				// Imported Standard Key
+				_, err = api.CreateImportedStandardKeyWithPolicyOverrides(ctx, "", nil, payload, aliases, Policy{DualAuth: daPolicy})
+				assert.NoError(t, err)
+
+				// Imported Root Key
+				_, err = api.CreateImportedRootKeyWithPolicyOverrides(ctx, "test", nil, payload, "abc", "", aliases, Policy{DualAuth: daPolicy})
+				assert.NoError(t, err)
+
+				// Non-imported Key
+				_, err = api.CreateKeyWithPolicyOverrides(ctx, "test", nil, false, aliases, allPolicies)
+				assert.NoError(t, err)
+
+				// Imported Key
+				_, err = api.CreateImportedKeyWithPolicyOverrides(ctx, "test", nil, payload, "", "", false, aliases, Policy{DualAuth: daPolicy})
+				assert.NoError(t, err)
+
+				importedKey, err := api.CreateImportedKeyWithPolicyOverridesWithSHA1(ctx, "Key", nil, "payload", "encryptedNonce", "iv", false, nil, Policy{})
+				assert.NoError(t, err)
+				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
+
+				return nil
+			},
+		},
+		{
+			"Create Key With Policy Overrides Error Case",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusBadRequest, errorString)
+				// Non-imported Standard Key with rotation policy should throw error
+				_, err := api.CreateStandardKeyWithPolicyOverrides(ctx, "test", nil, aliases, Policy{Rotation: rotPolicy})
+				assert.Error(t, err)
+				return nil
+			},
+		},
+	}
+
+	cases.Run(t)
+
 }
 
 // Tests the API for misc. funcionality.
