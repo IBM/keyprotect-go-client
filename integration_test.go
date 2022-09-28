@@ -395,3 +395,49 @@ func TestCreateKeyWithPolicyOverrides(t *testing.T) {
 	_, err = c.DeleteKey(ctx, crk3.ID, 0)
 	assert.NoError(err)
 }
+
+func TestListKeysWithFilter(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	//Init the struct
+	InitOperator()
+
+	// Creating a key
+	crk1, err := c.CreateKey(ctx, "root-key", nil, false)
+	assert.NoError(err)
+
+	// List the keys for the above created key, based on creationDate, states of the key
+	// and assert the keys
+	filterStr := GetKeyFilterStr(AddCreationDate(DateOperators.GreaterThanOrEqual, "2022-09-16T00:00:00Z"),
+		AddState([]KeyState{KeyState(Active), KeyState(Suspended)}))
+	listKeysOptions := &ListKeysOptions{
+		Filter: filterStr,
+	}
+	keys, err := c.ListKeys(ctx, listKeysOptions)
+	assert.NoError(err)
+	assert.NotNil(keys.Keys)
+
+	// Create a standard key
+	crk2, err := c.CreateKey(ctx, "standard-key", nil, true)
+	assert.NoError(err)
+
+	// List the keys based on filter expiration, lastRotationDate and extractable
+	// and assert the keys
+	filterStr = GetKeyFilterStr(AddExpirationDate(DateOperators.ExactMatch, "none"), AddLastRotationDate(DateOperators.ExactMatch, "none"), AddExtractable("true"))
+	listKeysOptions = &ListKeysOptions{
+		Filter: filterStr,
+	}
+	keys, err = c.ListKeys(ctx, listKeysOptions)
+	assert.NoError(err)
+	assert.NotNil(keys.Keys)
+	// deleting the keys
+	_, err = c.DeleteKey(ctx, crk1.ID, 0)
+	assert.NoError(err)
+	_, err = c.DeleteKey(ctx, crk2.ID, 0)
+	assert.NoError(err)
+}

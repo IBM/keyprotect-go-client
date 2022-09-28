@@ -30,6 +30,7 @@ type ListKeysOptions struct {
 	State       []KeyState
 	Sort        *string
 	Search      *string
+	Filter      *string
 }
 
 // ListKeys retrieves a list of keys that are stored in your Key Protect service instance.
@@ -66,6 +67,9 @@ func (c *Client) ListKeys(ctx context.Context, listKeysOptions *ListKeysOptions)
 		}
 		if listKeysOptions.Sort != nil {
 			values.Set("sort", fmt.Sprint(*listKeysOptions.Sort))
+		}
+		if listKeysOptions.Filter != nil {
+			values.Set("filter", fmt.Sprint(*listKeysOptions.Filter))
 		}
 		req.URL.RawQuery = values.Encode()
 	}
@@ -210,4 +214,93 @@ func AddAliasScope() SearchOpts {
 
 func AddKeyNameScope() SearchOpts {
 	return buildSearcOpts("name")
+}
+
+// Filter
+
+type FilterByOpts func(s *string)
+
+type operators struct {
+	GreaterThan        string
+	GreaterThanOrEqual string
+	LessThan           string
+	LessThanOrEqual    string
+	ExactMatch         string
+}
+
+var DateOperators operators
+
+func baseOperator() operators {
+	return operators{
+		GreaterThan:        "gt:",
+		GreaterThanOrEqual: "gte:",
+		LessThan:           "lt:",
+		LessThanOrEqual:    "lte:",
+		ExactMatch:         "",
+	}
+}
+
+// filter related funcs
+func GetKeyFilterStr(opts ...FilterByOpts) *string {
+	filterStr := ""
+	for _, opt := range opts {
+		opt(&filterStr)
+	}
+	return &filterStr
+}
+
+func buildFilterOpts(val string) FilterByOpts {
+	return func(s *string) {
+		// add space between the filter queries, which treats has "and" operation
+		*s += " " + val
+	}
+}
+
+func InitOperator() {
+	DateOperators = baseOperator()
+}
+
+//
+func AddCreationDate(dateOperator string, date string) FilterByOpts {
+	str := "creationDate=" + dateOperator + "\"" + date + "\""
+	return buildFilterOpts(str)
+}
+
+func AddLastRotationDate(dateOperator string, date string) FilterByOpts {
+	str := "lastRotateDate=" + dateOperator + "\"" + date + "\""
+	if date == "none" {
+		str = "lastRotateDate=" + date
+	}
+	return buildFilterOpts(str)
+}
+func AddDeletionDate(dateOperator string, date string) FilterByOpts {
+	str := "deletionDate=" + dateOperator + "\"" + date + "\""
+	return buildFilterOpts(str)
+}
+func AddExpirationDate(dateOperator string, date string) FilterByOpts {
+	str := "expirationDate=" + dateOperator + "\"" + date + "\""
+	if date == "none" {
+		str = "expirationDate=" + date
+	}
+	return buildFilterOpts(str)
+}
+func AddLastUpdateDate(dateOperator string, date string) FilterByOpts {
+	// \"2022-03-16T00:00:00Z\
+	str := "lastUpdateDate=" + dateOperator + "\"" + date + "\""
+	return buildFilterOpts(str)
+}
+
+func AddState(states []KeyState) FilterByOpts {
+	str := "state="
+	for _, val := range states {
+		str += strconv.Itoa(int(val)) + ","
+	}
+	// remove the extra comma appended at the end of the string
+	str = strings.TrimSuffix(str, ",")
+	return buildFilterOpts(str)
+}
+
+func AddExtractable(val string) FilterByOpts {
+	str := "extractable=" + val
+	return buildFilterOpts(str)
 }

@@ -4988,3 +4988,200 @@ func TestListKeySearch(t *testing.T) {
 	assert.NoError(t, err)
 
 }
+
+func TestListKeyFilter(t *testing.T) {
+	defer gock.Off()
+
+	// Case 1 : When user filter list key based on creation date
+	listKeyResponse := []byte(`{
+		"metadata":
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key08Sep",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+                    "alias01",
+                    "alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-09-01T11:27:40Z",
+				"lastUpdateDate": "2022-09-12T11:28:27Z",
+				"lastRotateDate": "2022-09-08T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka2-42ka2-42ka2-42ka2",
+				"creationDate": "2022-09-08T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12kb6",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12ka5",
+				"name": "Key1",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-09-12T08:30:34Z",
+				"lastUpdateDate": "2022-09-12T14:19:24Z",
+				"lastRotateDate": "2022-09-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka2-42ka2-42ka2-42ka2",
+				  "creationDate": "2022-09-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12ka5",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"filter": "creationDate=gte:\"2022-09-05T00:00:00Z\""}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	c, _, err := NewTestClient(t, nil)
+	gock.InterceptClient(&c.HttpClient)
+	defer gock.RestoreClient(&c.HttpClient)
+	c.tokenSource = &FakeTokenSource{}
+	InitOperator()
+	filterStr := GetKeyFilterStr(AddCreationDate(DateOperators.GreaterThanOrEqual, "2022-09-05T00:00:00Z"))
+
+	listKeysOptions := &ListKeysOptions{
+		Filter: filterStr,
+	}
+	keys, err := c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	/* 	Case 2 : When user wants to filter the keys based on last rotated and expiration date */
+	listKeyResponse = []byte(`{
+		"metadata":
+		{
+		  "collectionType": "application/vnd.ibm.kms.key+json",
+		  "collectionTotal": 2
+		},
+		"resources": [
+			{
+				"id": "12ka4-12ka4-12ka4-12ka4",
+				"name": "Key01June",
+				"type": "application/vnd.ibm.kms.key+json",
+				"aliases": [
+                    "alias01",
+                    "alias1"
+				],
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-09-01T11:27:40Z",
+				"lastUpdateDate": "2022-09-20T11:28:27Z",
+				"lastRotateDate": "2022-09-18T06:34:10Z",
+				"keyVersion": {
+				"id": "42ka1-42ka1-42ka1-42kb2",
+				"creationDate": "2022-09-18T06:34:10Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 2,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka5-12ka5-12ka5-12kb7",
+				"deleted": false,
+				"dualAuthDelete": {
+				"enabled": false
+				}
+			},
+			{
+				"id": "12ka4-12ka4-12ka4-12kb6",
+				"name": "Key2",
+				"type": "application/vnd.ibm.kms.key+json",
+				"algorithmType": "AES",
+				"createdBy": "IBMid-55xxxxx",
+				"creationDate": "2022-09-06T08:30:34Z",
+				"lastUpdateDate": "2022-09-12T14:19:24Z",
+				"lastRotateDate": "2022-09-12T14:19:24Z",
+				"keyVersion": {
+				  "id": "42ka1-42ka1-42ka1-42kb8",
+				  "creationDate": "2022-09-12T14:19:24Z"
+				},
+				"keyRingID": "default",
+				"extractable": true,
+				"state": 1,
+				"crn": "crn:v1:bluemix:public:kms:us-south:a/acount-id:some-nice-instance-id:key:key:12ka3-12ka3-12ka3-12kc9",
+				"deleted": false,
+				"dualAuthDelete": {
+				  "enabled": false
+				}
+			}
+		]
+	}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"filter": "expirationDate=none lastRotateDate=none"}).
+		Reply(200).
+		Body(bytes.NewReader(listKeyResponse))
+
+	filterStr = GetKeyFilterStr(AddExpirationDate(DateOperators.ExactMatch, "none"), AddLastRotationDate(DateOperators.ExactMatch, "none"))
+	listKeysOptions = &ListKeysOptions{
+		Filter: filterStr,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.NoError(t, err)
+	assert.NotNil(t, keys)
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+	// Case 3: When a user passes invalid data
+	listKeyResponse = []byte(`{
+		"metadata": {
+			"collectionTotal": 1,
+			"collectionType": "application/vnd.ibm.kms.key+json"
+		},
+		"resources": [
+			{
+				"StatusCode": 400,
+				"Message": "Bad Request: Keys could not be retrieved: Please see for more details (INVALID_QUERY_PARAM_ERR)",
+				"CorrelationID": "63f9f89d-0ad3-486f-9b49-2470a78fb710",
+				"Reasons": [
+				  {
+					"Code": "INVALID_QUERY_PARAM_ERR",
+					"Message": "INVALID_QUERY_PARAM_ERR","message":"The query_param 'filter' must be: a valid filter query with a valid operator for a property specified after an \"=\" symbol""
+					"Status": 400,
+					"MoreInfo": "https://cloud.ibm.com/apidocs/key-protect"
+				  }
+				]
+			  }
+		]
+		}`)
+
+	gock.New("http://example.com").
+		Get("/api/v2/keys").
+		MatchParams(map[string]string{"filter": "creationDate=\"2022-03-16\""}).
+		Reply(400).
+		Body(bytes.NewReader(listKeyResponse))
+
+	filter := "creationDate=\"2022-03-16\""
+	listKeysOptions = &ListKeysOptions{
+		Filter: &filter,
+	}
+
+	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	assert.Error(t, err)
+	assert.Nil(t, keys)
+	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
+	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
