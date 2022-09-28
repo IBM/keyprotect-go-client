@@ -385,8 +385,7 @@ func TestCreateKeyWithPolicyOverrides(t *testing.T) {
 	// and assert no rotation policy
 	policy, err = c.GetRotationPolicy(ctx, crk3.ID)
 	assert.NoError(err)
-	assert.Nil(policy.Rotation)
-	assert.EqualValues(policy.Rotation.Interval, intervalMonth)
+	assert.Nil(policy)
 
 	// deleting the keys
 	_, err = c.DeleteKey(ctx, crk1.ID, 0)
