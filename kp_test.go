@@ -5010,12 +5010,12 @@ func TestListKeyFilter(t *testing.T) {
 				],
 				"algorithmType": "AES",
 				"createdBy": "IBMid-55xxxxx",
-				"creationDate": "2022-09-01T11:27:40Z",
+				"creationDate": "2022-08-01T11:27:40Z",
 				"lastUpdateDate": "2022-09-12T11:28:27Z",
 				"lastRotateDate": "2022-09-08T06:34:10Z",
 				"keyVersion": {
 				"id": "42ka2-42ka2-42ka2-42ka2",
-				"creationDate": "2022-09-08T06:34:10Z"
+				"creationDate": "2022-08-08T06:34:10Z"
 				},
 				"keyRingID": "default",
 				"extractable": true,
@@ -5032,12 +5032,12 @@ func TestListKeyFilter(t *testing.T) {
 				"type": "application/vnd.ibm.kms.key+json",
 				"algorithmType": "AES",
 				"createdBy": "IBMid-55xxxxx",
-				"creationDate": "2022-09-12T08:30:34Z",
+				"creationDate": "2022-08-12T08:30:34Z",
 				"lastUpdateDate": "2022-09-12T14:19:24Z",
 				"lastRotateDate": "2022-09-12T14:19:24Z",
 				"keyVersion": {
 				  "id": "42ka2-42ka2-42ka2-42ka2",
-				  "creationDate": "2022-09-12T14:19:24Z"
+				  "creationDate": "2022-08-12T14:19:24Z"
 				},
 				"keyRingID": "default",
 				"extractable": true,
@@ -5053,7 +5053,7 @@ func TestListKeyFilter(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/keys").
-		MatchParams(map[string]string{"filter": "creationDate=gte:\"2022-09-05T00:00:00Z\""}).
+		MatchParams(map[string]string{"filter": "creationDate=gte:\"2022-07-05T00:00:00.0000001Z\""}).
 		Reply(200).
 		Body(bytes.NewReader(listKeyResponse))
 
@@ -5061,11 +5061,14 @@ func TestListKeyFilter(t *testing.T) {
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
-	InitOperator()
-	filterStr := GetKeyFilterStr(AddCreationDate(DateOperators.GreaterThanOrEqual, "2022-09-05T00:00:00Z"))
+
+	fb := GetFilterQueryBuilder()
+	dateQ := time.Date(2022, 07, 05, 0, 0, 0, 100, time.UTC)
+	filterQuery := fb.CreationDate().GreaterThanOrEqual(dateQ).
+		Build()
 
 	listKeysOptions := &ListKeysOptions{
-		Filter: filterStr,
+		Filter: &filterQuery,
 	}
 	keys, err := c.ListKeys(context.Background(), listKeysOptions)
 	assert.NoError(t, err)
@@ -5136,9 +5139,12 @@ func TestListKeyFilter(t *testing.T) {
 		Reply(200).
 		Body(bytes.NewReader(listKeyResponse))
 
-	filterStr = GetKeyFilterStr(AddExpirationDate(DateOperators.ExactMatch, "none"), AddLastRotationDate(DateOperators.ExactMatch, "none"))
+	filterQuery = fb.CreationDate().None().
+		ExpirationDate().None().
+		LastRotationDate().None().
+		Build()
 	listKeysOptions = &ListKeysOptions{
-		Filter: filterStr,
+		Filter: &filterQuery,
 	}
 
 	keys, err = c.ListKeys(context.Background(), listKeysOptions)
