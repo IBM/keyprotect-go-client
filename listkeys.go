@@ -217,8 +217,7 @@ func AddKeyNameScope() SearchOpts {
 	return buildSearcOpts("name")
 }
 
-// Filter
-// filter related funcs
+// Filter related functions
 type filterQuery struct {
 	queryStr string
 }
