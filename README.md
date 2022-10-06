@@ -303,3 +303,39 @@ if err != nil {
 }
 fmt.Println(keyRotationPolicy)
 ```
+
+### List keys based on filter properties
+
+```go
+// Option-1 - Directly passing the filter query in the format that the API supports.
+filterQuery := "creationDate=gt:\"2022-07-05T00:00:00Z\" state=1,5 extractable=false"
+
+listKeysOptions := &kp.ListKeysOptions{
+  Filter:&filterQuery,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+
+// Option-2 - Using the builder provided by SDK to construct the filter query
+fb := kp.GetFilterQueryBuilder()
+dateQ := time.Date(2022, 07, 04, 07, 43, 23, 100, time.UTC)
+
+filterQuery := fb.CreationDate().GreaterThan(dateQ).
+	State([]kp.KeyState{kp.KeyState(kp.Destroyed), kp.KeyState(kp.Active)}).
+	Extractable(true).
+	Build()
+
+listKeysOptions := &kp.ListKeysOptions{
+  Filter:&filterQuery,
+}
+
+keys, err := client.ListKeys(ctx, listKeysOptions)
+if err != nil {
+    fmt.Println(err)
+}
+fmt.Println(keys)
+```
