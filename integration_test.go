@@ -17,6 +17,8 @@
 
 package kp
 
+import "time"
+
 // These are tests that run across the network against a real KeyProtect service.
 // The goal of this is to provide a more extended test other than regular unit
 // tests that can be used by a developer locally to check interactions between
@@ -393,5 +395,55 @@ func TestCreateKeyWithPolicyOverrides(t *testing.T) {
 	_, err = c.DeleteKey(ctx, crk2.ID, 0)
 	assert.NoError(err)
 	_, err = c.DeleteKey(ctx, crk3.ID, 0)
+	assert.NoError(err)
+}
+
+func TestListKeysWithFilter(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	fb := GetFilterQueryBuilder()
+	dateQ := time.Now()
+
+	// Creating a key
+	crk1, err := c.CreateKey(ctx, "root-key", nil, false)
+	assert.NoError(err)
+
+	// List the keys for the above created key, based on creationDate, states of the key
+	// and assert the keys
+	filterQuery := fb.CreationDate().GreaterThan(dateQ).
+		State([]KeyState{KeyState(Active)}).
+		Build()
+	listKeysOptions := &ListKeysOptions{
+		Filter: &filterQuery,
+	}
+	keys, err := c.ListKeys(ctx, listKeysOptions)
+	assert.NoError(err)
+	assert.NotNil(keys.Keys)
+
+	// Create a standard key
+	crk2, err := c.CreateKey(ctx, "standard-key", nil, true)
+	assert.NoError(err)
+
+	// List the keys based on filter expiration, lastRotationDate and extractable
+	// and assert the keys
+	filterQuery = fb.ExpirationDate().GreaterThanOrEqual(dateQ).
+		LastRotationDate().GreaterThan(dateQ).
+		Extractable(true).
+		Build()
+	listKeysOptions = &ListKeysOptions{
+		Filter: &filterQuery,
+	}
+	keys, err = c.ListKeys(ctx, listKeysOptions)
+	assert.NoError(err)
+	assert.NotNil(keys.Keys)
+	// deleting the keys
+	_, err = c.DeleteKey(ctx, crk1.ID, 0)
+	assert.NoError(err)
+	_, err = c.DeleteKey(ctx, crk2.ID, 0)
 	assert.NoError(err)
 }
