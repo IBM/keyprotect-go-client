@@ -112,13 +112,20 @@ type KeyVersions struct {
 // KeysActionRequest represents request parameters for a key action
 // API call.
 type KeysActionRequest struct {
-	PlainText           string   `json:"plaintext,omitempty"`
-	AAD                 []string `json:"aad,omitempty"`
-	CipherText          string   `json:"ciphertext,omitempty"`
-	Payload             string   `json:"payload,omitempty"`
-	EncryptedNonce      string   `json:"encryptedNonce,omitempty"`
-	IV                  string   `json:"iv,omitempty"`
-	EncryptionAlgorithm string   `json:"encryptionAlgorithm,omitempty"`
+	PlainText           string      `json:"plaintext,omitempty"`
+	AAD                 []string    `json:"aad,omitempty"`
+	CipherText          string      `json:"ciphertext,omitempty"`
+	Payload             string      `json:"payload,omitempty"`
+	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
+	IV                  string      `json:"iv,omitempty"`
+	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
+	KeyVersionDetails   *KeyVersion `json:"keyVersion"`
+}
+
+type KeyWrapResponse struct {
+	PlainText         string     `json:"plaintext,omitempty"`
+	CipherText        string     `json:"ciphertext,omitempty"`
+	KeyVersionDetails KeyVersion `json:"keyVersion"`
 }
 
 type KeyVersion struct {
@@ -546,6 +553,38 @@ func (c *Client) wrap(ctx context.Context, idOrAlias string, plainText []byte, a
 	ct := []byte(keysAction.CipherText)
 
 	return pt, ct, nil
+}
+
+func (c *Client) WrapWithKeyVersion(ctx context.Context, idOrAlias string, plainText []byte, additionalAuthData *[]string) (*KeyWrapResponse, error) {
+	keysActionReq := &KeysActionRequest{}
+	keyActionRes := &KeyWrapResponse{}
+
+	if plainText != nil {
+		_, err := base64.StdEncoding.DecodeString(string(plainText))
+		if err != nil {
+			return keyActionRes, err
+		}
+		keysActionReq.PlainText = string(plainText)
+	}
+
+	if additionalAuthData != nil {
+		keysActionReq.AAD = *additionalAuthData
+	}
+
+	keysAction, err := c.doKeysAction(ctx, idOrAlias, "wrap", keysActionReq)
+	if err != nil {
+		return keyActionRes, err
+	}
+
+	keyActionRes = &KeyWrapResponse{
+		PlainText:  keysAction.PlainText,
+		CipherText: keysAction.CipherText,
+		KeyVersionDetails: KeyVersion{
+			ID:           keysAction.KeyVersionDetails.ID,
+			CreationDate: keysAction.KeyVersionDetails.CreationDate,
+		},
+	}
+	return keyActionRes, nil
 }
 
 // Unwrap is deprecated since it returns only plaintext and doesn't know how to handle rotation.
