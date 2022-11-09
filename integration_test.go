@@ -108,6 +108,38 @@ func TestWrapUnwrap(t *testing.T) {
 	}
 }
 
+func TestWrapV2Unwrap(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	crk, err := c.CreateKey(ctx, "kptest-crk", nil, false)
+	assert.NoError(err)
+	t.Logf("CRK created successfully: id=%s\n", crk.ID)
+
+	wrapWithKeyVersion, err := c.WrapV2(ctx, crk.ID, nil, nil)
+	assert.NoError(err)
+
+	getKeyVersion, err := c.ListKeyVersions(ctx, crk.ID, nil)
+	assert.NoError(err)
+	assert.EqualValues(getKeyVersion.KeyVersion[0].ID, wrapWithKeyVersion.KeyVersion.ID)
+
+	unwrapped, err := c.Unwrap(ctx, crk.ID, []byte(wrapWithKeyVersion.CipherText), nil)
+	assert.NoError(err)
+	assert.EqualValues(unwrapped, wrapWithKeyVersion.PlainText)
+
+	_, err = c.DeleteKey(ctx, crk.ID, 0)
+	if err != nil {
+		t.Logf("Error deleting key: %s\n", err)
+	} else {
+		t.Logf("Key deleted: id=%s\n", crk.ID)
+	}
+
+}
+
 func TestWrapUnwrapWithAlias(t *testing.T) {
 	assert := assert.New(t)
 

@@ -119,13 +119,13 @@ type KeysActionRequest struct {
 	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
 	IV                  string      `json:"iv,omitempty"`
 	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
-	KeyVersionDetails   *KeyVersion `json:"keyVersion"`
+	KeyVersion          *KeyVersion `json:"keyVersion,,omitempty"`
 }
 
-type KeyWrapResponse struct {
-	PlainText         string     `json:"plaintext,omitempty"`
-	CipherText        string     `json:"ciphertext,omitempty"`
-	KeyVersionDetails KeyVersion `json:"keyVersion"`
+type KeyActionResponse struct {
+	PlainText  string      `json:"plaintext,omitempty"`
+	CipherText string      `json:"ciphertext,omitempty"`
+	KeyVersion *KeyVersion `json:"keyVersion,,omitempty"`
 }
 
 type KeyVersion struct {
@@ -555,9 +555,10 @@ func (c *Client) wrap(ctx context.Context, idOrAlias string, plainText []byte, a
 	return pt, ct, nil
 }
 
-func (c *Client) WrapWithKeyVersion(ctx context.Context, idOrAlias string, plainText []byte, additionalAuthData *[]string) (*KeyWrapResponse, error) {
+// WrapWithKeyVersion function supports KeyVersion Details, PlainText and Cyphertext in response
+func (c *Client) WrapV2(ctx context.Context, idOrAlias string, plainText []byte, additionalAuthData *[]string) (*KeyActionResponse, error) {
 	keysActionReq := &KeysActionRequest{}
-	keyActionRes := &KeyWrapResponse{}
+	keyActionRes := &KeyActionResponse{}
 
 	if plainText != nil {
 		_, err := base64.StdEncoding.DecodeString(string(plainText))
@@ -576,13 +577,17 @@ func (c *Client) WrapWithKeyVersion(ctx context.Context, idOrAlias string, plain
 		return keyActionRes, err
 	}
 
-	keyActionRes = &KeyWrapResponse{
+	keyActionRes = &KeyActionResponse{
 		PlainText:  keysAction.PlainText,
 		CipherText: keysAction.CipherText,
-		KeyVersionDetails: KeyVersion{
-			ID:           keysAction.KeyVersionDetails.ID,
-			CreationDate: keysAction.KeyVersionDetails.CreationDate,
-		},
+	}
+	if keysAction.KeyVersion != nil {
+		keyActionRes.KeyVersion = &KeyVersion{
+			ID: keysAction.KeyVersion.ID,
+		}
+		if keysAction.KeyVersion.CreationDate != nil {
+			keyActionRes.KeyVersion.CreationDate = keysAction.KeyVersion.CreationDate
+		}
 	}
 	return keyActionRes, nil
 }
