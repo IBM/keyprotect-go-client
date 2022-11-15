@@ -160,6 +160,11 @@ func NewWithLogger(config ClientConfig, transport http.RoundTripper, logger Logg
 	return c, nil
 }
 
+func (c *Client) addHeaders(req *http.Request) {
+	customHeaders := req.Header
+	customHeaders.Add("Ibm-Cloud-Req-Ctx", "custom_value")
+}
+
 func (c *Client) newRequest(method, path string, body interface{}) (*http.Request, error) {
 
 	u, err := c.URL.Parse(path)
@@ -184,6 +189,7 @@ func (c *Client) newRequest(method, path string, body interface{}) (*http.Reques
 	}
 
 	request.Header.Set("accept", "application/json")
+	c.addHeaders(request)
 
 	return request, nil
 }
