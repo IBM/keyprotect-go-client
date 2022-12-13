@@ -78,7 +78,7 @@ type ClientConfig struct {
 	KeyRing       string      // The ID of the target Key Ring the key is associated with. It is optional but recommended for better performance.
 	Verbose       int         // See verbose values above
 	Timeout       float64     // KP request timeout in seconds.
-	Headers       http.Header //Support for Custom Header
+	Headers       http.Header // Support for Custom Header
 }
 
 // DefaultTransport ...
@@ -256,7 +256,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	if c.Config.KeyRing != "" {
 		req.Header.Set("x-kms-key-ring", c.Config.KeyRing)
 	}
-
+	// Adding check for Custom Header Input
 	if c.Config.Headers != nil {
 		for key, value := range c.Config.Headers {
 			req.Header.Set(key, strings.Join(value, ","))
