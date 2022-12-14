@@ -186,6 +186,14 @@ func TestKeys(t *testing.T) {
 		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
 	}
 
+	keyActionWithKeyVersion := KeysActionRequest{
+		PlainText:  "YWJjZGVmZw==",
+		CipherText: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNA==",
+		KeyVersion: &KeyVersion{
+			ID: testKey,
+		},
+	}
+
 	accessToken := "Bearer eyJraWQiOiIyMDE3MTAzMC0wMDowMDowMCIsImFsZyI6IlJTMjU2In0.eyJpYW1faWQiOiJpYW0tU2VydmljZUlkLWIwMDk1ZDFlLWMyNDUtNGFhZC04NmJlLTQ1ZmM3YzIxOTllMCIsImlkIjoiaWFtLVNlcnZpY2VJZC1iMDA5NWQxZS1jMjQ1LTRhYWQtODZiZS00NWZjN2MyMTk5ZTAiLCJyZWFsbWlkIjoiaWFtIiwiaWRlbnRpZmllciI6IlNlcnZpY2VJZC1iMDA5NWQxZS1jMjQ1LTRhYWQtODZiZS00NWZjN2MyMTk5ZTAiLCJzdWIiOiJTZXJ2aWNlSWQtYjAwOTVkMWUtYzI0NS00YWFkLTg2YmUtNDVmYzdjMjE5OWUwIiwic3ViX3R5cGUiOiJTZXJ2aWNlSWQiLCJhY2NvdW50Ijp7ImJzcyI6ImZiNDc0ODU1YTNlNzZjMWNlM2FhZWJmNTdlMGYxYTlmIn0sImlhdCI6MTUxODU1MDQ2NSwiZXhwIjoxNTE4NTU0MDY1LCJpc3MiOiJodHRwczovL2lhbS5uZy5ibHVlbWl4Lm5ldC9vaWRjL3Rva2VuIiwiZ3JhbnRfdHlwZSI6InVybjppYm06cGFyYW1zOm9hdXRoOmdyYW50LXR5cGU6YXBpa2V5Iiwic2NvcGUiOiJvcGVuaWQiLCJjbGllbnRfaWQiOiJkZWZhdWx0In0.XhXq7KT1CvuLekorCS_-YPkOCyx9unuj0JMIu7QYrJdRhLqC4VW5967kjllLVdvejZuEa7Nb7Anyoztcy-4VikhR5-wJx-eG4I6qf92QbLukXpRwFUaL7Y5qqJXsluxOOUsPOyeVNlUcpPPjkCHO79-Z2X68E7HV_XZr7T78Et-ea3MPW5fSF8112JbDGBbcPuzD7gtCtoHR9_MSjG7OU4b_LD_rkjR0tCaEClT9u7HM584FokXHSRCqE89IfkmRAlNcGMyMaYm6NDGuui81rna2lczR9IrkCHYluNNjrIEIUcz0g3xY2qdnSXcQFi7T8Ehaedj2mC3M4bQJ8DSbLQ"
 	payload := "test string"
 	keyURL := NewTestURL("/api/v2/keys")
@@ -274,6 +282,21 @@ func TestKeys(t *testing.T) {
 				keys, err := api.GetKeys(ctx, 10, 0)
 				assert.NoError(t, err)
 				assert.NotZero(t, keys.Metadata.NumberOfKeys)
+
+				return nil
+			},
+		},
+		{
+
+			"Wrap V2 With KeyVersionID",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(keyURL, http.StatusOK, keyActionWithKeyVersion)
+
+				wrapWithKeyVersion, err := api.WrapV2(ctx, testKey, []byte(keysActionPT.PlainText), nil)
+				assert.NoError(t, err)
+				assert.NotEmpty(t, wrapWithKeyVersion)
+				assert.NotEqual(t, wrapWithKeyVersion.PlainText, wrapWithKeyVersion.CipherText)
+				assert.NotEmpty(t, wrapWithKeyVersion.KeyVersion.ID)
 
 				return nil
 			},
