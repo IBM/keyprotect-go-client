@@ -108,6 +108,36 @@ func TestWrapUnwrap(t *testing.T) {
 	}
 }
 
+func TestWrapDEKV2UnWrap(t *testing.T) {
+	assert := assert.New(t)
+
+	c, err := NewIntegrationTestClient(t)
+	assert.NoError(err)
+
+	ctx := context.Background()
+
+	crk, err := c.CreateKey(ctx, "kptest-crk", nil, false)
+	assert.NoError(err)
+	t.Logf("CRK created successfully: id=%s\n", crk.ID)
+
+	wrapKeyDetails, err := c.WrapCreateDEKV2(ctx, crk.ID, nil)
+	assert.NoError(err)
+
+	getKeyVersion, err := c.ListKeyVersions(ctx, crk.ID, nil)
+	assert.NoError(err)
+	assert.EqualValues(getKeyVersion.KeyVersion[0].ID, wrapKeyDetails.KeyVersion.ID)
+
+	unwrapped, err := c.Unwrap(ctx, crk.ID, []byte(wrapKeyDetails.CipherText), nil)
+	assert.EqualValues(unwrapped, wrapKeyDetails.PlainText)
+
+	_, err = c.DeleteKey(ctx, crk.ID, 0)
+	if err != nil {
+		t.Logf("Error deleting key: %s\n", err)
+	} else {
+		t.Logf("Key deleted: id=%s\n", crk.ID)
+	}
+}
+
 func TestWrapV2Unwrap(t *testing.T) {
 	assert := assert.New(t)
 
