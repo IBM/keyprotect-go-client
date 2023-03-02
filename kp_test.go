@@ -4183,9 +4183,11 @@ func TestListKeyVersions(t *testing.T) {
 
 	limit := uint32(0)
 	totalCount := true
+	allKeyStates := false
 	listkeyVersions := &ListKeyVersionsOptions{
-		Limit:      &limit,
-		TotalCount: &totalCount,
+		Limit:        &limit,
+		TotalCount:   &totalCount,
+		AllKeyStates: &allKeyStates,
 	}
 
 	keyVersion, err := c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
@@ -4223,7 +4225,7 @@ func TestListKeyVersions(t *testing.T) {
 
 	limit = uint32(3)
 	totalCount = true
-	allKeyStates := true
+	allKeyStates = true
 	listkeyVersions = &ListKeyVersionsOptions{
 		Limit:        &limit,
 		TotalCount:   &totalCount,
