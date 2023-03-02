@@ -36,7 +36,6 @@ import (
 )
 
 // NewTestClientConfig returns a new ClientConfig suitable for testing.
-//
 func NewTestClientConfig() ClientConfig {
 	return ClientConfig{
 		BaseURL:    "http://example.com",
@@ -48,13 +47,11 @@ func NewTestClientConfig() ClientConfig {
 
 // NewTestURL returns the shared, invalid url for tests.  Given paths are
 // joined to the base, separted with /.
-//
 func NewTestURL(paths ...string) string {
 	return NewTestClientConfig().BaseURL + strings.Join(paths, "/")
 }
 
 // NewTestClient constructs and returns a new API and request context.
-//
 func NewTestClient(t *testing.T, c *ClientConfig) (*API, context.Context, error) {
 	if c == nil {
 		cp := NewTestClientConfig()
@@ -65,33 +62,28 @@ func NewTestClient(t *testing.T, c *ClientConfig) (*API, context.Context, error)
 }
 
 // MockAuthURL mocks an api endpoint.
-//
 func MockURL(url string, status int, json interface{}) *gock.Response {
 	return gock.New(url).Reply(status).JSON(json)
 }
 
 // MockAuth tells `gock` to respond to token auth requests.
-//
 func MockAuth() *gock.Response {
 	return MockURL("https://iam.cloud.ibm.com/oidc/token", http.StatusOK, "{}")
 }
 
 // MockAuthURL mocks an auth endpoint and an api endpoint.
-//
 func MockAuthURL(url string, status int, json interface{}) *gock.Response {
 	MockAuth()
 	return MockURL(url, status, json)
 }
 
 // setRetriesForTests sets the HTTP retries to low values for unit tests
-//
 func setRetriesForTests() {
 	RetryMax = 1
 	RetryWaitMax = 1 * time.Millisecond
 }
 
 // Tests the API methods for keys.
-//
 func TestKeys(t *testing.T) {
 	setRetriesForTests()
 	testKey := "2n4y2-4ko2n-4m23f-23j3r"
@@ -865,7 +857,6 @@ func TestKeys(t *testing.T) {
 }
 
 // Tests the API for Create Key With Policies Overrides
-//
 func TestKeyWithPolicyOverrides(t *testing.T) {
 	keyWithPolicyOverridesURL := NewTestURL("/api/v2/keys_with_policy_overrides")
 	enableTrue := true
@@ -1033,7 +1024,6 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 }
 
 // Tests the API for misc. funcionality.
-//
 func TestMisc(t *testing.T) {
 	cases := TestCases{
 		{
@@ -1053,7 +1043,6 @@ func TestMisc(t *testing.T) {
 }
 
 // Tests the API methods for ImportTokens.
-//
 func TestImportTokens(t *testing.T) {
 	endpoint := "/api/v2/import_token"
 
@@ -1229,18 +1218,15 @@ func TestKPCheckRetry(t *testing.T) {
 }
 
 // TestCase holds a subtest name and callable.
-//
 type TestCase struct {
 	Name string
 	Call func(*testing.T, *API, context.Context) error
 }
 
 // TestCases are a slice of TestCase structs.
-//
 type TestCases []TestCase
 
 // Run executes all of the test cases, with a handy setup beforehand.
-//
 func (cases TestCases) Run(t *testing.T) {
 	defer gock.Off()
 
@@ -1256,7 +1242,6 @@ func (cases TestCases) Run(t *testing.T) {
 }
 
 // Setup creates and returns an API and a request context.
-//
 func (cases TestCases) Setup(t *testing.T) (*API, context.Context) {
 	api, ctx, err := NewTestClient(t, nil)
 	assert.NoError(t, err)
@@ -2573,7 +2558,7 @@ func TestGetPrivateEndpointPortNumber(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
-//TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
+// TestSetInstanceDualAuthPolicyError tests the methods set instance dual auth policy to error out with attributes field.
 func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 	defer gock.Off()
 	errorResponse := []byte(`{
@@ -2616,7 +2601,7 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
 
-//TestSetRotationInstancePolicyError tests the methods set rotation instance policy to error out with attributes field.
+// TestSetRotationInstancePolicyError tests the methods set rotation instance policy to error out with attributes field.
 func TestSetRotationInstancePolicyError(t *testing.T) {
 	/*
 		Case-1 : When a user set the interval_month greater than 12 months in the request.
@@ -4233,14 +4218,16 @@ func TestListKeyVersions(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/keys/" + key_id + "/versions").
-		MatchParams(map[string]string{"limit": "3", "totalCount": "true"}).
+		MatchParams(map[string]string{"limit": "3", "totalCount": "true", "allKeyStates": "true"}).
 		Reply(200).Body(bytes.NewReader(KeyVersionResponse))
 
 	limit = uint32(3)
 	totalCount = true
+	allKeyStates := true
 	listkeyVersions = &ListKeyVersionsOptions{
-		Limit:      &limit,
-		TotalCount: &totalCount,
+		Limit:        &limit,
+		TotalCount:   &totalCount,
+		AllKeyStates: &allKeyStates,
 	}
 
 	keyVersion, err = c.ListKeyVersions(context.Background(), key_id, listkeyVersions)
