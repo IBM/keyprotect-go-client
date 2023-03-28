@@ -4173,7 +4173,7 @@ func TestListKeyVersions(t *testing.T) {
 
 	gock.New("http://example.com").
 		Get("/api/v2/keys/" + key_id + "/versions").
-		MatchParams(map[string]string{"limit": "0", "totalCount": "true"}).
+		MatchParams(map[string]string{"limit": "0", "totalCount": "true", "allKeyStates": "false"}).
 		Reply(400).Body(bytes.NewReader(KeyVersionResponse))
 
 	c, _, err := NewTestClient(t, nil)
