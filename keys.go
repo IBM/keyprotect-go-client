@@ -134,53 +134,53 @@ type KeyVersion struct {
 }
 
 // CreateKey creates a new KP key.
-func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool) (*Key, error) {
+func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool, description string) (*Key, error) {
 	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
 }
 
 // CreateImportedKey creates a new KP key from the given key material.
-func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool) (*Key, error) {
+func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, description string) (*Key, error) {
 	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, nil, AlgorithmRSAOAEP256, nil)
 	return c.createKey(ctx, key)
 }
 
 // CreateImportedKeyWithSHA1 creates a new KP key from the given key material
 // using RSAES OAEP SHA 1 as encryption algorithm.
-func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, description string) (*Key, error) {
 	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1, nil)
 	return c.createKey(ctx, key)
 }
 
 // CreateRootKey creates a new, non-extractable key resource without
 // key material.
-func (c *Client) CreateRootKey(ctx context.Context, name string, expiration *time.Time) (*Key, error) {
-	return c.CreateKey(ctx, name, expiration, false)
+func (c *Client) CreateRootKey(ctx context.Context, name string, expiration *time.Time, description string) (*Key, error) {
+	return c.CreateKey(ctx, name, expiration, false, description)
 }
 
 // CreateStandardKey creates a new, extractable key resource without
 // key material.
-func (c *Client) CreateStandardKey(ctx context.Context, name string, expiration *time.Time) (*Key, error) {
-	return c.CreateKey(ctx, name, expiration, true)
+func (c *Client) CreateStandardKey(ctx context.Context, name string, expiration *time.Time, description string) (*Key, error) {
+	return c.CreateKey(ctx, name, expiration, true, description)
 }
 
 // CreateImportedRootKey creates a new, non-extractable key resource
 // with the given key material.
-func (c *Client) CreateImportedRootKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string) (*Key, error) {
-	return c.CreateImportedKey(ctx, name, expiration, payload, encryptedNonce, iv, false)
+func (c *Client) CreateImportedRootKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, description string) (*Key, error) {
+	return c.CreateImportedKey(ctx, name, expiration, payload, encryptedNonce, iv, false, description)
 }
 
 // CreateStandardKey creates a new, extractable key resource with the
 // given key material.
-func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, expiration *time.Time, payload string) (*Key, error) {
-	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true)
+func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, expiration *time.Time, payload string, description string) (*Key, error) {
+	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true, description)
 }
 
 // CreateKeyWithAliaes creats a new key with alias names. A key can have a maximum of 5 alias names.
 // For more information please refer to the links below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-root-keys#create-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-standard-keys#create-standard-key-api
-func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string) (*Key, error) {
-	return c.CreateImportedKeyWithAliases(ctx, name, expiration, "", "", "", extractable, aliases)
+func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string, description string) (*Key, error) {
+	return c.CreateImportedKeyWithAliases(ctx, name, expiration, "", "", "", extractable, aliases, description)
 }
 
 // CreateImportedKeyWithAliases creates a new key with alias name and provided key material. A key can have a maximum of 5 alias names
@@ -189,17 +189,18 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 // For more information please refer to the links below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
-func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
-	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256, nil)
+func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, description string) (*Key, error) {
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256, nil, description)
 	return c.createKey(ctx, key)
 }
 
-func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, encryptionAlgorithm string, policy *Policy) Key {
+func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, encryptionAlgorithm string, policy *Policy, description string) Key {
 	key := Key{
 		Name:        name,
 		Type:        keyType,
 		Extractable: extractable,
 		Payload:     payload,
+		Description: description,
 	}
 
 	if aliases != nil {
