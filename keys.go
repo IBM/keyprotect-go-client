@@ -135,7 +135,7 @@ type KeyVersion struct {
 
 // CreateKey creates a new KP key.
 func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool, description string) (*Key, error) {
-	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
+	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable, description)
 }
 
 // CreateImportedKey creates a new KP key from the given key material.
@@ -147,7 +147,7 @@ func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration 
 // CreateImportedKeyWithSHA1 creates a new KP key from the given key material
 // using RSAES OAEP SHA 1 as encryption algorithm.
 func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, description string) (*Key, error) {
-	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1, nil)
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP1, nil, description)
 	return c.createKey(ctx, key)
 }
 
