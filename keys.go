@@ -133,31 +133,26 @@ type KeyVersion struct {
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
-type CreateKeyOption func(k *Key)
-
-func (c *Client) BaseKeyTemplate(ctx context.Context, name string, extractable bool) *Key {
-	key := &Key{
-		Name:        name,
-		Type:        keyType,
-		Extractable: extractable,
-	}
-	return key
-}
+// This function returns a string so we can pass extra info not in the key structu if needed
+type CreateKeyOption func(k *Key) string
 
 func WithExpiration(expiration *time.Time) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
 		key.Expiration = expiration
+		return "expiration"
 	}
 }
 
 func WithDescription(description string) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
 		key.Description = description
+		return "description"
 	}
 }
 
 func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
+		ret := "payload"
 		key.Payload = payload
 		if !key.Extractable {
 			algorithm := AlgorithmRSAOAEP256
@@ -167,36 +162,50 @@ func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption 
 			key.EncryptedNonce = encryptedNonce
 			key.IV = iv
 			key.EncryptionAlgorithm = algorithm
+			ret += "-" + algorithm
 		}
+		return ret
 	}
 }
 
 func WithAliases(aliases []string) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
 		key.Aliases = aliases
+		return "aliases"
 	}
 }
 
 func WithPolicy(policy *Policy) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
 		key.Rotation = policy.Rotation
 		key.DualAuthDelete = policy.DualAuth
+		return "policy"
 	}
 }
 
 func WithTags(tags []string) CreateKeyOption {
-	return func(key *Key) {
+	return func(key *Key) string {
 		key.Tags = tags
+		return "tags"
 	}
 }
 
 func (c *Client) CreateKey(ctx context.Context, name string, extractable bool, options ...CreateKeyOption) (*Key, error) {
-	key := c.BaseKeyTemplate(ctx, name, extractable)
+	key := &Key{
+		Name:        name,
+		Type:        keyType,
+		Extractable: extractable,
+	}
+	overrides := false
 	for _, opt := range options {
-		opt(key)
+		if opt != nil {
+			optName := opt(key)
+			if optName == "policy" {
+				overrides = true
+			}
+		}
 	}
 
-	overrides := key.DualAuthDelete != nil && key.Rotation != nil
 	path := keysPath
 	if overrides {
 		path = keysWithPolicyOverridesPath

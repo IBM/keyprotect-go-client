@@ -46,7 +46,7 @@ func Example() {
 	}
 
 	// Create a new non-exportable key
-	crk, err := c.CreateKey(ctx, "kp-go-example-crk", nil, false)
+	crk, err := c.CreateKey(ctx, "kp-go-example-crk", false)
 	if err != nil {
 		panic(err)
 	}

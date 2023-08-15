@@ -126,6 +126,7 @@ func TestKeys(t *testing.T) {
 				ID:          testKey,
 				Name:        "Key1",
 				Extractable: false,
+				Description: "This is a description",
 			},
 			Key{
 				ID:          "5ngy2-kko9n-4mj5f-w3jer",
@@ -715,7 +716,7 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, testKeys)
 
-				k, err := api.CreateRootKey(ctx, "test", nil)
+				k, err := api.CreateRootKey(ctx, "test")
 				assert.NoError(t, err)
 
 				key1 := k.ID
@@ -913,12 +914,12 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 		Metadata: keysMetadata,
 		Keys: []Key{
 			Key{
-				ID:             testKeyID,
-				Name:           "ImportedRootKey",
-				Extractable:    false,
-				DualAuthDelete: daPolicy,
-				Payload:        payload,
-				Aliases:        []string{"alias1", "alias2"},
+				ID:          testKeyID,
+				Name:        "ImportedRootKey",
+				Extractable: false,
+				Rotation:    rotPolicy,
+				Payload:     payload,
+				Aliases:     []string{"alias1", "alias2"},
 			},
 		},
 	}
@@ -999,9 +1000,10 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Imported Key
-				_, err = api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", false), WithAliases(aliases), WithPolicy(&Policy{DualAuth: daPolicy}))
+				_, err = api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", false), WithAliases(aliases), WithPolicy(&Policy{Rotation: rotPolicy}))
 				assert.NoError(t, err)
 
+				// Imported SHA1 Key
 				importedKey, err := api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", true), WithAliases(aliases), WithPolicy(&Policy{}))
 				assert.NoError(t, err)
 				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
