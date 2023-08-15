@@ -158,12 +158,12 @@ func WithDescription(description string) CreateKeyOption {
 
 func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption {
 	return func(key *Key) {
-		algorithm := AlgorithmRSAOAEP256
-		if sha1 {
-			algorithm = AlgorithmRSAOAEP1
-		}
 		key.Payload = payload
 		if !key.Extractable {
+			algorithm := AlgorithmRSAOAEP256
+			if sha1 {
+				algorithm = AlgorithmRSAOAEP1
+			}
 			key.EncryptedNonce = encryptedNonce
 			key.IV = iv
 			key.EncryptionAlgorithm = algorithm
@@ -207,13 +207,13 @@ func (c *Client) CreateKey(ctx context.Context, name string, extractable bool, o
 // CreateRootKey creates a new, non-extractable key resource without
 // key material.
 func (c *Client) CreateRootKey(ctx context.Context, name string, options ...CreateKeyOption) (*Key, error) {
-	return c.CreateKey(ctx, name, false)
+	return c.CreateKey(ctx, name, false, options...)
 }
 
 // CreateStandardKey creates a new, extractable key resource without
 // key material.
 func (c *Client) CreateStandardKey(ctx context.Context, name string, options ...CreateKeyOption) (*Key, error) {
-	return c.CreateKey(ctx, name, true)
+	return c.CreateKey(ctx, name, true, options...)
 }
 
 func (c *Client) createKeyResource(ctx context.Context, key Key, path string) (*Key, error) {

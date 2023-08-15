@@ -369,7 +369,7 @@ func TestKeys(t *testing.T) {
 				testKeys.Metadata.NumberOfKeys++
 
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
-				k, err := api.CreateImportedRootKey(ctx, "test", nil, payload, "", "")
+				k, err := api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", false))
 				assert.NoError(t, err)
 				assert.NotNil(t, k)
 				key1 := k.ID
@@ -378,7 +378,7 @@ func TestKeys(t *testing.T) {
 
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
 				expiration := time.Now().Add(24 * time.Hour)
-				k, err = api.CreateImportedRootKey(ctx, "testtimeout", &expiration, "asdfqwerasdfqwerasdfqwerasdfqwer", "", "")
+				k, err = api.CreateRootKey(ctx, "testtimeout", WithExpiration(&expiration), WithPayload("asdfqwerasdfqwerasdfqwerasdfqwer", "", "", false))
 				assert.NoError(t, err)
 				key2 := k.ID
 
@@ -417,7 +417,7 @@ func TestKeys(t *testing.T) {
 				testKeys.Metadata.NumberOfKeys++
 
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
-				k, err := api.CreateRootKey(ctx, "test", nil)
+				k, err := api.CreateRootKey(ctx, "test")
 				assert.NoError(t, err)
 				key1 := k.ID
 				testKeys.Keys = append([]Key{*newStandardKey}, testKeys.Keys...)
@@ -425,7 +425,7 @@ func TestKeys(t *testing.T) {
 
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
 				expiration := time.Now().Add(24 * time.Hour)
-				k, err = api.CreateRootKey(ctx, "testtimeout", &expiration)
+				k, err = api.CreateRootKey(ctx, "testtimeout", WithExpiration(&expiration))
 				assert.NoError(t, err)
 				key2 := k.ID
 
@@ -460,7 +460,7 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
 				MockAuthURL(keyURL, http.StatusCreated, testKeys)
 
-				k, err := api.CreateImportedRootKey(ctx, "test", nil, "asdfqwerasdfqwerasdfqwerasdfqwer", "", "")
+				k, err := api.CreateRootKey(ctx, "test", WithPayload("asdfqwerasdfqwerasdfqwerasdfqwer", "", "", false))
 				assert.NoError(t, err)
 				key1 := k.ID
 
@@ -476,7 +476,7 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusOK, keysActionPT)
 				MockAuthURL(keyURL, http.StatusOK, keysActionPTReWrap)
 
-				k, err := api.CreateImportedRootKey(ctx, "test", nil, "asdfqwerasdfqwerasdfqwerasdfqwer", "", "")
+				k, err := api.CreateRootKey(ctx, "test", WithPayload("asdfqwerasdfqwerasdfqwerasdfqwer", "", "", false))
 				assert.NoError(t, err)
 				key1 := k.ID
 				cipherText, err := api.Wrap(ctx, key1, []byte(keysActionPT.PlainText), nil)
@@ -501,7 +501,7 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusOK, keysActionPT)
 				MockAuthURL(keyURL, http.StatusOK, keysActionPTReWrap)
 
-				k, err := api.CreateRootKey(ctx, "test", nil)
+				k, err := api.CreateRootKey(ctx, "test")
 				assert.NoError(t, err)
 				key1 := k.ID
 
@@ -692,17 +692,17 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, "{}")
 
-				_, err := api.CreateImportedRootKey(ctx, "test", nil, payload, "abc", "")
+				_, err := api.CreateRootKey(ctx, "test", WithPayload(payload, "abc", "", false))
 				assert.NoError(t, err)
 
-				_, err = api.CreateKey(ctx, "test", nil, false)
+				_, err = api.CreateKey(ctx, "test", false)
 				assert.Error(t, err)
 
-				_, err = api.CreateImportedKey(ctx, "test", nil, "", "", "", false)
+				_, err = api.CreateStandardKey(ctx, "test", WithPayload("", "", "", false))
 				assert.Error(t, err)
 
 				MockAuthURL(keyURL, http.StatusCreated, testImportedKeySHA1)
-				importedKey, err := api.CreateImportedKeyWithSHA1(ctx, "importedKeyWithSHA1", nil, "payload", "encryptedNonce", "iv", false, nil)
+				importedKey, err := api.CreateKey(ctx, "importedKeyWithSHA1", false, WithPayload("payload", "encryptedNonce", "iv", true))
 				assert.NoError(t, err)
 				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
 				return nil
@@ -840,7 +840,7 @@ func TestKeys(t *testing.T) {
 			"Create Standard Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				_, err := api.CreateStandardKey(ctx, "", nil)
+				_, err := api.CreateStandardKey(ctx, "")
 				return err
 			},
 		},
@@ -848,7 +848,7 @@ func TestKeys(t *testing.T) {
 			"Create Imported Standard Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				_, err := api.CreateImportedStandardKey(ctx, "", nil, payload)
+				_, err := api.CreateStandardKey(ctx, "", WithPayload(payload, "", "", false))
 				return err
 			},
 		},
@@ -977,30 +977,30 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedKeyWithPoliciesSHA1)
 
 				// Non-imported Root Key
-				_, err := api.CreateRootKeyWithPolicyOverrides(ctx, "test", nil, aliases, allPolicies)
+				_, err := api.CreateRootKey(ctx, "test", WithAliases(aliases), WithPolicy(&allPolicies))
 				assert.NoError(t, err)
 
 				// Non-imported Standard Key
-				_, err = api.CreateStandardKeyWithPolicyOverrides(ctx, "", nil, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateStandardKey(ctx, "test", WithAliases(aliases), WithPolicy(&Policy{DualAuth: daPolicy}))
 				assert.NoError(t, err)
 
 				// Imported Standard Key
-				_, err = api.CreateImportedStandardKeyWithPolicyOverrides(ctx, "", nil, payload, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateStandardKey(ctx, "test", WithPayload(payload, "", "", false), WithAliases(aliases), WithPolicy(&Policy{DualAuth: daPolicy}))
 				assert.NoError(t, err)
 
 				// Imported Root Key
-				_, err = api.CreateImportedRootKeyWithPolicyOverrides(ctx, "test", nil, payload, "abc", "", aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateRootKey(ctx, "test", WithPayload(payload, "abc", "", false), WithAliases(aliases), WithPolicy(&Policy{DualAuth: daPolicy}))
 				assert.NoError(t, err)
 
 				// Non-imported Key
-				_, err = api.CreateKeyWithPolicyOverrides(ctx, "test", nil, false, aliases, allPolicies)
+				_, err = api.CreateRootKey(ctx, "test", WithAliases(aliases), WithPolicy(&allPolicies))
 				assert.NoError(t, err)
 
 				// Imported Key
-				_, err = api.CreateImportedKeyWithPolicyOverrides(ctx, "test", nil, payload, "", "", false, aliases, Policy{DualAuth: daPolicy})
+				_, err = api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", false), WithAliases(aliases), WithPolicy(&Policy{DualAuth: daPolicy}))
 				assert.NoError(t, err)
 
-				importedKey, err := api.CreateImportedKeyWithPolicyOverridesWithSHA1(ctx, "Key", nil, "payload", "encryptedNonce", "iv", false, nil, Policy{})
+				importedKey, err := api.CreateRootKey(ctx, "test", WithPayload(payload, "", "", true), WithAliases(aliases), WithPolicy(&Policy{}))
 				assert.NoError(t, err)
 				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
 
@@ -1012,7 +1012,7 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusBadRequest, errorString)
 				// Non-imported Standard Key with rotation policy should throw error
-				_, err := api.CreateStandardKeyWithPolicyOverrides(ctx, "test", nil, aliases, Policy{Rotation: rotPolicy})
+				_, err := api.CreateStandardKey(ctx, "test", WithAliases(aliases), WithPolicy(&Policy{Rotation: rotPolicy}))
 				assert.Error(t, err)
 				return nil
 			},
@@ -3449,7 +3449,7 @@ func TestCreateKeyWithAliases(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.CreateKeyWithAliases(context.Background(), keyName, nil, false, aliases)
+	key, err := c.CreateRootKey(context.Background(), keyName, WithAliases(aliases))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
@@ -3507,7 +3507,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	key, err := c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, payload, "", "", true, aliases)
+	key, err := c.CreateStandardKey(context.Background(), keyName, WithPayload(payload, "", "", false), WithAliases(aliases))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
@@ -3554,7 +3554,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 		Reply(201).
 		Body(bytes.NewReader(rootKeyResponse))
 
-	key, err = c.CreateImportedKeyWithAliases(context.Background(), keyName, nil, encryptedKey, encryptedNonce, iv, true, aliases)
+	key, err = c.CreateStandardKey(context.Background(), keyName, WithPayload(encryptedKey, encryptedNonce, iv, false), WithAliases(aliases))
 
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
