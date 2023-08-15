@@ -681,7 +681,7 @@ func TestKeys(t *testing.T) {
 					Reply(http.StatusCreated).
 					JSON(testKeys)
 
-				_, err := api.CreateRootKey(ctx, "test", nil)
+				_, err := api.CreateRootKey(ctx, "test")
 				return err
 			},
 		},
