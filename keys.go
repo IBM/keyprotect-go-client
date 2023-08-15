@@ -133,9 +133,68 @@ type KeyVersion struct {
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
-// CreateKey creates a new KP key.
-func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool, description string) (*Key, error) {
-	return c.CreateImportedKey(ctx, name, expiration, "", "", "", extractable)
+type CreateKeyOption func(k *Key)
+
+// https://petomalina.medium.com/dealing-with-optional-parameters-in-go-9780f9bfbd1d
+func (c *Client) CreateKey(ctx context.Context, name string, extractable bool, overrides bool, options ...CreateKeyOption) (*Key, error) {
+	key := c.BaseKeyTemplate(ctx, name, extractable)
+	for _, opt := range options {
+		opt(key)
+	}
+	path := keysPath
+	if overrides {
+		path = keysWithPolicyOverridesPath
+	}
+	return c.createKeyResource(ctx, key, path)
+}
+
+func (c *Client) BaseKeyTemplate(ctx context.Context, name string, extractable bool) *Key {
+	key := &Key{
+		Name:        name,
+		Type:        keyType,
+		Extractable: extractable,
+	}
+	return key
+}
+
+func WithExpiration(expiration *time.Time) CreateKeyOption {
+	return func(key *Key) {
+		key.Expiration = expiration
+	}
+}
+
+func WithDescription(description string) CreateKeyOption {
+	return func(key *Key) {
+		key.Description = description
+	}
+}
+
+func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption {
+	return func(key *Key) {
+		algorithm := AlgorithmRSAOAEP256
+		if sha1 {
+			algorithm = AlgorithmRSAOAEP1
+		}
+		key.Payload = payload
+		if !key.Extractable {
+			key.EncryptedNonce = encryptedNonce
+			key.IV = iv
+			key.EncryptionAlgorithm = algorithm
+		}
+	}
+}
+
+func WithAliases(aliases []string) CreateKeyOption {
+	return func(key *Key) {
+		key.Aliases = aliases
+	}
+}
+
+func WithPolicy(policy *Policy) CreateKeyOption {
+	return func(key *Key) {
+		key.Rotation = policy.Rotation
+		key.DualAuthDelete = policy.DualAuth
+	}
 }
 
 // CreateImportedKey creates a new KP key from the given key material.
@@ -192,37 +251,6 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, description string) (*Key, error) {
 	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, aliases, AlgorithmRSAOAEP256, nil, description)
 	return c.createKey(ctx, key)
-}
-
-func (c *Client) createKeyTemplate(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, encryptionAlgorithm string, policy *Policy, description string) Key {
-	key := Key{
-		Name:        name,
-		Type:        keyType,
-		Extractable: extractable,
-		Payload:     payload,
-		Description: description,
-	}
-
-	if aliases != nil {
-		key.Aliases = aliases
-	}
-
-	if !extractable && payload != "" && encryptedNonce != "" && iv != "" {
-		key.EncryptedNonce = encryptedNonce
-		key.IV = iv
-		key.EncryptionAlgorithm = encryptionAlgorithm
-	}
-
-	if expiration != nil {
-		key.Expiration = expiration
-	}
-
-	if policy != nil {
-		key.Rotation = policy.Rotation
-		key.DualAuthDelete = policy.DualAuth
-	}
-
-	return key
 }
 
 func (c *Client) createKey(ctx context.Context, key Key) (*Key, error) {
