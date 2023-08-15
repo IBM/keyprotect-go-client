@@ -133,7 +133,7 @@ type KeyVersion struct {
 	CreationDate *time.Time `json:"creationDate,omitempty"`
 }
 
-// This function returns a string so we can pass extra info not in the key structu if needed
+// This function returns a string so we can pass extra info not in the key struct if needed
 type CreateKeyOption func(k *Key) string
 
 func WithExpiration(expiration *time.Time) CreateKeyOption {
