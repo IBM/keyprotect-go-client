@@ -140,7 +140,7 @@ func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Ti
 
 // CreateImportedKey creates a new KP key from the given key material.
 func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, description string) (*Key, error) {
-	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, nil, AlgorithmRSAOAEP256, nil)
+	key := c.createKeyTemplate(ctx, name, expiration, payload, encryptedNonce, iv, extractable, nil, AlgorithmRSAOAEP256, nil, description)
 	return c.createKey(ctx, key)
 }
 
