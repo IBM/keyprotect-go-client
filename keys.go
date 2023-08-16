@@ -190,6 +190,11 @@ func WithPolicy(policy *Policy) CreateKeyOption {
 		key.Rotation = policy.Rotation
 		key.DualAuthDelete = policy.DualAuth
 		return "policy"
+		/*
+			I needed these CreateKeyOption functions to return a string to ensure I knew when a policy was passed,
+			so that it would call the create key with policy overrides function,
+			even when a policy with empty/nil fields is passed.
+		*/
 	}
 }
 

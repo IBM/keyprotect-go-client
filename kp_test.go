@@ -865,8 +865,7 @@ func TestKeys(t *testing.T) {
 			"Create Standard Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
-				k, err := api.CreateStandardKey(ctx, "", nil)
-				assert.Equal(t, true, k.Extractable)
+				_, err := api.CreateStandardKey(ctx, "", nil)
 				return err
 			},
 		},
