@@ -190,7 +190,7 @@ func WithTags(tags []string) CreateKeyOption {
 	}
 }
 
-func (c *Client) CreateKey(ctx context.Context, name string, extractable bool, options ...CreateKeyOption) (*Key, error) {
+func (c *Client) CreateKeyWithOptions(ctx context.Context, name string, extractable bool, options ...CreateKeyOption) (*Key, error) {
 	key := &Key{
 		Name:        name,
 		Type:        keyType,
@@ -213,16 +213,72 @@ func (c *Client) CreateKey(ctx context.Context, name string, extractable bool, o
 	return c.createKeyResource(ctx, *key, path)
 }
 
+// CreateKey creates a new KP key.
+func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Time, extractable bool) (*Key, error) {
+	return c.CreateKeyWithOptions(ctx, name, extractable, WithExpiration(expiration))
+}
+
+// CreateImportedKey creates a new KP key from the given key material.
+func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool) (*Key, error) {
+	return c.CreateKeyWithOptions(ctx, name, extractable,
+		WithExpiration(expiration),
+		WithPayload(payload, encryptedNonce, iv, false),
+	)
+}
+
+// CreateImportedKeyWithSHA1 creates a new KP key from the given key material
+// using RSAES OAEP SHA 1 as encryption algorithm.
+func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	return c.CreateKeyWithOptions(ctx, name, extractable,
+		WithExpiration(expiration),
+		WithPayload(payload, encryptedNonce, iv, true),
+	)
+}
+
 // CreateRootKey creates a new, non-extractable key resource without
 // key material.
-func (c *Client) CreateRootKey(ctx context.Context, name string, options ...CreateKeyOption) (*Key, error) {
-	return c.CreateKey(ctx, name, false, options...)
+func (c *Client) CreateRootKey(ctx context.Context, name string, expiration *time.Time) (*Key, error) {
+	return c.CreateKey(ctx, name, expiration, false)
 }
 
 // CreateStandardKey creates a new, extractable key resource without
 // key material.
-func (c *Client) CreateStandardKey(ctx context.Context, name string, options ...CreateKeyOption) (*Key, error) {
-	return c.CreateKey(ctx, name, true, options...)
+func (c *Client) CreateStandardKey(ctx context.Context, name string, expiration *time.Time) (*Key, error) {
+	return c.CreateKey(ctx, name, expiration, true)
+}
+
+// CreateImportedRootKey creates a new, non-extractable key resource
+// with the given key material.
+func (c *Client) CreateImportedRootKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string) (*Key, error) {
+	return c.CreateImportedKey(ctx, name, expiration, payload, encryptedNonce, iv, false)
+}
+
+// CreateStandardKey creates a new, extractable key resource with the
+// given key material.
+func (c *Client) CreateImportedStandardKey(ctx context.Context, name string, expiration *time.Time, payload string) (*Key, error) {
+	return c.CreateImportedKey(ctx, name, expiration, payload, "", "", true)
+}
+
+// CreateKeyWithAliaes creats a new key with alias names. A key can have a maximum of 5 alias names.
+// For more information please refer to the links below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-root-keys#create-root-key-api
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-create-standard-keys#create-standard-key-api
+func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string) (*Key, error) {
+	return c.CreateImportedKeyWithAliases(ctx, name, expiration, "", "", "", extractable, aliases)
+}
+
+// CreateImportedKeyWithAliases creates a new key with alias name and provided key material. A key can have a maximum of 5 alias names
+// When importing root keys with import-token encryptedNonce and iv need to passed along with payload.
+// Standard Keys cannot be imported with an import token hence only payload is required.
+// For more information please refer to the links below:
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
+// https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
+func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+	return c.CreateKeyWithOptions(ctx, name, extractable,
+		WithExpiration(expiration),
+		WithPayload(payload, encryptedNonce, iv, true),
+		WithAliases(aliases),
+	)
 }
 
 func (c *Client) createKeyResource(ctx context.Context, key Key, path string) (*Key, error) {
