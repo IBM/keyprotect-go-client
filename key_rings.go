@@ -61,14 +61,24 @@ type DeleteKeyRingOptions struct {
 	Force bool
 }
 
+type DeleteKeyRingOption func(*DeleteKeyRingOptions)
+
+func UseForce(force bool) DeleteKeyRingOption {
+	return func(body *DeleteKeyRingOptions) {
+		body.Force = force
+	}
+}
+
 // DeleteRing method deletes the key ring with the provided name in the instance
 // For information please refer to the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-key-rings#delete-key-ring-api
-func (c *Client) DeleteKeyRing(ctx context.Context, id string, force bool) error {
-	opts := DeleteKeyRingOptions{
-		Force: force,
+func (c *Client) DeleteKeyRing(ctx context.Context, id string, opts ...DeleteKeyRingOption) error {
+	body := DeleteKeyRingOptions{}
+	for _, opt := range opts {
+		opt(&body)
 	}
-	req, err := c.newRequest("DELETE", fmt.Sprintf(path+"/%s", id), opts)
+
+	req, err := c.newRequest("DELETE", fmt.Sprintf(path+"/%s", id), body)
 	if err != nil {
 		return err
 	}
