@@ -1050,7 +1050,13 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				// WithOptions
 				_, err = api.CreateKeyWithPolicyOverridesWithOptions(ctx, "test", false, Policy{DualAuth: daPolicy},
 					WithAliases(aliases),
-					WithPayload(payload, "", "", false),
+					WithPayload(payload, nil, nil, false),
+				)
+				assert.NoError(t, err)
+
+				_, err = api.CreateKeyWithPolicyOverridesWithOptions(ctx, "test", false, Policy{Rotation: daPolicy},
+					WithAliases(aliases),
+					WithPayload(payload, nil, nil, false),
 				)
 				assert.NoError(t, err)
 

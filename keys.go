@@ -17,6 +17,7 @@ package kp
 import (
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -148,7 +149,7 @@ func WithDescription(description string) CreateKeyOption {
 	}
 }
 
-func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption {
+func WithPayload(payload string, encryptedNonce, iv *string, sha1 bool) CreateKeyOption {
 	return func(key *Key) {
 		key.Payload = payload
 		if !key.Extractable {
@@ -156,8 +157,12 @@ func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption 
 			if sha1 {
 				algorithm = AlgorithmRSAOAEP1
 			}
-			key.EncryptedNonce = encryptedNonce
-			key.IV = iv
+			if encryptedNonce != nil {
+				key.EncryptedNonce = *encryptedNonce
+			}
+			if iv != nil {
+				key.IV = *iv
+			}
 			key.EncryptionAlgorithm = algorithm
 		}
 	}
@@ -181,7 +186,9 @@ func (c *Client) CreateKeyWithOptions(ctx context.Context, name string, extracta
 		Type:        keyType,
 		Extractable: extractable,
 	}
-
+	for _, opt := range options {
+		opt(key)
+	}
 	return c.createKeyResource(ctx, *key, keysPath)
 }
 
@@ -191,15 +198,11 @@ func (c *Client) CreateKeyWithPolicyOverridesWithOptions(ctx context.Context, na
 		Type:        keyType,
 		Extractable: extractable,
 	}
-	/*
-		Setting the value of rotationInterval to -1 in case user passes 0 value
-		as we want to retain the param `interval_month` after marshalling
-		so that we can get correct error msg from REST API saying interval_month should be between 1 to 12
-		Otherwise the param would not be sent to REST API in case of value 0
-		and it would throw error saying interval_month is missing
-	*/
+	for _, opt := range options {
+		opt(key)
+	}
 	if policy.Rotation != nil && policy.Rotation.Interval == 0 {
-		policy.Rotation.Interval = -1
+		return nil, errors.New("Rotation Policy interval should not be 0")
 	}
 	key.Rotation = policy.Rotation
 	key.DualAuthDelete = policy.DualAuth
@@ -216,7 +219,7 @@ func (c *Client) CreateKey(ctx context.Context, name string, expiration *time.Ti
 func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, false),
+		WithPayload(payload, &encryptedNonce, &iv, false),
 	)
 }
 
@@ -226,7 +229,7 @@ func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, exp
 	payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, true),
+		WithPayload(payload, &encryptedNonce, &iv, true),
 		WithAliases(aliases),
 	)
 }
@@ -273,7 +276,7 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 	payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, false),
+		WithPayload(payload, &encryptedNonce, &iv, false),
 		WithAliases(aliases),
 	)
 }
@@ -284,7 +287,7 @@ func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Contex
 	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
 	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, policy,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, true),
+		WithPayload(payload, &encryptedNonce, &iv, true),
 		WithAliases(aliases),
 	)
 }
@@ -302,7 +305,7 @@ func (c *Client) CreateImportedKeyWithPolicyOverrides(ctx context.Context, name 
 	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
 	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, policy,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, false),
+		WithPayload(payload, &encryptedNonce, &iv, false),
 		WithAliases(aliases),
 	)
 }
