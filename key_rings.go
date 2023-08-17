@@ -18,7 +18,7 @@ type KeyRing struct {
 
 type KeyRings struct {
 	Metadata KeysMetadata `json:"metadata"`
-	KeyRings    []KeyRing       `json:"resources"`
+	KeyRings []KeyRing    `json:"resources"`
 }
 
 // CreateRing method creates a key ring in the instance with the provided name
@@ -57,11 +57,18 @@ func (c *Client) GetKeyRings(ctx context.Context) (*KeyRings, error) {
 	return &rings, nil
 }
 
+type DeleteKeyRingOptions struct {
+	Force bool
+}
+
 // DeleteRing method deletes the key ring with the provided name in the instance
 // For information please refer to the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-managing-key-rings#delete-key-ring-api
-func (c *Client) DeleteKeyRing(ctx context.Context, id string) error {
-	req, err := c.newRequest("DELETE", fmt.Sprintf(path+"/%s", id), nil)
+func (c *Client) DeleteKeyRing(ctx context.Context, id string, force bool) error {
+	opts := DeleteKeyRingOptions{
+		Force: force,
+	}
+	req, err := c.newRequest("DELETE", fmt.Sprintf(path+"/%s", id), opts)
 	if err != nil {
 		return err
 	}
