@@ -1054,11 +1054,15 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				)
 				assert.NoError(t, err)
 
-				_, err = api.CreateKeyWithPolicyOverridesWithOptions(ctx, "test", false, Policy{Rotation: daPolicy},
+				disabled := false
+				_, err = api.CreateKeyWithPolicyOverridesWithOptions(ctx, "test", false, Policy{Rotation: &Rotation{
+					Enabled:  &disabled,
+					Interval: 0,
+				}},
 					WithAliases(aliases),
 					WithPayload(payload, nil, nil, false),
 				)
-				assert.NoError(t, err)
+				assert.Error(t, err, "Rotation Interval 0 should throw an error.")
 
 				return nil
 			},
