@@ -247,7 +247,7 @@ func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, exp
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, true),
-		WithAliases(aliases)
+		WithAliases(aliases),
 	)
 }
 
