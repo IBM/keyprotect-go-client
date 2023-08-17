@@ -17,7 +17,6 @@ package kp
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -201,8 +200,15 @@ func (c *Client) CreateKeyWithPolicyOverridesWithOptions(ctx context.Context, na
 	for _, opt := range options {
 		opt(key)
 	}
+	/*
+		Setting the value of rotationInterval to -1 in case user passes 0 value
+		as we want to retain the param `interval_month` after marshalling
+		so that we can get correct error msg from REST API saying interval_month should be between 1 to 12
+		Otherwise the param would not be sent to REST API in case of value 0
+		and it would throw error saying interval_month is missing
+	*/
 	if policy.Rotation != nil && policy.Rotation.Interval == 0 {
-		return nil, errors.New("Rotation Policy interval should not be 0")
+		policy.Rotation.Interval = -1
 	}
 	key.Rotation = policy.Rotation
 	key.DualAuthDelete = policy.DualAuth
