@@ -247,6 +247,7 @@ func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, exp
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, true),
+		WithAliases(aliases)
 	)
 }
 
@@ -291,7 +292,7 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
-		WithPayload(payload, encryptedNonce, iv, true),
+		WithPayload(payload, encryptedNonce, iv, false),
 		WithAliases(aliases),
 	)
 }
