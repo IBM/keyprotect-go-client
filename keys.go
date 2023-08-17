@@ -134,25 +134,22 @@ type KeyVersion struct {
 }
 
 // This function returns a string so we can pass extra info not in the key struct if needed
-type CreateKeyOption func(k *Key) string
+type CreateKeyOption func(k *Key)
 
 func WithExpiration(expiration *time.Time) CreateKeyOption {
-	return func(key *Key) string {
+	return func(key *Key) {
 		key.Expiration = expiration
-		return "expiration"
 	}
 }
 
 func WithDescription(description string) CreateKeyOption {
-	return func(key *Key) string {
+	return func(key *Key) {
 		key.Description = description
-		return "description"
 	}
 }
 
 func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption {
-	return func(key *Key) string {
-		ret := "payload"
+	return func(key *Key) {
 		key.Payload = payload
 		if !key.Extractable {
 			algorithm := AlgorithmRSAOAEP256
@@ -162,46 +159,19 @@ func WithPayload(payload, encryptedNonce, iv string, sha1 bool) CreateKeyOption 
 			key.EncryptedNonce = encryptedNonce
 			key.IV = iv
 			key.EncryptionAlgorithm = algorithm
-			ret += "-" + algorithm
 		}
-		return ret
 	}
 }
 
 func WithAliases(aliases []string) CreateKeyOption {
-	return func(key *Key) string {
+	return func(key *Key) {
 		key.Aliases = aliases
-		return "aliases"
-	}
-}
-
-func WithPolicy(policy *Policy) CreateKeyOption {
-	return func(key *Key) string {
-		/*
-			Setting the value of rotationInterval to -1 in case user passes 0 value
-			as we want to retain the param `interval_month` after marshalling
-			so that we can get correct error msg from REST API saying interval_month should be between 1 to 12
-			Otherwise the param would not be sent to REST API in case of value 0
-			and it would throw error saying interval_month is missing
-		*/
-		if policy.Rotation != nil && policy.Rotation.Interval == 0 {
-			policy.Rotation.Interval = -1
-		}
-		key.Rotation = policy.Rotation
-		key.DualAuthDelete = policy.DualAuth
-		return "policy"
-		/*
-			I needed these CreateKeyOption functions to return a string to ensure I knew when a policy was passed,
-			so that it would call the create key with policy overrides function,
-			even when a policy with empty/nil fields is passed.
-		*/
 	}
 }
 
 func WithTags(tags []string) CreateKeyOption {
-	return func(key *Key) string {
+	return func(key *Key) {
 		key.Tags = tags
-		return "tags"
 	}
 }
 
@@ -211,21 +181,30 @@ func (c *Client) CreateKeyWithOptions(ctx context.Context, name string, extracta
 		Type:        keyType,
 		Extractable: extractable,
 	}
-	overrides := false
-	for _, opt := range options {
-		if opt != nil {
-			optName := opt(key)
-			if optName == "policy" {
-				overrides = true
-			}
-		}
-	}
 
-	path := keysPath
-	if overrides {
-		path = keysWithPolicyOverridesPath
+	return c.createKeyResource(ctx, *key, keysPath)
+}
+
+func (c *Client) CreateKeyWithPolicyOverridesWithOptions(ctx context.Context, name string, extractable bool, policy *Policy, options ...CreateKeyOption) (*Key, error) {
+	key := &Key{
+		Name:        name,
+		Type:        keyType,
+		Extractable: extractable,
 	}
-	return c.createKeyResource(ctx, *key, path)
+	/*
+		Setting the value of rotationInterval to -1 in case user passes 0 value
+		as we want to retain the param `interval_month` after marshalling
+		so that we can get correct error msg from REST API saying interval_month should be between 1 to 12
+		Otherwise the param would not be sent to REST API in case of value 0
+		and it would throw error saying interval_month is missing
+	*/
+	if policy.Rotation != nil && policy.Rotation.Interval == 0 {
+		policy.Rotation.Interval = -1
+	}
+	key.Rotation = policy.Rotation
+	key.DualAuthDelete = policy.DualAuth
+
+	return c.createKeyResource(ctx, *key, keysWithPolicyOverridesPath)
 }
 
 // CreateKey creates a new KP key.
@@ -243,7 +222,8 @@ func (c *Client) CreateImportedKey(ctx context.Context, name string, expiration 
 
 // CreateImportedKeyWithSHA1 creates a new KP key from the given key material
 // using RSAES OAEP SHA 1 as encryption algorithm.
-func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+func (c *Client) CreateImportedKeyWithSHA1(ctx context.Context, name string, expiration *time.Time,
+	payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, true),
@@ -289,7 +269,8 @@ func (c *Client) CreateKeyWithAliases(ctx context.Context, name string, expirati
 // For more information please refer to the links below:
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-root-keys#import-root-key-api
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-import-standard-keys#import-standard-key-gui
-func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
+func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, expiration *time.Time,
+	payload, encryptedNonce, iv string, extractable bool, aliases []string) (*Key, error) {
 	return c.CreateKeyWithOptions(ctx, name, extractable,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, false),
@@ -299,31 +280,30 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 
 // CreateImportedKeyWithPolicyOverridesWithSHA1 creates a new KP key with policy overrides from the given key material
 // and key policy details using RSAES OAEP SHA 1 as encryption algorithm.
-func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithOptions(ctx, name, extractable,
+func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Context, name string, expiration *time.Time,
+	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, true),
 		WithAliases(aliases),
-		WithPolicy(&policy),
 	)
 }
 
 // CreateKeyWithPolicyOverrides creates a new KP key with given key policy details
 func (c *Client) CreateKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithOptions(ctx, name, extractable,
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
 		WithExpiration(expiration),
 		WithAliases(aliases),
-		WithPolicy(&policy),
 	)
 }
 
 // CreateImportedKeyWithPolicyOverrides creates a new Imported KP key from the given key material and with given key policy details
-func (c *Client) CreateImportedKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithOptions(ctx, name, extractable,
+func (c *Client) CreateImportedKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time,
+	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, false),
 		WithAliases(aliases),
-		WithPolicy(&policy),
 	)
 }
 
@@ -338,12 +318,14 @@ func (c *Client) CreateStandardKeyWithPolicyOverrides(ctx context.Context, name 
 }
 
 // CreateImportedRootKeyWithPolicyOverrides creates a new, non-extractable key resource with the given key material and with given key policy details
-func (c *Client) CreateImportedRootKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, payload, encryptedNonce, iv string, aliases []string, policy Policy) (*Key, error) {
+func (c *Client) CreateImportedRootKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time,
+	payload, encryptedNonce, iv string, aliases []string, policy Policy) (*Key, error) {
 	return c.CreateImportedKeyWithPolicyOverrides(ctx, name, expiration, payload, encryptedNonce, iv, false, aliases, policy)
 }
 
 // CreateImportedStandardKeyWithPolicyOverrides creates a new, extractable key resource with the given key material and with given key policy details
-func (c *Client) CreateImportedStandardKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, payload string, aliases []string, policy Policy) (*Key, error) {
+func (c *Client) CreateImportedStandardKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time,
+	payload string, aliases []string, policy Policy) (*Key, error) {
 	return c.CreateImportedKeyWithPolicyOverrides(ctx, name, expiration, payload, "", "", true, aliases, policy)
 }
 
