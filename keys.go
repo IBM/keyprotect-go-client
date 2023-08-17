@@ -185,7 +185,7 @@ func (c *Client) CreateKeyWithOptions(ctx context.Context, name string, extracta
 	return c.createKeyResource(ctx, *key, keysPath)
 }
 
-func (c *Client) CreateKeyWithPolicyOverridesWithOptions(ctx context.Context, name string, extractable bool, policy *Policy, options ...CreateKeyOption) (*Key, error) {
+func (c *Client) CreateKeyWithPolicyOverridesWithOptions(ctx context.Context, name string, extractable bool, policy Policy, options ...CreateKeyOption) (*Key, error) {
 	key := &Key{
 		Name:        name,
 		Type:        keyType,
@@ -282,7 +282,7 @@ func (c *Client) CreateImportedKeyWithAliases(ctx context.Context, name string, 
 // and key policy details using RSAES OAEP SHA 1 as encryption algorithm.
 func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Context, name string, expiration *time.Time,
 	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, policy,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, true),
 		WithAliases(aliases),
@@ -291,7 +291,7 @@ func (c *Client) CreateImportedKeyWithPolicyOverridesWithSHA1(ctx context.Contex
 
 // CreateKeyWithPolicyOverrides creates a new KP key with given key policy details
 func (c *Client) CreateKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, policy,
 		WithExpiration(expiration),
 		WithAliases(aliases),
 	)
@@ -300,7 +300,7 @@ func (c *Client) CreateKeyWithPolicyOverrides(ctx context.Context, name string, 
 // CreateImportedKeyWithPolicyOverrides creates a new Imported KP key from the given key material and with given key policy details
 func (c *Client) CreateImportedKeyWithPolicyOverrides(ctx context.Context, name string, expiration *time.Time,
 	payload, encryptedNonce, iv string, extractable bool, aliases []string, policy Policy) (*Key, error) {
-	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, &policy,
+	return c.CreateKeyWithPolicyOverridesWithOptions(ctx, name, extractable, policy,
 		WithExpiration(expiration),
 		WithPayload(payload, encryptedNonce, iv, false),
 		WithAliases(aliases),

@@ -1017,6 +1017,7 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testGenRootKeyWithPolicies)
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
 				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedKeyWithPoliciesSHA1)
+				MockAuthURL(keyWithPolicyOverridesURL, http.StatusCreated, testImportedRootKeyWithPolicies)
 
 				// Non-imported Root Key
 				_, err := api.CreateRootKeyWithPolicyOverrides(ctx, "test", nil, aliases, allPolicies)
@@ -1045,6 +1046,13 @@ func TestKeyWithPolicyOverrides(t *testing.T) {
 				importedKey, err := api.CreateImportedKeyWithPolicyOverridesWithSHA1(ctx, "Key", nil, "payload", "encryptedNonce", "iv", false, nil, Policy{})
 				assert.NoError(t, err)
 				assert.Equal(t, AlgorithmRSAOAEP1, importedKey.EncryptionAlgorithm)
+
+				// WithOptions
+				_, err = api.CreateKeyWithPolicyOverridesWithOptions(ctx, "test", false, Policy{DualAuth: daPolicy},
+					WithAliases(aliases),
+					WithPayload(payload, "", "", false),
+				)
+				assert.NoError(t, err)
 
 				return nil
 			},
