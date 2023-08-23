@@ -61,7 +61,7 @@ func (c *Client) GetKeyRings(ctx context.Context) (*KeyRings, error) {
 
 type DeleteKeyRingQueryOption func(*http.Request)
 
-func UseForce(force bool) DeleteKeyRingQueryOption {
+func WithForce(force bool) DeleteKeyRingQueryOption {
 	return func(req *http.Request) {
 		query := req.URL.Query()
 		query.Add("force", strconv.FormatBool(force))

@@ -3290,7 +3290,7 @@ func TestDeleteKeyRing(t *testing.T) {
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
 
-	err = c.DeleteKeyRing(context.Background(), keyRingID, UseForce(true))
+	err = c.DeleteKeyRing(context.Background(), keyRingID, WithForce(true))
 
 	assert.NoError(t, err)
 
