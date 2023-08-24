@@ -160,6 +160,9 @@ func WithPayload(payload string, encryptedNonce, iv *string, sha1 bool) CreateKe
 			if hasIV {
 				key.IV = *iv
 			}
+			// Encryption algo field is only for secure import.
+			// Only included it if either nonce or IV are specified.
+			// API will error if only one of IV or nonce are specified but the other is empty.
 			if hasNonce || hasIV {
 				algorithm := AlgorithmRSAOAEP256
 				if sha1 {
