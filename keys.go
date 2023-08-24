@@ -152,9 +152,12 @@ func WithPayload(payload string, encryptedNonce, iv *string, sha1 bool) CreateKe
 	return func(key *Key) {
 		key.Payload = payload
 		if !key.Extractable {
-			algorithm := AlgorithmRSAOAEP256
-			if sha1 {
-				algorithm = AlgorithmRSAOAEP1
+			if payload != "" {
+				algorithm := AlgorithmRSAOAEP256
+				if sha1 {
+					algorithm = AlgorithmRSAOAEP1
+				}
+				key.EncryptionAlgorithm = algorithm
 			}
 			if encryptedNonce != nil {
 				key.EncryptedNonce = *encryptedNonce
@@ -162,7 +165,6 @@ func WithPayload(payload string, encryptedNonce, iv *string, sha1 bool) CreateKe
 			if iv != nil {
 				key.IV = *iv
 			}
-			key.EncryptionAlgorithm = algorithm
 		}
 	}
 }
