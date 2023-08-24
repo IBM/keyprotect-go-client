@@ -151,18 +151,19 @@ func WithDescription(description string) CreateKeyOption {
 func WithPayload(payload string, encryptedNonce, iv *string, sha1 bool) CreateKeyOption {
 	return func(key *Key) {
 		key.Payload = payload
-		if !key.Extractable {
+		if !key.Extractable && payload != "" {
 			algorithm := AlgorithmRSAOAEP256
 			if sha1 {
 				algorithm = AlgorithmRSAOAEP1
 			}
+			key.EncryptionAlgorithm = algorithm
+
 			if encryptedNonce != nil {
 				key.EncryptedNonce = *encryptedNonce
 			}
 			if iv != nil {
 				key.IV = *iv
 			}
-			key.EncryptionAlgorithm = algorithm
 		}
 	}
 }
