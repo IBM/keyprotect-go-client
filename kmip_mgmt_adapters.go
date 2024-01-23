@@ -12,6 +12,7 @@ const (
 )
 
 type KMIPAdapter struct {
+	ID          string      `json:"id,omitempty"`
 	Profile     string      `json:"profile,omitempty"`
 	ProfileData kmipProfile `json:"profile_data"`
 	Name        string      `json:"name,omitempty"`
@@ -40,7 +41,7 @@ const (
 // CreateKMIPAdapter method creates a KMIP Adapter with the specified profile.
 // For information please refer to the link below:
 // https://cloud.ibm.com/docs/key-protect?topic=placeholder
-func (c *Client) CreateKMIPAdapter(ctx context.Context, id string, profile CreateKMIPAdapterProfile, options ...CreateKMIPAdapterOption) (*KMIPAdapter, error) {
+func (c *Client) CreateKMIPAdapter(ctx context.Context, profile CreateKMIPAdapterProfile, options ...CreateKMIPAdapterOption) (*KMIPAdapter, error) {
 	newAdapter := &KMIPAdapter{}
 	profile(newAdapter)
 	for _, opt := range options {

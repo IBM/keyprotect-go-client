@@ -7,7 +7,7 @@ import (
 
 const (
 	KMIPClientCertSubPath = "certificates"
-	kmipClientCertType    = "application/vnd.ibm.kms.kmip_adapter+json"
+	kmipClientCertType    = "application/vnd.ibm.kms.kmip_client_certificate+json"
 )
 
 type KMIPClientCertificate struct {
