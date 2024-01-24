@@ -3,9 +3,9 @@ package kp
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
-// TODO: comments are all wrong
 const (
 	KMIPAdapterPath = "kmip_adapters"
 	kmipAdapterType = "application/vnd.ibm.kms.kmip_adapter+json"
@@ -14,9 +14,13 @@ const (
 type KMIPAdapter struct {
 	ID          string      `json:"id,omitempty"`
 	Profile     string      `json:"profile,omitempty"`
-	ProfileData kmipProfile `json:"profile_data"`
+	ProfileData kmipProfile `json:"profile_data,omitempty"`
 	Name        string      `json:"name,omitempty"`
 	Description string      `json:"description"`
+	CreatedBy   string      `json:"created_by,omitempty"`
+	CreatedAt   *time.Time  `json:"created_at,omitempty"`
+	UpdatedBy   string      `json:"updated_by,omitempty"`
+	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
 }
 
 type KMIPAdapters struct {

@@ -3,6 +3,7 @@ package kp
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 const (
@@ -13,16 +14,17 @@ const (
 type KMIPObject struct {
 	ID                string
 	KMIPObjectType    int
+	ObjectState       int
 	KMIPAdapterID     string
 	CreatedByCertID   string
 	CreatedBy         string
-	CreatedAt         string
+	CreatedAt         *time.Time
 	UpdatedByCertID   string
 	UpdatedBy         string
-	UpdatedAt         string
+	UpdatedAt         *time.Time
 	DestroyedByCertID string
 	DestroyedBy       string
-	DestroyedAt       string
+	DestroyedAt       *time.Time
 }
 
 type KMIPObjects struct {
@@ -30,7 +32,7 @@ type KMIPObjects struct {
 	Objects  []KMIPObject `json:"resources"`
 }
 
-func (c *Client) GetKMIPObject(ctx context.Context, adapter_id string) (*KMIPObject, error) {
+func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string) (*KMIPObject, error) {
 	objects := KMIPObject{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPObjectSubPath), nil)
 	if err != nil {
@@ -89,5 +91,3 @@ func wrapKMIPObject(object KMIPObject) KMIPObjects {
 func unwrapKMIPObject(objects *KMIPObjects) *KMIPObject {
 	return &objects.Objects[0]
 }
-
-//TODO: get list delete

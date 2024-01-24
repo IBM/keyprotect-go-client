@@ -3,6 +3,7 @@ package kp
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 const (
@@ -11,8 +12,11 @@ const (
 )
 
 type KMIPClientCertificate struct {
-	Name        string `json:"name,omitempty"`
-	Certificate string `json:"certificate,omitempty"`
+	ID          string     `json:"id,omitempty"`
+	Name        string     `json:"name,omitempty"`
+	Certificate string     `json:"certificate,omitempty"`
+	CreatedBy   string     `json:"created_by,omitempty"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
 }
 
 type KMIPClientCertificates struct {
