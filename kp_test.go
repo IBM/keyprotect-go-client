@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	kp "github.com/IBM/keyprotect-go-client"
 	"github.com/IBM/keyprotect-go-client/iam"
 	"github.com/google/uuid"
 
@@ -5252,4 +5253,198 @@ func TestListKeyFilter(t *testing.T) {
 	assert.Nil(t, keys)
 	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
+}
+
+func TestKMIPMgmtAPI(t *testing.T) {
+	defer gock.Off()
+	UUID := "feddecaf-0000-0000-0000-1234567890ab"
+	exampleIBMID := "IBMid-0000000000"
+	kmipAdapterProfile := "native_1.0"
+	crkUUID := "beddecaf-0000-0000-0000-1234567890ab"
+	timestamp := time.Now()
+	newAdapter := KMIPAdapter{
+		ID:      UUID,
+		Name:    "kmip-adapter-123",
+		Profile: kmipAdapterProfile,
+		ProfileData: KMIPProfileNative{
+			CrkID: crkUUID,
+		},
+		Description: "our 123rd kmip adapter",
+		CreatedAt:   &timestamp,
+		CreatedBy:   exampleIBMID,
+	}
+	newCertificate := KMIPClientCertificate{
+		ID:        UUID,
+		Name:      "kmip-client-certificate",
+		CreatedAt: &timestamp,
+		CreatedBy: exampleIBMID,
+	}
+	newKmipObject := KMIPObject{
+		ID:              UUID,
+		KMIPObjectType:  2,
+		ObjectState:     1,
+		KMIPAdapterID:   newAdapter.ID,
+		CreatedByCertID: newCertificate.ID,
+		CreatedBy:       exampleIBMID,
+		CreatedAt:       &timestamp,
+	}
+
+	testAdapters := &KMIPAdapters{
+		Metadata: KeysMetadata{
+			CollectionType: kmipAdapterType,
+			NumberOfKeys:   2,
+		},
+		Adapters: []KMIPAdapter{
+			newAdapter,
+			newAdapter,
+		},
+	}
+	testCerts := &KMIPClientCertificates{
+		Metadata: KeysMetadata{
+			CollectionType: kmipClientCertType,
+			NumberOfKeys:   2,
+		},
+		Certificates: []KMIPClientCertificate{
+			newCertificate,
+			newCertificate,
+		},
+	}
+	testKmipObjects := &KMIPObjects{
+		Metadata: KeysMetadata{
+			CollectionType: kmipObjectType,
+			NumberOfKeys:   2,
+		},
+		Objects: []KMIPObject{
+			newKmipObject,
+			newKmipObject,
+		},
+	}
+
+	adapterURL := "/api/v2/" + kp.KMIPAdapterPath + "/"
+	adapterURLRoot := adapterURL + UUID + "/"
+	certURL := adapterURLRoot + kp.KMIPClientCertSubPath + "/"
+	objectURL := adapterURLRoot + kp.KMIPObjectSubPath + "/"
+	cases := TestCases{
+		{
+			"KMIP Adapter Create",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(adapterURL, http.StatusCreated, newAdapter)
+				adapter, err := api.CreateKMIPAdapter(
+					ctx,
+					WithNativeProfile(crkUUID),
+					WithKMIPAdapterName(newAdapter.Name),
+					WithKMIPAdapterDescription(newAdapter.Description),
+				)
+				assert.NoError(t, err)
+				assert.Equal(t, adapter.Name, newAdapter.Name)
+				assert.Equal(t, adapter.CreatedAt, &timestamp)
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(adapterURL, http.StatusOK, testAdapters)
+				adapters, err := api.GetKMIPAdapters(ctx, 100, 0)
+				assert.NoError(t, err)
+				assert.Equal(t, adapters.Metadata.NumberOfKeys, testAdapters.Metadata.NumberOfKeys)
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(adapterURLRoot, http.StatusOK, testAdapters)
+				adapter, err := api.GetKMIPAdapter(ctx, UUID)
+				assert.NoError(t, err)
+				assert.Equal(t, adapter.ID, newAdapter.ID)
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(adapterURLRoot, http.StatusOK, nil)
+				err := api.DeleteKMIPAdapter(ctx, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Create",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(certURL, http.StatusCreated, nil)
+				cert, err := api.CreateKMIPClientCertificate(
+					ctx,
+					UUID,
+					"",
+					WithKMIPClientCertName(newCertificate.Name),
+				)
+				assert.NoError(t, err)
+				assert.Equal(t, cert.Name, newCertificate.Name)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(certURL, http.StatusOK, nil)
+				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0)
+				assert.NoError(t, err)
+				assert.Equal(t, certs.Metadata.NumberOfKeys, testCerts.Metadata.NumberOfKeys)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(certURL+UUID, http.StatusOK, nil)
+				cert, err := api.GetKMIPClientCertificate(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				assert.Equal(t, cert.ID, newCertificate.ID)
+				assert.Equal(t, cert.Name, newCertificate.Name)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(certURL+UUID, http.StatusOK, nil)
+				err := api.DeleteKMIPClientCertificate(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+
+		{
+			"KMIP Object List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(objectURL, http.StatusOK, nil)
+				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0)
+				assert.NoError(t, err)
+				assert.Equal(t, KmipObjects.Metadata.NumberOfKeys, testKmipObjects.Metadata.NumberOfKeys)
+				return nil
+			},
+		},
+		{
+			"KMIP Object Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(objectURL+UUID, http.StatusOK, nil)
+				KmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				assert.Equal(t, KmipObject.ID, newKmipObject.ID)
+				return nil
+			},
+		},
+		{
+			"KMIP Object Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				MockAuthURL(objectURL+UUID, http.StatusOK, nil)
+				err := api.DeleteKMIPObject(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
 }
