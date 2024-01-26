@@ -28,7 +28,6 @@ import (
 	"testing"
 	"time"
 
-	kp "github.com/IBM/keyprotect-go-client"
 	"github.com/IBM/keyprotect-go-client/iam"
 	"github.com/google/uuid"
 
@@ -5320,10 +5319,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		},
 	}
 
-	adapterURL := "/api/v2/" + kp.KMIPAdapterPath + "/"
+	adapterURL := "/api/v2/" + KMIPAdapterPath + "/"
 	adapterURLRoot := adapterURL + UUID + "/"
-	certURL := adapterURLRoot + kp.KMIPClientCertSubPath + "/"
-	objectURL := adapterURLRoot + kp.KMIPObjectSubPath + "/"
+	certURL := adapterURLRoot + KMIPClientCertSubPath + "/"
+	objectURL := adapterURLRoot + KMIPObjectSubPath + "/"
 	cases := TestCases{
 		{
 			"KMIP Adapter Create",
