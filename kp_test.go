@@ -5288,6 +5288,15 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		CreatedAt:       &timestamp,
 	}
 
+	singleAdapter := &KMIPAdapters{
+		Metadata: KeysMetadata{
+			CollectionType: kmipAdapterType,
+			NumberOfKeys:   1,
+		},
+		Adapters: []KMIPAdapter{
+			newAdapter,
+		},
+	}
 	testAdapters := &KMIPAdapters{
 		Metadata: KeysMetadata{
 			CollectionType: kmipAdapterType,
@@ -5298,6 +5307,15 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			newAdapter,
 		},
 	}
+	singleCert := &KMIPClientCertificates{
+		Metadata: KeysMetadata{
+			CollectionType: kmipClientCertType,
+			NumberOfKeys:   1,
+		},
+		Certificates: []KMIPClientCertificate{
+			newCertificate,
+		},
+	}
 	testCerts := &KMIPClientCertificates{
 		Metadata: KeysMetadata{
 			CollectionType: kmipClientCertType,
@@ -5306,6 +5324,16 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		Certificates: []KMIPClientCertificate{
 			newCertificate,
 			newCertificate,
+		},
+	}
+
+	singleKmipObject := &KMIPObjects{
+		Metadata: KeysMetadata{
+			CollectionType: kmipObjectType,
+			NumberOfKeys:   1,
+		},
+		Objects: []KMIPObject{
+			newKmipObject,
 		},
 	}
 	testKmipObjects := &KMIPObjects{
@@ -5319,15 +5347,20 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		},
 	}
 
-	adapterURL := "/api/v2/" + KMIPAdapterPath + "/"
-	adapterURLRoot := adapterURL + UUID + "/"
-	certURL := adapterURLRoot + KMIPClientCertSubPath + "/"
-	objectURL := adapterURLRoot + KMIPObjectSubPath + "/"
+	baseURL := "http://example.com"
+	adapterPath := "/api/v2/" + KMIPAdapterPath + "/"
+	adapterPathID := adapterPath + UUID + "/"
+	certPath := adapterPathID + KMIPClientCertSubPath + "/"
+	objectPath := adapterPathID + KMIPObjectSubPath + "/"
 	cases := TestCases{
 		{
 			"KMIP Adapter Create",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(adapterURL, http.StatusCreated, newAdapter)
+				defer gock.Off()
+				gock.New(baseURL).
+					Post(adapterPath).
+					Reply(http.StatusCreated).
+					JSON(singleAdapter)
 				adapter, err := api.CreateKMIPAdapter(
 					ctx,
 					WithNativeProfile(crkUUID),
@@ -5343,7 +5376,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Adapter List",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(adapterURL, http.StatusOK, testAdapters)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(adapterPath).
+					Reply(http.StatusOK).
+					JSON(testAdapters)
 				adapters, err := api.GetKMIPAdapters(ctx, 100, 0)
 				assert.NoError(t, err)
 				assert.Equal(t, adapters.Metadata.NumberOfKeys, testAdapters.Metadata.NumberOfKeys)
@@ -5353,7 +5390,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Adapter Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(adapterURLRoot, http.StatusOK, testAdapters)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(adapterPathID).
+					Reply(http.StatusOK).
+					JSON(singleAdapter)
 				adapter, err := api.GetKMIPAdapter(ctx, UUID)
 				assert.NoError(t, err)
 				assert.Equal(t, adapter.ID, newAdapter.ID)
@@ -5363,7 +5404,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Adapter Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(adapterURLRoot, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Delete(adapterPathID).
+					Reply(http.StatusOK)
 				err := api.DeleteKMIPAdapter(ctx, UUID)
 				assert.NoError(t, err)
 				return nil
@@ -5372,11 +5416,15 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Client Certificate Create",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(certURL, http.StatusCreated, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Post(certPath).
+					Reply(http.StatusCreated).
+					JSON(singleCert)
 				cert, err := api.CreateKMIPClientCertificate(
 					ctx,
 					UUID,
-					"",
+					"dummy_payload",
 					WithKMIPClientCertName(newCertificate.Name),
 				)
 				assert.NoError(t, err)
@@ -5387,7 +5435,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Client Certificate List",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(certURL, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(certPath).
+					Reply(http.StatusOK).
+					JSON(testCerts)
 				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0)
 				assert.NoError(t, err)
 				assert.Equal(t, certs.Metadata.NumberOfKeys, testCerts.Metadata.NumberOfKeys)
@@ -5397,7 +5449,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Client Certificate Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(certURL+UUID, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(certPath + UUID).
+					Reply(http.StatusOK).
+					JSON(singleCert)
 				cert, err := api.GetKMIPClientCertificate(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				assert.Equal(t, cert.ID, newCertificate.ID)
@@ -5408,7 +5464,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Client Certificate Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(certURL+UUID, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Delete(certPath + UUID).
+					Reply(http.StatusOK)
 				err := api.DeleteKMIPClientCertificate(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				return nil
@@ -5418,7 +5477,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Object List",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(objectURL, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(objectPath).
+					Reply(http.StatusOK).
+					JSON(testKmipObjects)
 				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0)
 				assert.NoError(t, err)
 				assert.Equal(t, KmipObjects.Metadata.NumberOfKeys, testKmipObjects.Metadata.NumberOfKeys)
@@ -5428,7 +5491,11 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Object Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(objectURL+UUID, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Get(objectPath + UUID).
+					Reply(http.StatusOK).
+					JSON(singleKmipObject)
 				KmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				assert.Equal(t, KmipObject.ID, newKmipObject.ID)
@@ -5438,7 +5505,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		{
 			"KMIP Object Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				MockAuthURL(objectURL+UUID, http.StatusOK, nil)
+				defer gock.Off()
+				gock.New(baseURL).
+					Delete(objectPath + UUID).
+					Reply(http.StatusOK)
 				err := api.DeleteKMIPObject(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				return nil
