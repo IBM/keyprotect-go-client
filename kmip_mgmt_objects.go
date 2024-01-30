@@ -14,19 +14,18 @@ const (
 )
 
 type KMIPObject struct {
-	ID                string
-	KMIPObjectType    int
-	ObjectState       int
-	KMIPAdapterID     string
-	CreatedByCertID   string
-	CreatedBy         string
-	CreatedAt         *time.Time
-	UpdatedByCertID   string
-	UpdatedBy         string
-	UpdatedAt         *time.Time
-	DestroyedByCertID string
-	DestroyedBy       string
-	DestroyedAt       *time.Time
+	ID                string     `json:"id,omitempty"`
+	KMIPObjectType    int        `json:"kmip_object_type,omitempty"`
+	ObjectState       int        `json:"state,omitempty"`
+	CreatedByCertID   string     `json:"created_by_kmip_client_cert_id,omitempty"`
+	CreatedBy         string     `json:"created_by,omitempty"`
+	CreatedAt         *time.Time `json:"created_at,omitempty"`
+	UpdatedByCertID   string     `json:"updated_by_kmip_client_cert_id,omitempty"`
+	UpdatedBy         string     `json:"updated_by,omitempty"`
+	UpdatedAt         *time.Time `json:"updated_at,omitempty"`
+	DestroyedByCertID string     `json:"destroyed_by_kmip_client_cert_id,omitempty"`
+	DestroyedBy       string     `json:"destroyed_by,omitempty"`
+	DestroyedAt       *time.Time `json:"destroyed_at,omitempty"`
 }
 
 type KMIPObjects struct {

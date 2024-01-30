@@ -30,16 +30,6 @@ type KMIPAdapters struct {
 	Adapters []KMIPAdapter `json:"resources"`
 }
 
-type kmipProfileData interface {
-	Type() string
-}
-
-type KMIPProfileNative struct {
-	CrkID string `json:"crk_id"`
-}
-
-func (k KMIPProfileNative) Type() string { return KMIP_Profile_Native }
-
 const (
 	KMIP_Profile_Native = "native_1.0"
 )
@@ -123,12 +113,11 @@ func (c *Client) GetKMIPAdapter(ctx context.Context, id string) (*KMIPAdapter, e
 		return nil, err
 	}
 
-	return &adapters.Adapters[0], nil
+	return unwrapKMIPAdapterResp(&adapters), nil
 }
 
 func (c *Client) DeleteKMIPAdapter(ctx context.Context, id string) error {
 	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s", KMIPAdapterPath, id), nil)
-
 	if err != nil {
 		return err
 	}
