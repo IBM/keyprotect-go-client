@@ -26,6 +26,9 @@ type KMIPClientCertificates struct {
 	Certificates []KMIPClientCertificate `json:"resources"`
 }
 
+// cert_payload is the string representation of the certificate to be associated with the KMIP Adapter.
+// It should explicitly have the BEGIN CERTIFICATE and END CERTIFICATE tags.
+// Regex: ^\s*-----BEGIN CERTIFICATE-----[A-Za-z0-9+\/\=\r\n]+-----END CERTIFICATE-----\s*$
 func (c *Client) CreateKMIPClientCertificate(ctx context.Context, adapter_id, cert_payload string, opts ...CreateKMIPClientCertOption) (*KMIPClientCertificate, error) {
 	newCert := &KMIPClientCertificate{}
 	for _, opt := range opts {
