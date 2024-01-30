@@ -5348,10 +5348,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 	}
 
 	baseURL := "http://example.com"
-	adapterPath := "/api/v2/" + KMIPAdapterPath + "/"
-	adapterPathID := adapterPath + UUID + "/"
-	certPath := adapterPathID + KMIPClientCertSubPath + "/"
-	objectPath := adapterPathID + KMIPObjectSubPath + "/"
+	adapterPath := "/api/v2/" + KMIPAdapterPath
+	adapterPathID := adapterPath + "/" + UUID
+	certPath := adapterPathID + "/" + KMIPClientCertSubPath
+	objectPath := adapterPathID + "/" + KMIPObjectSubPath
 	cases := TestCases{
 		{
 			"KMIP Adapter Create",
@@ -5370,7 +5370,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				)
 				assert.NoError(t, err)
 				assert.Equal(t, adapter.Name, newAdapter.Name)
-				assert.Equal(t, adapter.CreatedAt, &timestamp)
+				assert.Equal(t, adapter.Description, newAdapter.Description)
 				return nil
 			},
 		},
@@ -5458,7 +5458,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				defer gock.Off()
 				MockAuth()
 				gock.New(baseURL).
-					Get(certPath + UUID).
+					Get(certPath + "/" + UUID).
 					Reply(http.StatusOK).
 					JSON(singleCert)
 				cert, err := api.GetKMIPClientCertificate(ctx, UUID, UUID)
@@ -5474,7 +5474,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				defer gock.Off()
 				MockAuth()
 				gock.New(baseURL).
-					Delete(certPath + UUID).
+					Delete(certPath + "/" + UUID).
 					Reply(http.StatusOK)
 				err := api.DeleteKMIPClientCertificate(ctx, UUID, UUID)
 				assert.NoError(t, err)
@@ -5503,7 +5503,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				defer gock.Off()
 				MockAuth()
 				gock.New(baseURL).
-					Get(objectPath + UUID).
+					Get(objectPath + "/" + UUID).
 					Reply(http.StatusOK).
 					JSON(singleKmipObject)
 				KmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
@@ -5518,7 +5518,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				defer gock.Off()
 				MockAuth()
 				gock.New(baseURL).
-					Delete(objectPath + UUID).
+					Delete(objectPath + "/" + UUID).
 					Reply(http.StatusOK)
 				err := api.DeleteKMIPObject(ctx, UUID, UUID)
 				assert.NoError(t, err)

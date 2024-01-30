@@ -14,15 +14,15 @@ const (
 )
 
 type KMIPAdapter struct {
-	ID          string      `json:"id,omitempty"`
-	Profile     string      `json:"profile,omitempty"`
-	ProfileData kmipProfile `json:"profile_data,omitempty"`
-	Name        string      `json:"name,omitempty"`
-	Description string      `json:"description"`
-	CreatedBy   string      `json:"created_by,omitempty"`
-	CreatedAt   *time.Time  `json:"created_at,omitempty"`
-	UpdatedBy   string      `json:"updated_by,omitempty"`
-	UpdatedAt   *time.Time  `json:"updated_at,omitempty"`
+	ID          string            `json:"id,omitempty"`
+	Profile     string            `json:"profile,omitempty"`
+	ProfileData KMIPProfileNative `json:"profile_data,omitempty"`
+	Name        string            `json:"name,omitempty"`
+	Description string            `json:"description"`
+	CreatedBy   string            `json:"created_by,omitempty"`
+	CreatedAt   *time.Time        `json:"created_at,omitempty"`
+	UpdatedBy   string            `json:"updated_by,omitempty"`
+	UpdatedAt   *time.Time        `json:"updated_at,omitempty"`
 }
 
 type KMIPAdapters struct {
@@ -30,7 +30,7 @@ type KMIPAdapters struct {
 	Adapters []KMIPAdapter `json:"resources"`
 }
 
-type kmipProfile interface {
+type kmipProfileData interface {
 	Type() string
 }
 
@@ -63,7 +63,6 @@ func (c *Client) CreateKMIPAdapter(ctx context.Context, profile CreateKMIPAdapte
 	if err != nil {
 		return nil, err
 	}
-
 	return unwrapKMIPAdapterResp(create_resp), nil
 }
 
