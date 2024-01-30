@@ -5265,8 +5265,8 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		ID:      UUID,
 		Name:    "kmip-adapter-123",
 		Profile: kmipAdapterProfile,
-		ProfileData: KMIPProfileNative{
-			CrkID: crkUUID,
+		ProfileData: map[string]string{
+			"crk_id": crkUUID,
 		},
 		Description: "our 123rd kmip adapter",
 		CreatedAt:   &timestamp,

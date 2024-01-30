@@ -16,7 +16,7 @@ const (
 type KMIPAdapter struct {
 	ID          string            `json:"id,omitempty"`
 	Profile     string            `json:"profile,omitempty"`
-	ProfileData KMIPProfileNative `json:"profile_data,omitempty"`
+	ProfileData map[string]string `json:"profile_data,omitempty"`
 	Name        string            `json:"name,omitempty"`
 	Description string            `json:"description"`
 	CreatedBy   string            `json:"created_by,omitempty"`
@@ -85,8 +85,8 @@ func WithNativeProfile(crkID string) CreateKMIPAdapterProfile {
 	return func(adapter *KMIPAdapter) {
 		adapter.Profile = KMIP_Profile_Native
 
-		adapter.ProfileData = KMIPProfileNative{
-			CrkID: crkID,
+		adapter.ProfileData = map[string]string{
+			"crk_id": crkID,
 		}
 	}
 }
