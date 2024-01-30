@@ -5411,7 +5411,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Delete(adapterPathID).
-					Reply(http.StatusOK)
+					Reply(http.StatusNoContent)
 				err := api.DeleteKMIPAdapter(ctx, UUID)
 				assert.NoError(t, err)
 				return nil
@@ -5475,7 +5475,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Delete(certPath + "/" + UUID).
-					Reply(http.StatusOK)
+					Reply(http.StatusNoContent)
 				err := api.DeleteKMIPClientCertificate(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				return nil
@@ -5519,7 +5519,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Delete(objectPath + "/" + UUID).
-					Reply(http.StatusOK)
+					Reply(http.StatusNoContent)
 				err := api.DeleteKMIPObject(ctx, UUID, UUID)
 				assert.NoError(t, err)
 				return nil
