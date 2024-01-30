@@ -33,7 +33,7 @@ type KMIPObjects struct {
 	Objects  []KMIPObject `json:"resources"`
 }
 
-func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, limit, offset int) (*KMIPObjects, error) {
+func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, limit, offset int, totalCount bool) (*KMIPObjects, error) {
 	objects := KMIPObjects{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPObjectSubPath), nil)
 	if err != nil {
@@ -43,6 +43,9 @@ func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, limit, o
 	v := url.Values{}
 	v.Set("limit", strconv.Itoa(limit))
 	v.Set("offset", strconv.Itoa(offset))
+	if totalCount {
+		v.Set("totalCount", "true")
+	}
 	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &objects)

@@ -5282,7 +5282,6 @@ func TestKMIPMgmtAPI(t *testing.T) {
 		ID:              UUID,
 		KMIPObjectType:  2,
 		ObjectState:     1,
-		KMIPAdapterID:   newAdapter.ID,
 		CreatedByCertID: newCertificate.ID,
 		CreatedBy:       exampleIBMID,
 		CreatedAt:       &timestamp,
@@ -5383,7 +5382,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Get(adapterPath).
 					Reply(http.StatusOK).
 					JSON(testAdapters)
-				adapters, err := api.GetKMIPAdapters(ctx, 100, 0)
+				adapters, err := api.GetKMIPAdapters(ctx, 100, 0, true)
 				assert.NoError(t, err)
 				assert.Equal(t, adapters.Metadata.NumberOfKeys, testAdapters.Metadata.NumberOfKeys)
 				return nil
@@ -5446,7 +5445,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Get(certPath).
 					Reply(http.StatusOK).
 					JSON(testCerts)
-				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0)
+				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0, true)
 				assert.NoError(t, err)
 				assert.Equal(t, certs.Metadata.NumberOfKeys, testCerts.Metadata.NumberOfKeys)
 				return nil
@@ -5491,7 +5490,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Get(objectPath).
 					Reply(http.StatusOK).
 					JSON(testKmipObjects)
-				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0)
+				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0, false)
 				assert.NoError(t, err)
 				assert.Equal(t, KmipObjects.Metadata.NumberOfKeys, testKmipObjects.Metadata.NumberOfKeys)
 				return nil

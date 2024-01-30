@@ -26,7 +26,8 @@ type KMIPClientCertificates struct {
 	Certificates []KMIPClientCertificate `json:"resources"`
 }
 
-// cert_payload is the string representation of the certificate to be associated with the KMIP Adapter.
+// cert_payload is the string representation of
+// the certificate to be associated with the KMIP Adapter in PEM format.
 // It should explicitly have the BEGIN CERTIFICATE and END CERTIFICATE tags.
 // Regex: ^\s*-----BEGIN CERTIFICATE-----[A-Za-z0-9+\/\=\r\n]+-----END CERTIFICATE-----\s*$
 func (c *Client) CreateKMIPClientCertificate(ctx context.Context, adapter_id, cert_payload string, opts ...CreateKMIPClientCertOption) (*KMIPClientCertificate, error) {
@@ -55,7 +56,7 @@ func WithKMIPClientCertName(name string) CreateKMIPClientCertOption {
 	}
 }
 
-func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id string, limit, offset int) (*KMIPClientCertificates, error) {
+func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id string, limit, offset int, totalCount bool) (*KMIPClientCertificates, error) {
 	certs := KMIPClientCertificates{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPClientCertSubPath), nil)
 	if err != nil {
@@ -65,6 +66,9 @@ func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id strin
 	v := url.Values{}
 	v.Set("limit", strconv.Itoa(limit))
 	v.Set("offset", strconv.Itoa(offset))
+	if totalCount {
+		v.Set("totalCount", "true")
+	}
 	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &certs)

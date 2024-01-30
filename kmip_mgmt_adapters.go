@@ -81,7 +81,7 @@ func WithNativeProfile(crkID string) CreateKMIPAdapterProfile {
 	}
 }
 
-func (c *Client) GetKMIPAdapters(ctx context.Context, limit, offset int) (*KMIPAdapters, error) {
+func (c *Client) GetKMIPAdapters(ctx context.Context, limit, offset int, totalCount bool) (*KMIPAdapters, error) {
 	adapters := KMIPAdapters{}
 	req, err := c.newRequest("GET", KMIPAdapterPath, nil)
 	if err != nil {
@@ -91,6 +91,9 @@ func (c *Client) GetKMIPAdapters(ctx context.Context, limit, offset int) (*KMIPA
 	v := url.Values{}
 	v.Set("limit", strconv.Itoa(limit))
 	v.Set("offset", strconv.Itoa(offset))
+	if totalCount {
+		v.Set("totalCount", "true")
+	}
 	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &adapters)
