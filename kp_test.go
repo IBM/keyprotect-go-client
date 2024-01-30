@@ -5357,6 +5357,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Adapter Create",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Post(adapterPath).
 					Reply(http.StatusCreated).
@@ -5377,6 +5378,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Adapter List",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(adapterPath).
 					Reply(http.StatusOK).
@@ -5391,6 +5393,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Adapter Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(adapterPathID).
 					Reply(http.StatusOK).
@@ -5405,6 +5408,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Adapter Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Delete(adapterPathID).
 					Reply(http.StatusOK)
@@ -5417,6 +5421,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Client Certificate Create",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Post(certPath).
 					Reply(http.StatusCreated).
@@ -5436,6 +5441,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Client Certificate List",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(certPath).
 					Reply(http.StatusOK).
@@ -5450,6 +5456,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Client Certificate Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(certPath + UUID).
 					Reply(http.StatusOK).
@@ -5465,6 +5472,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Client Certificate Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Delete(certPath + UUID).
 					Reply(http.StatusOK)
@@ -5478,6 +5486,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Object List",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(objectPath).
 					Reply(http.StatusOK).
@@ -5492,6 +5501,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Object Get",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Get(objectPath + UUID).
 					Reply(http.StatusOK).
@@ -5506,6 +5516,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"KMIP Object Delete",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
+				MockAuth()
 				gock.New(baseURL).
 					Delete(objectPath + UUID).
 					Reply(http.StatusOK)
