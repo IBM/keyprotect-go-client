@@ -29,8 +29,8 @@ type KMIPObject struct {
 }
 
 type KMIPObjects struct {
-	Metadata KeysMetadata `json:"metadata"`
-	Objects  []KMIPObject `json:"resources"`
+	Metadata CollectionMetadata `json:"metadata"`
+	Objects  []KMIPObject       `json:"resources"`
 }
 
 func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, limit, offset int, totalCount bool) (*KMIPObjects, error) {
@@ -89,9 +89,9 @@ func (c *Client) DeleteKMIPObject(ctx context.Context, adapter_id, object_id str
 
 func wrapKMIPObject(object KMIPObject) KMIPObjects {
 	return KMIPObjects{
-		Metadata: KeysMetadata{
-			CollectionType: kmipObjectType,
-			NumberOfKeys:   1,
+		Metadata: CollectionMetadata{
+			CollectionType:  kmipObjectType,
+			CollectionTotal: 1,
 		},
 		Objects: []KMIPObject{object},
 	}

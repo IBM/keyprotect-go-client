@@ -515,3 +515,9 @@ func redact(s string, redactStrings []string) string {
 func noredact(s string, redactStrings []string) string {
 	return s
 }
+
+type CollectionMetadata struct {
+	CollectionType  string `json:"collectionType"`
+	CollectionTotal int    `json:"collectionTotal"`
+	TotalCount      int    `json:"totalCount,omitempty"`
+}

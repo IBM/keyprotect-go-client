@@ -22,7 +22,7 @@ type KMIPClientCertificate struct {
 }
 
 type KMIPClientCertificates struct {
-	Metadata     KeysMetadata            `json:"metadata"`
+	Metadata     CollectionMetadata      `json:"metadata"`
 	Certificates []KMIPClientCertificate `json:"resources"`
 }
 
@@ -112,9 +112,9 @@ func (c *Client) DeleteKMIPClientCertificate(ctx context.Context, adapter_id, ce
 
 func wrapKMIPClientCert(cert KMIPClientCertificate) KMIPClientCertificates {
 	return KMIPClientCertificates{
-		Metadata: KeysMetadata{
-			CollectionType: kmipClientCertType,
-			NumberOfKeys:   1,
+		Metadata: CollectionMetadata{
+			CollectionType:  kmipClientCertType,
+			CollectionTotal: 1,
 		},
 		Certificates: []KMIPClientCertificate{cert},
 	}

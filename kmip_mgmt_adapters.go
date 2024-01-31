@@ -26,8 +26,8 @@ type KMIPAdapter struct {
 }
 
 type KMIPAdapters struct {
-	Metadata KeysMetadata  `json:"metadata"`
-	Adapters []KMIPAdapter `json:"resources"`
+	Metadata CollectionMetadata `json:"metadata"`
+	Adapters []KMIPAdapter      `json:"resources"`
 }
 
 const (
@@ -135,9 +135,9 @@ func (c *Client) DeleteKMIPAdapter(ctx context.Context, id string) error {
 
 func wrapKMIPAdapter(adapter KMIPAdapter) KMIPAdapters {
 	return KMIPAdapters{
-		Metadata: KeysMetadata{
-			CollectionType: kmipAdapterType,
-			NumberOfKeys:   1,
+		Metadata: CollectionMetadata{
+			CollectionType:  kmipAdapterType,
+			CollectionTotal: 1,
 		},
 		Adapters: []KMIPAdapter{adapter},
 	}

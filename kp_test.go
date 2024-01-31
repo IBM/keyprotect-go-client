@@ -5257,94 +5257,137 @@ func TestListKeyFilter(t *testing.T) {
 func TestKMIPMgmtAPI(t *testing.T) {
 	defer gock.Off()
 	UUID := "feddecaf-0000-0000-0000-1234567890ab"
-	exampleIBMID := "IBMid-0000000000"
-	kmipAdapterProfile := "native_1.0"
 	crkUUID := "beddecaf-0000-0000-0000-1234567890ab"
-	timestamp := time.Now()
-	newAdapter := KMIPAdapter{
-		ID:      UUID,
-		Name:    "kmip-adapter-123",
-		Profile: kmipAdapterProfile,
-		ProfileData: map[string]string{
-			"crk_id": crkUUID,
+	singleAdapter := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip-adapter+json",
+		  "collectionTotal": 1,
 		},
-		Description: "our 123rd kmip adapter",
-		CreatedAt:   &timestamp,
-		CreatedBy:   exampleIBMID,
-	}
-	newCertificate := KMIPClientCertificate{
-		ID:        UUID,
-		Name:      "kmip-client-certificate",
-		CreatedAt: &timestamp,
-		CreatedBy: exampleIBMID,
-	}
-	newKmipObject := KMIPObject{
-		ID:              UUID,
-		KMIPObjectType:  2,
-		ObjectState:     1,
-		CreatedByCertID: newCertificate.ID,
-		CreatedBy:       exampleIBMID,
-		CreatedAt:       &timestamp,
-	}
-
-	singleAdapter := &KMIPAdapters{
-		Metadata: KeysMetadata{
-			CollectionType: kmipAdapterType,
-			NumberOfKeys:   1,
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"profile": "native_1.0",
+			"profile_data": {
+			  "crk_id": "beddecaf-0000-0000-0000-1234567890ab"
+			},
+			"name": "kmip-adapter-123",
+			"description": "our 123rd kmip adapter",
+			"created_at": "2023-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000",
+			"updated_at": "2023-01-23T04:56:07.000Z",
+			"updated_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	testAdapters := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip-adapter+json",
+		  "collectionTotal": 1,
+		  "totalCount": 3
 		},
-		Adapters: []KMIPAdapter{
-			newAdapter,
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"profile": "native_1.0",
+			"profile_data": {
+			  "crk_id": "beddecaf-0000-0000-0000-1234567890ab"
+			},
+			"name": "kmip-adapter-123",
+			"description": "our 123rd kmip adapter",
+			"created_at": "2023-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000",
+			"updated_at": "2023-01-23T04:56:07.000Z",
+			"updated_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	singleCert := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_client_certificate+json",
+		  "collectionTotal": 1
 		},
-	}
-	testAdapters := &KMIPAdapters{
-		Metadata: KeysMetadata{
-			CollectionType: kmipAdapterType,
-			NumberOfKeys:   2,
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate",
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	testCerts := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_client_certificate+json",
+		  "collectionTotal": 2,
+		  "totalCount": 4
 		},
-		Adapters: []KMIPAdapter{
-			newAdapter,
-			newAdapter,
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate",
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000"
+		  },
+		  {
+			"id": "beddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate2",
+			"created_at": "2001-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000001"
+		  }
+		]
+	  }`)
+	singleKmipObject := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_object+json",
+		  "collectionTotal": 1
 		},
-	}
-	singleCert := &KMIPClientCertificates{
-		Metadata: KeysMetadata{
-			CollectionType: kmipClientCertType,
-			NumberOfKeys:   1,
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": "symmetric_key",
+			"state": 3,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-02-23T08:19:00.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001"
+		  }
+		]
+	  }`)
+	testKmipObjects := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_object+json",
+		  "collectionTotal": 2,
+		  "totalCount": 4
 		},
-		Certificates: []KMIPClientCertificate{
-			newCertificate,
-		},
-	}
-	testCerts := &KMIPClientCertificates{
-		Metadata: KeysMetadata{
-			CollectionType: kmipClientCertType,
-			NumberOfKeys:   2,
-		},
-		Certificates: []KMIPClientCertificate{
-			newCertificate,
-			newCertificate,
-		},
-	}
-
-	singleKmipObject := &KMIPObjects{
-		Metadata: KeysMetadata{
-			CollectionType: kmipObjectType,
-			NumberOfKeys:   1,
-		},
-		Objects: []KMIPObject{
-			newKmipObject,
-		},
-	}
-	testKmipObjects := &KMIPObjects{
-		Metadata: KeysMetadata{
-			CollectionType: kmipObjectType,
-			NumberOfKeys:   2,
-		},
-		Objects: []KMIPObject{
-			newKmipObject,
-			newKmipObject,
-		},
-	}
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": "symmetric_key",
+			"state": 3,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-02-23T08:19:00.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001"
+		  },
+		  {
+			"id": "beddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": "symmetric_key",
+			"state": 5,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-03-25T04:56:07.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001",
+			"destroyed_at": "2000-03-28T04:56:07.000Z",
+			"destroyed_by": "IBMid-0000000001"
+		  }
+		]
+	  }`)
 
 	baseURL := "http://example.com"
 	adapterPath := "/api/v2/" + KMIPAdapterPath
@@ -5384,7 +5427,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(testAdapters)
 				adapters, err := api.GetKMIPAdapters(ctx, 100, 0, true)
 				assert.NoError(t, err)
-				assert.Equal(t, adapters.Metadata.NumberOfKeys, testAdapters.Metadata.NumberOfKeys)
+				assert.Equal(t, adapters.Metadata.CollectionTotal, testAdapters.Metadata.NumberOfKeys)
 				return nil
 			},
 		},
@@ -5447,7 +5490,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(testCerts)
 				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0, true)
 				assert.NoError(t, err)
-				assert.Equal(t, certs.Metadata.NumberOfKeys, testCerts.Metadata.NumberOfKeys)
+				assert.Equal(t, certs.Metadata.CollectionTotal, testCerts.Metadata.NumberOfKeys)
 				return nil
 			},
 		},
@@ -5492,7 +5535,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(testKmipObjects)
 				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0, false)
 				assert.NoError(t, err)
-				assert.Equal(t, KmipObjects.Metadata.NumberOfKeys, testKmipObjects.Metadata.NumberOfKeys)
+				assert.Equal(t, KmipObjects.Metadata.CollectionTotal, testKmipObjects.Metadata.NumberOfKeys)
 				return nil
 			},
 		},
