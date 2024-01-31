@@ -5264,7 +5264,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 	singleAdapter := []byte(`{
 		"metadata": {
 		  "collectionType": "application/vnd.ibm.kms.kmip-adapter+json",
-		  "collectionTotal": 1,
+		  "collectionTotal": 1
 		},
 		"resources": [
 		  {
