@@ -516,8 +516,16 @@ func noredact(s string, redactStrings []string) string {
 	return s
 }
 
+// Collection Metadata is generic and can be shared between multiple resource types
 type CollectionMetadata struct {
 	CollectionType  string `json:"collectionType"`
 	CollectionTotal int    `json:"collectionTotal"`
 	TotalCount      int    `json:"totalCount,omitempty"`
+}
+
+// ListsOptions struct to add the query parameters for list functions. Extensible.
+type ListOptions struct {
+	Limit      *uint32
+	Offset     *uint32
+	TotalCount *bool
 }

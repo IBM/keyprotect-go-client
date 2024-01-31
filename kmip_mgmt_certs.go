@@ -3,8 +3,6 @@ package kp
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
 	"time"
 )
 
@@ -56,20 +54,26 @@ func WithKMIPClientCertName(name string) CreateKMIPClientCertOption {
 	}
 }
 
-func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id string, limit, offset int, totalCount bool) (*KMIPClientCertificates, error) {
+func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id string, listOpts *ListOptions) (*KMIPClientCertificates, error) {
 	certs := KMIPClientCertificates{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPClientCertSubPath), nil)
 	if err != nil {
 		return nil, err
 	}
 
-	v := url.Values{}
-	v.Set("limit", strconv.Itoa(limit))
-	v.Set("offset", strconv.Itoa(offset))
-	if totalCount {
-		v.Set("totalCount", "true")
+	if listOpts != nil {
+		values := req.URL.Query()
+		if listOpts.Limit != nil {
+			values.Set("limit", fmt.Sprint(*listOpts.Limit))
+		}
+		if listOpts.Offset != nil {
+			values.Set("offset", fmt.Sprint(*listOpts.Offset))
+		}
+		if listOpts.TotalCount != nil {
+			values.Set("totalCount", fmt.Sprint(*listOpts.TotalCount))
+		}
+		req.URL.RawQuery = values.Encode()
 	}
-	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &certs)
 	if err != nil {

@@ -3,8 +3,6 @@ package kp
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strconv"
 	"time"
 )
 
@@ -81,20 +79,26 @@ func WithNativeProfile(crkID string) CreateKMIPAdapterProfile {
 	}
 }
 
-func (c *Client) GetKMIPAdapters(ctx context.Context, limit, offset int, totalCount bool) (*KMIPAdapters, error) {
+func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListOptions) (*KMIPAdapters, error) {
 	adapters := KMIPAdapters{}
 	req, err := c.newRequest("GET", KMIPAdapterPath, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	v := url.Values{}
-	v.Set("limit", strconv.Itoa(limit))
-	v.Set("offset", strconv.Itoa(offset))
-	if totalCount {
-		v.Set("totalCount", "true")
+	if listOpts != nil {
+		values := req.URL.Query()
+		if listOpts.Limit != nil {
+			values.Set("limit", fmt.Sprint(*listOpts.Limit))
+		}
+		if listOpts.Offset != nil {
+			values.Set("offset", fmt.Sprint(*listOpts.Offset))
+		}
+		if listOpts.TotalCount != nil {
+			values.Set("totalCount", fmt.Sprint(*listOpts.TotalCount))
+		}
+		req.URL.RawQuery = values.Encode()
 	}
-	req.URL.RawQuery = v.Encode()
 
 	_, err = c.do(ctx, req, &adapters)
 	if err != nil {

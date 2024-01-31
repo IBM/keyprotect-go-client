@@ -5390,7 +5390,12 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			"destroyed_by": "IBMid-0000000001"
 		  }
 		]
-	  }`)
+	}`)
+
+	var limit uint32 = 100
+	var offset uint32 = 0
+	var totalCountTrue bool = true
+	var totalCountFalse bool = false
 
 	baseURL := "http://example.com"
 	adapterPath := "/api/v2/" + KMIPAdapterPath
@@ -5428,7 +5433,12 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Get(adapterPath).
 					Reply(http.StatusOK).
 					JSON(testAdapters)
-				adapters, err := api.GetKMIPAdapters(ctx, 100, 0, true)
+
+				adapters, err := api.GetKMIPAdapters(ctx, &ListOptions{
+					Limit:      &limit,
+					Offset:     &offset,
+					TotalCount: &totalCountTrue,
+				})
 				assert.NoError(t, err)
 				assert.Equal(t, adapters.Metadata.CollectionTotal, 1)
 				assert.Equal(t, adapters.Metadata.TotalCount, 3)
@@ -5491,9 +5501,14 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Get(certPath).
+					MatchParams(map[string]string{"limit": "100", "offset": "0", "totalCount": "false"}).
 					Reply(http.StatusOK).
 					JSON(testCerts)
-				certs, err := api.GetKMIPClientCertificates(ctx, UUID, 100, 0, true)
+				certs, err := api.GetKMIPClientCertificates(ctx, UUID, &ListOptions{
+					Limit:      &limit,
+					Offset:     &offset,
+					TotalCount: &totalCountFalse,
+				})
 				assert.NoError(t, err)
 				assert.Equal(t, certs.Metadata.CollectionTotal, 2)
 				return nil
@@ -5536,9 +5551,16 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Get(objectPath).
+					MatchParams(map[string]string{"limit": "0", "totalCount": "true", "state": "1,2"}).
 					Reply(http.StatusOK).
 					JSON(testKmipObjects)
-				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, 100, 0, false)
+				objectLimit := uint32(0)
+				objectFilter := []int{1, 2}
+				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, &ListKmipObjectsOptions{
+					Limit:             &objectLimit,
+					TotalCount:        &totalCountTrue,
+					ObjectStateFilter: &objectFilter,
+				})
 				assert.NoError(t, err)
 				assert.Equal(t, KmipObjects.Metadata.CollectionTotal, 2)
 				return nil
