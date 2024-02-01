@@ -5263,7 +5263,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 	certName := "kmip-client-certificate"
 	singleAdapter := []byte(`{
 		"metadata": {
-		  "collectionType": "application/vnd.ibm.kms.kmip-adapter+json",
+		  "collectionType": "application/vnd.ibm.kms.kmip_adapter+json",
 		  "collectionTotal": 1
 		},
 		"resources": [
@@ -5284,7 +5284,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 	  }`)
 	testAdapters := []byte(`{
 		"metadata": {
-		  "collectionType": "application/vnd.ibm.kms.kmip-adapter+json",
+		  "collectionType": "application/vnd.ibm.kms.kmip_adapter+json",
 		  "collectionTotal": 1,
 		  "totalCount": 3
 		},
@@ -5419,8 +5419,15 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					WithKMIPAdapterDescription(adapterDesc),
 				)
 				assert.NoError(t, err)
-				assert.Equal(t, adapter.Name, adapterName)
-				assert.Equal(t, adapter.Description, adapterDesc)
+				assert.Equal(t, UUID, adapter.ID)
+				assert.Equal(t, adapterName, adapter.Name)
+				assert.Equal(t, adapterDesc, adapter.Description)
+				assert.Equal(t, KMIP_Profile_Native, adapter.Profile)
+				assert.Contains(t, adapter.ProfileData, "crk_id")
+				assert.Equal(t, crkUUID, adapter.ProfileData["crk_id"])
+				assert.Equal(t, "IBMid-0000000000", adapter.CreatedBy)
+				assert.NotEqual(t, nil, adapter.CreatedAt)
+
 				return nil
 			},
 		},
@@ -5431,6 +5438,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				MockAuth()
 				gock.New(baseURL).
 					Get(adapterPath).
+					MatchParams(map[string]string{"limit": "100", "offset": "0", "totalCount": "true"}).
 					Reply(http.StatusOK).
 					JSON(testAdapters)
 
@@ -5440,8 +5448,9 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					TotalCount: &totalCountTrue,
 				})
 				assert.NoError(t, err)
-				assert.Equal(t, adapters.Metadata.CollectionTotal, 1)
-				assert.Equal(t, adapters.Metadata.TotalCount, 3)
+				assert.Equal(t, kmipAdapterType, adapters.Metadata.CollectionType)
+				assert.Equal(t, 1, adapters.Metadata.CollectionTotal)
+				assert.Equal(t, 3, adapters.Metadata.TotalCount)
 				return nil
 			},
 		},
@@ -5456,8 +5465,14 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(singleAdapter)
 				adapter, err := api.GetKMIPAdapter(ctx, UUID)
 				assert.NoError(t, err)
-				assert.Equal(t, adapter.ID, UUID)
-				assert.Equal(t, adapter.CreatedBy, "IBMid-0000000000")
+				assert.Equal(t, UUID, adapter.ID)
+				assert.Equal(t, adapterName, adapter.Name)
+				assert.Equal(t, adapterDesc, adapter.Description)
+				assert.Equal(t, KMIP_Profile_Native, adapter.Profile)
+				assert.Contains(t, adapter.ProfileData, "crk_id")
+				assert.Equal(t, crkUUID, adapter.ProfileData["crk_id"])
+				assert.Equal(t, "IBMid-0000000000", adapter.CreatedBy)
+				assert.NotEqual(t, nil, adapter.CreatedAt)
 				return nil
 			},
 		},
@@ -5490,7 +5505,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					WithKMIPClientCertName(certName),
 				)
 				assert.NoError(t, err)
-				assert.Equal(t, cert.Name, certName)
+				assert.Equal(t, UUID, cert.ID)
+				assert.Equal(t, certName, cert.Name)
+				assert.Equal(t, "IBMid-0000000000", cert.CreatedBy)
+				assert.NotEqual(t, nil, cert.CreatedAt)
 				return nil
 			},
 		},
@@ -5510,7 +5528,8 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					TotalCount: &totalCountFalse,
 				})
 				assert.NoError(t, err)
-				assert.Equal(t, certs.Metadata.CollectionTotal, 2)
+				assert.Equal(t, kmipClientCertType, certs.Metadata.CollectionType)
+				assert.Equal(t, 2, certs.Metadata.CollectionTotal)
 				return nil
 			},
 		},
@@ -5525,8 +5544,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(singleCert)
 				cert, err := api.GetKMIPClientCertificate(ctx, UUID, UUID)
 				assert.NoError(t, err)
-				assert.Equal(t, cert.ID, UUID)
-				assert.Equal(t, cert.Name, certName)
+				assert.Equal(t, UUID, cert.ID)
+				assert.Equal(t, certName, cert.Name)
+				assert.Equal(t, "IBMid-0000000000", cert.CreatedBy)
+				assert.NotEqual(t, nil, cert.CreatedAt)
 				return nil
 			},
 		},
@@ -5556,13 +5577,14 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					JSON(testKmipObjects)
 				objectLimit := uint32(0)
 				objectFilter := []int{1, 2}
-				KmipObjects, err := api.GetKMIPObjects(ctx, UUID, &ListKmipObjectsOptions{
+				kmipObjects, err := api.GetKMIPObjects(ctx, UUID, &ListKmipObjectsOptions{
 					Limit:             &objectLimit,
 					TotalCount:        &totalCountTrue,
 					ObjectStateFilter: &objectFilter,
 				})
 				assert.NoError(t, err)
-				assert.Equal(t, KmipObjects.Metadata.CollectionTotal, 2)
+				assert.Equal(t, kmipObjectType, kmipObjects.Metadata.CollectionType)
+				assert.Equal(t, 2, kmipObjects.Metadata.CollectionTotal)
 				return nil
 			},
 		},
@@ -5571,14 +5593,25 @@ func TestKMIPMgmtAPI(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				defer gock.Off()
 				MockAuth()
+				ibmID := "IBMid-0000000001"
+				certID := "reddecaf-0000-0000-0000-1234567890ab"
 				gock.New(baseURL).
 					Get(objectPath + "/" + UUID).
 					Reply(http.StatusOK).
 					JSON(singleKmipObject)
-				KmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
+				kmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
+
 				assert.NoError(t, err)
-				assert.Equal(t, KmipObject.ID, UUID)
-				assert.Equal(t, KmipObject.KMIPObjectType, 2)
+				assert.Equal(t, UUID, kmipObject.ID)
+				assert.Equal(t, 2, kmipObject.KMIPObjectType)
+				assert.Equal(t, 3, kmipObject.ObjectState)
+				assert.Equal(t, ibmID, kmipObject.CreatedBy)
+				assert.NotEqual(t, nil, kmipObject.CreatedAt)
+				assert.Equal(t, certID, kmipObject.CreatedByCertID)
+				assert.Equal(t, ibmID, kmipObject.UpdatedBy)
+				assert.NotEqual(t, nil, kmipObject.UpdatedAt)
+				assert.Equal(t, certID, kmipObject.UpdatedByCertID)
+
 				return nil
 			},
 		},
