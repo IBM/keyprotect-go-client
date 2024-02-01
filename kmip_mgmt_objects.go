@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	KMIPObjectSubPath = "kmip_objects"
+	kmipObjectSubPath = "kmip_objects"
 	kmipObjectType    = "application/vnd.ibm.kms.kmip_object+json"
 )
 
@@ -42,7 +42,7 @@ type ListKmipObjectsOptions struct {
 
 func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, listOpts *ListKmipObjectsOptions) (*KMIPObjects, error) {
 	objects := KMIPObjects{}
-	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPObjectSubPath), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", kmipAdapterPath, adapter_id, kmipObjectSubPath), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, listOpts
 func (c *Client) GetKMIPObject(ctx context.Context, adapter_id, object_id string) (*KMIPObject, error) {
 	objects := &KMIPObjects{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s/%s",
-		KMIPAdapterPath, adapter_id, KMIPObjectSubPath, object_id), nil)
+		kmipAdapterPath, adapter_id, kmipObjectSubPath, object_id), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (c *Client) GetKMIPObject(ctx context.Context, adapter_id, object_id string
 
 func (c *Client) DeleteKMIPObject(ctx context.Context, adapter_id, object_id string) error {
 	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s/%s/%s",
-		KMIPAdapterPath, adapter_id, KMIPObjectSubPath, object_id), nil)
+		kmipAdapterPath, adapter_id, kmipObjectSubPath, object_id), nil)
 	if err != nil {
 		return err
 	}

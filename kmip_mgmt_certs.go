@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	KMIPClientCertSubPath = "certificates"
+	kmipClientCertSubPath = "certificates"
 	kmipClientCertType    = "application/vnd.ibm.kms.kmip_client_certificate+json"
 )
 
@@ -24,16 +24,18 @@ type KMIPClientCertificates struct {
 	Certificates []KMIPClientCertificate `json:"resources"`
 }
 
+// CreateKMIPClientCertificate registers/creates a KMIP PEM format certificate
+// for use with a specific KMIP adapter.
 // cert_payload is the string representation of
 // the certificate to be associated with the KMIP Adapter in PEM format.
 // It should explicitly have the BEGIN CERTIFICATE and END CERTIFICATE tags.
 // Regex: ^\s*-----BEGIN CERTIFICATE-----[A-Za-z0-9+\/\=\r\n]+-----END CERTIFICATE-----\s*$
-func (c *Client) CreateKMIPClientCertificate(ctx context.Context, adapter_id, cert_payload string, opts ...CreateKMIPClientCertOption) (*KMIPClientCertificate, error) {
+func (c *Client) CreateKMIPClientCertificate(ctx context.Context, adapter_nameOrID, cert_payload string, opts ...CreateKMIPClientCertOption) (*KMIPClientCertificate, error) {
 	newCert := &KMIPClientCertificate{}
 	for _, opt := range opts {
 		opt(newCert)
 	}
-	req, err := c.newRequest("POST", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPClientCertSubPath), wrapKMIPClientCert(*newCert))
+	req, err := c.newRequest("POST", fmt.Sprintf("%s/%s/%s", kmipAdapterPath, adapter_nameOrID, kmipClientCertSubPath), wrapKMIPClientCert(*newCert))
 	if err != nil {
 		return nil, err
 	}
@@ -54,9 +56,10 @@ func WithKMIPClientCertName(name string) CreateKMIPClientCertOption {
 	}
 }
 
-func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id string, listOpts *ListOptions) (*KMIPClientCertificates, error) {
+// GetKMIPClientCertificates lists all certificates associated with a KMIP adapter
+func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_nameOrID string, listOpts *ListOptions) (*KMIPClientCertificates, error) {
 	certs := KMIPClientCertificates{}
-	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", KMIPAdapterPath, adapter_id, KMIPClientCertSubPath), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s", kmipAdapterPath, adapter_nameOrID, kmipClientCertSubPath), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -83,10 +86,11 @@ func (c *Client) GetKMIPClientCertificates(ctx context.Context, adapter_id strin
 	return &certs, nil
 }
 
-func (c *Client) GetKMIPClientCertificate(ctx context.Context, adapter_id, cert_id string) (*KMIPClientCertificate, error) {
+// GetKMIPClientCertificate gets a single certificate associated with a KMIP adapter
+func (c *Client) GetKMIPClientCertificate(ctx context.Context, adapter_nameOrID, cert_nameOrID string) (*KMIPClientCertificate, error) {
 	certs := &KMIPClientCertificates{}
 	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s/%s/%s",
-		KMIPAdapterPath, adapter_id, KMIPClientCertSubPath, cert_id), nil)
+		kmipAdapterPath, adapter_nameOrID, kmipClientCertSubPath, cert_nameOrID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +103,10 @@ func (c *Client) GetKMIPClientCertificate(ctx context.Context, adapter_id, cert_
 	return unwrapKMIPClientCert(certs), nil
 }
 
-func (c *Client) DeleteKMIPClientCertificate(ctx context.Context, adapter_id, cert_id string) error {
+// DeleteKMIPClientCertificate deletes a single certificate
+func (c *Client) DeleteKMIPClientCertificate(ctx context.Context, adapter_nameOrID, cert_nameOrID string) error {
 	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s/%s/%s",
-		KMIPAdapterPath, adapter_id, KMIPClientCertSubPath, cert_id), nil)
+		kmipAdapterPath, adapter_nameOrID, kmipClientCertSubPath, cert_nameOrID), nil)
 	if err != nil {
 		return err
 	}

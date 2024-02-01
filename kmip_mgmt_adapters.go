@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	KMIPAdapterPath = "kmip_adapters"
+	kmipAdapterPath = "kmip_adapters"
 	kmipAdapterType = "application/vnd.ibm.kms.kmip_adapter+json"
 )
 
@@ -33,15 +33,13 @@ const (
 )
 
 // CreateKMIPAdapter method creates a KMIP Adapter with the specified profile.
-// For information please refer to the link below:
-// https://cloud.ibm.com/docs/key-protect?topic=placeholder
 func (c *Client) CreateKMIPAdapter(ctx context.Context, profileOpt CreateKMIPAdapterProfile, options ...CreateKMIPAdapterOption) (*KMIPAdapter, error) {
 	newAdapter := &KMIPAdapter{}
 	profileOpt(newAdapter)
 	for _, opt := range options {
 		opt(newAdapter)
 	}
-	req, err := c.newRequest("POST", KMIPAdapterPath, wrapKMIPAdapter(*newAdapter))
+	req, err := c.newRequest("POST", kmipAdapterPath, wrapKMIPAdapter(*newAdapter))
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +52,7 @@ func (c *Client) CreateKMIPAdapter(ctx context.Context, profileOpt CreateKMIPAda
 	return unwrapKMIPAdapterResp(create_resp), nil
 }
 
+// Functions to be passed into the CreateKMIPAdapter() method to specify specific fields.
 type CreateKMIPAdapterOption func(*KMIPAdapter)
 type CreateKMIPAdapterProfile func(*KMIPAdapter)
 
@@ -79,9 +78,10 @@ func WithNativeProfile(crkID string) CreateKMIPAdapterProfile {
 	}
 }
 
+// GetKMIPAdapters method lists KMIP Adapters associated with a specific KP instance.
 func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListOptions) (*KMIPAdapters, error) {
 	adapters := KMIPAdapters{}
-	req, err := c.newRequest("GET", KMIPAdapterPath, nil)
+	req, err := c.newRequest("GET", kmipAdapterPath, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +108,10 @@ func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListOptions) (*K
 	return &adapters, nil
 }
 
-func (c *Client) GetKMIPAdapter(ctx context.Context, id string) (*KMIPAdapter, error) {
+// GetKMIPAdapter method retrieves a single KMIP Adapter by name or ID.
+func (c *Client) GetKMIPAdapter(ctx context.Context, nameOrID string) (*KMIPAdapter, error) {
 	adapters := KMIPAdapters{}
-	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s", KMIPAdapterPath, id), nil)
+	req, err := c.newRequest("GET", fmt.Sprintf("%s/%s", kmipAdapterPath, nameOrID), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +124,9 @@ func (c *Client) GetKMIPAdapter(ctx context.Context, id string) (*KMIPAdapter, e
 	return unwrapKMIPAdapterResp(&adapters), nil
 }
 
-func (c *Client) DeleteKMIPAdapter(ctx context.Context, id string) error {
-	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s", KMIPAdapterPath, id), nil)
+// DeletesKMIPAdapter method deletes a single KMIP Adapter by name or ID.
+func (c *Client) DeleteKMIPAdapter(ctx context.Context, nameOrID string) error {
+	req, err := c.newRequest("DELETE", fmt.Sprintf("%s/%s", kmipAdapterPath, nameOrID), nil)
 	if err != nil {
 		return err
 	}

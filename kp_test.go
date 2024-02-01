@@ -5398,10 +5398,10 @@ func TestKMIPMgmtAPI(t *testing.T) {
 	var totalCountFalse bool = false
 
 	baseURL := "http://example.com"
-	adapterPath := "/api/v2/" + KMIPAdapterPath
+	adapterPath := "/api/v2/" + kmipAdapterPath
 	adapterPathID := adapterPath + "/" + UUID
-	certPath := adapterPathID + "/" + KMIPClientCertSubPath
-	objectPath := adapterPathID + "/" + KMIPObjectSubPath
+	certPath := adapterPathID + "/" + kmipClientCertSubPath
+	objectPath := adapterPathID + "/" + kmipObjectSubPath
 	cases := TestCases{
 		{
 			"KMIP Adapter Create",
