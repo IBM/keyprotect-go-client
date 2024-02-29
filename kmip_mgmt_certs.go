@@ -31,7 +31,9 @@ type KMIPClientCertificates struct {
 // It should explicitly have the BEGIN CERTIFICATE and END CERTIFICATE tags.
 // Regex: ^\s*-----BEGIN CERTIFICATE-----[A-Za-z0-9+\/\=\r\n]+-----END CERTIFICATE-----\s*$
 func (c *Client) CreateKMIPClientCertificate(ctx context.Context, adapter_nameOrID, cert_payload string, opts ...CreateKMIPClientCertOption) (*KMIPClientCertificate, error) {
-	newCert := &KMIPClientCertificate{}
+	newCert := &KMIPClientCertificate{
+		Certificate: cert_payload,
+	}
 	for _, opt := range opts {
 		opt(newCert)
 	}
