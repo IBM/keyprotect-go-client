@@ -37,7 +37,7 @@ type ListKmipObjectsOptions struct {
 	Limit             *uint32
 	Offset            *uint32
 	TotalCount        *bool
-	ObjectStateFilter *[]int
+	ObjectStateFilter *[]int32
 }
 
 func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, listOpts *ListKmipObjectsOptions) (*KMIPObjects, error) {
@@ -61,7 +61,7 @@ func (c *Client) GetKMIPObjects(ctx context.Context, adapter_id string, listOpts
 		if listOpts.ObjectStateFilter != nil {
 			var stateStrs []string
 			for _, i := range *listOpts.ObjectStateFilter {
-				stateStrs = append(stateStrs, strconv.Itoa(i))
+				stateStrs = append(stateStrs, strconv.FormatInt(int64(i), 10))
 			}
 			values.Set("state", strings.Join(stateStrs, ","))
 		}
