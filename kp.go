@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -276,7 +275,7 @@ func (c *Client) do(ctx context.Context, req *http.Request, res interface{}) (*h
 	}
 	defer response.Body.Close()
 
-	resBody, err := ioutil.ReadAll(response.Body)
+	resBody, err := io.ReadAll(response.Body)
 	redact := []string{c.Config.APIKey, req.Header.Get("authorization")}
 	c.Dump(req, response, []byte{}, resBody, c.Logger, redact)
 	if err != nil {
