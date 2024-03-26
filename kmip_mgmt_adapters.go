@@ -78,8 +78,15 @@ func WithNativeProfile(crkID string) CreateKMIPAdapterProfile {
 	}
 }
 
+type ListKmipAdaptersOptions struct {
+	Limit      *uint32
+	Offset     *uint32
+	TotalCount *bool
+	// CrkID      *string
+}
+
 // GetKMIPAdapters method lists KMIP Adapters associated with a specific KP instance.
-func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListOptions) (*KMIPAdapters, error) {
+func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListKmipAdaptersOptions) (*KMIPAdapters, error) {
 	adapters := KMIPAdapters{}
 	req, err := c.newRequest("GET", kmipAdapterPath, nil)
 	if err != nil {
@@ -97,6 +104,9 @@ func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListOptions) (*K
 		if listOpts.TotalCount != nil {
 			values.Set("totalCount", fmt.Sprint(*listOpts.TotalCount))
 		}
+		// if listOpts.CrkID != nil {
+		// 	values.Set("crk_id", *listOpts.CrkID)
+		// }
 		req.URL.RawQuery = values.Encode()
 	}
 
