@@ -5442,7 +5442,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Reply(http.StatusOK).
 					JSON(testAdapters)
 
-				adapters, err := api.GetKMIPAdapters(ctx, &ListOptions{
+				adapters, err := api.GetKMIPAdapters(ctx, &ListKmipAdaptersOptions{
 					Limit:      &limit,
 					Offset:     &offset,
 					TotalCount: &totalCountTrue,
@@ -5576,7 +5576,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 					Reply(http.StatusOK).
 					JSON(testKmipObjects)
 				objectLimit := uint32(0)
-				objectFilter := []int{1, 2}
+				objectFilter := []int32{1, 2}
 				kmipObjects, err := api.GetKMIPObjects(ctx, UUID, &ListKmipObjectsOptions{
 					Limit:             &objectLimit,
 					TotalCount:        &totalCountTrue,
