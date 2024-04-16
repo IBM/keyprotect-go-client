@@ -5253,3 +5253,381 @@ func TestListKeyFilter(t *testing.T) {
 	assert.Contains(t, err.Error(), "INVALID_QUERY_PARAM_ERR")
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
+
+func TestKMIPMgmtAPI(t *testing.T) {
+	defer gock.Off()
+	UUID := "feddecaf-0000-0000-0000-1234567890ab"
+	crkUUID := "beddecaf-0000-0000-0000-1234567890ab"
+	adapterName := "kmip-adapter-123"
+	adapterDesc := "our 123rd kmip adapter"
+	certName := "kmip-client-certificate"
+	singleAdapter := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_adapter+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"profile": "native_1.0",
+			"profile_data": {
+			  "crk_id": "beddecaf-0000-0000-0000-1234567890ab"
+			},
+			"name": "kmip-adapter-123",
+			"description": "our 123rd kmip adapter",
+			"created_at": "2023-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000",
+			"updated_at": "2023-01-23T04:56:07.000Z",
+			"updated_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	testAdapters := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_adapter+json",
+		  "collectionTotal": 1,
+		  "totalCount": 3
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"profile": "native_1.0",
+			"profile_data": {
+			  "crk_id": "beddecaf-0000-0000-0000-1234567890ab"
+			},
+			"name": "kmip-adapter-123",
+			"description": "our 123rd kmip adapter",
+			"created_at": "2023-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000",
+			"updated_at": "2023-01-23T04:56:07.000Z",
+			"updated_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	singleCert := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_client_certificate+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate",
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000"
+		  }
+		]
+	  }`)
+	testCerts := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_client_certificate+json",
+		  "collectionTotal": 2,
+		  "totalCount": 4
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate",
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000000"
+		  },
+		  {
+			"id": "beddecaf-0000-0000-0000-1234567890ab",
+			"name": "kmip-client-certificate2",
+			"created_at": "2001-01-23T04:56:07.000Z",
+			"created_by": "IBMid-0000000001"
+		  }
+		]
+	  }`)
+	singleKmipObject := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_object+json",
+		  "collectionTotal": 1
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": 2,
+			"state": 3,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-02-23T08:19:00.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001"
+		  }
+		]
+	  }`)
+	testKmipObjects := []byte(`{
+		"metadata": {
+		  "collectionType": "application/vnd.ibm.kms.kmip_object+json",
+		  "collectionTotal": 2,
+		  "totalCount": 4
+		},
+		"resources": [
+		  {
+			"id": "feddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": 2,
+			"state": 3,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-02-23T08:19:00.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001"
+		  },
+		  {
+			"id": "beddecaf-0000-0000-0000-1234567890ab",
+			"kmip_object_type": 2,
+			"state": 5,
+			"created_at": "2000-01-23T04:56:07.000Z",
+			"created_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"created_by": "IBMid-0000000001",
+			"updated_at": "2000-03-25T04:56:07.000Z",
+			"updated_by_kmip_client_cert_id": "reddecaf-0000-0000-0000-1234567890ab",
+			"updated_by": "IBMid-0000000001",
+			"destroyed_at": "2000-03-28T04:56:07.000Z",
+			"destroyed_by": "IBMid-0000000001"
+		  }
+		]
+	}`)
+
+	var limit uint32 = 100
+	var offset uint32 = 0
+	var totalCountTrue bool = true
+	var totalCountFalse bool = false
+
+	baseURL := "http://example.com"
+	adapterPath := "/api/v2/" + kmipAdapterPath
+	adapterPathID := adapterPath + "/" + UUID
+	certPath := adapterPathID + "/" + kmipClientCertSubPath
+	objectPath := adapterPathID + "/" + kmipObjectSubPath
+	cases := TestCases{
+		{
+			"KMIP Adapter Create",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Post(adapterPath).
+					Reply(http.StatusCreated).
+					JSON(singleAdapter)
+				adapter, err := api.CreateKMIPAdapter(
+					ctx,
+					WithNativeProfile(crkUUID),
+					WithKMIPAdapterName(adapterName),
+					WithKMIPAdapterDescription(adapterDesc),
+				)
+				assert.NoError(t, err)
+				assert.Equal(t, UUID, adapter.ID)
+				assert.Equal(t, adapterName, adapter.Name)
+				assert.Equal(t, adapterDesc, adapter.Description)
+				assert.Equal(t, KMIP_Profile_Native, adapter.Profile)
+				assert.Contains(t, adapter.ProfileData, "crk_id")
+				assert.Equal(t, crkUUID, adapter.ProfileData["crk_id"])
+				assert.Equal(t, "IBMid-0000000000", adapter.CreatedBy)
+				assert.NotEqual(t, nil, adapter.CreatedAt)
+
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Get(adapterPath).
+					MatchParams(map[string]string{"limit": "100", "offset": "0", "totalCount": "true"}).
+					Reply(http.StatusOK).
+					JSON(testAdapters)
+
+				adapters, err := api.GetKMIPAdapters(ctx, &ListKmipAdaptersOptions{
+					Limit:      &limit,
+					Offset:     &offset,
+					TotalCount: &totalCountTrue,
+				})
+				assert.NoError(t, err)
+				assert.Equal(t, kmipAdapterType, adapters.Metadata.CollectionType)
+				assert.Equal(t, 1, adapters.Metadata.CollectionTotal)
+				assert.Equal(t, 3, adapters.Metadata.TotalCount)
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Get(adapterPathID).
+					Reply(http.StatusOK).
+					JSON(singleAdapter)
+				adapter, err := api.GetKMIPAdapter(ctx, UUID)
+				assert.NoError(t, err)
+				assert.Equal(t, UUID, adapter.ID)
+				assert.Equal(t, adapterName, adapter.Name)
+				assert.Equal(t, adapterDesc, adapter.Description)
+				assert.Equal(t, KMIP_Profile_Native, adapter.Profile)
+				assert.Contains(t, adapter.ProfileData, "crk_id")
+				assert.Equal(t, crkUUID, adapter.ProfileData["crk_id"])
+				assert.Equal(t, "IBMid-0000000000", adapter.CreatedBy)
+				assert.NotEqual(t, nil, adapter.CreatedAt)
+				return nil
+			},
+		},
+		{
+			"KMIP Adapter Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Delete(adapterPathID).
+					Reply(http.StatusNoContent)
+				err := api.DeleteKMIPAdapter(ctx, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Create",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Post(certPath).
+					Reply(http.StatusCreated).
+					JSON(singleCert)
+				cert, err := api.CreateKMIPClientCertificate(
+					ctx,
+					UUID,
+					"dummy_payload",
+					WithKMIPClientCertName(certName),
+				)
+				assert.NoError(t, err)
+				assert.Equal(t, UUID, cert.ID)
+				assert.Equal(t, certName, cert.Name)
+				assert.Equal(t, "IBMid-0000000000", cert.CreatedBy)
+				assert.NotEqual(t, nil, cert.CreatedAt)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Get(certPath).
+					MatchParams(map[string]string{"limit": "100", "offset": "0", "totalCount": "false"}).
+					Reply(http.StatusOK).
+					JSON(testCerts)
+				certs, err := api.GetKMIPClientCertificates(ctx, UUID, &ListOptions{
+					Limit:      &limit,
+					Offset:     &offset,
+					TotalCount: &totalCountFalse,
+				})
+				assert.NoError(t, err)
+				assert.Equal(t, kmipClientCertType, certs.Metadata.CollectionType)
+				assert.Equal(t, 2, certs.Metadata.CollectionTotal)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Get(certPath + "/" + UUID).
+					Reply(http.StatusOK).
+					JSON(singleCert)
+				cert, err := api.GetKMIPClientCertificate(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				assert.Equal(t, UUID, cert.ID)
+				assert.Equal(t, certName, cert.Name)
+				assert.Equal(t, "IBMid-0000000000", cert.CreatedBy)
+				assert.NotEqual(t, nil, cert.CreatedAt)
+				return nil
+			},
+		},
+		{
+			"KMIP Client Certificate Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Delete(certPath + "/" + UUID).
+					Reply(http.StatusNoContent)
+				err := api.DeleteKMIPClientCertificate(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+
+		{
+			"KMIP Object List",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Get(objectPath).
+					MatchParams(map[string]string{"limit": "0", "totalCount": "true", "state": "1,2"}).
+					Reply(http.StatusOK).
+					JSON(testKmipObjects)
+				objectLimit := uint32(0)
+				objectFilter := []int32{1, 2}
+				kmipObjects, err := api.GetKMIPObjects(ctx, UUID, &ListKmipObjectsOptions{
+					Limit:             &objectLimit,
+					TotalCount:        &totalCountTrue,
+					ObjectStateFilter: &objectFilter,
+				})
+				assert.NoError(t, err)
+				assert.Equal(t, kmipObjectType, kmipObjects.Metadata.CollectionType)
+				assert.Equal(t, 2, kmipObjects.Metadata.CollectionTotal)
+				return nil
+			},
+		},
+		{
+			"KMIP Object Get",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				ibmID := "IBMid-0000000001"
+				certID := "reddecaf-0000-0000-0000-1234567890ab"
+				gock.New(baseURL).
+					Get(objectPath + "/" + UUID).
+					Reply(http.StatusOK).
+					JSON(singleKmipObject)
+				kmipObject, err := api.GetKMIPObject(ctx, UUID, UUID)
+
+				assert.NoError(t, err)
+				assert.Equal(t, UUID, kmipObject.ID)
+				assert.Equal(t, 2, kmipObject.KMIPObjectType)
+				assert.Equal(t, 3, kmipObject.ObjectState)
+				assert.Equal(t, ibmID, kmipObject.CreatedBy)
+				assert.NotEqual(t, nil, kmipObject.CreatedAt)
+				assert.Equal(t, certID, kmipObject.CreatedByCertID)
+				assert.Equal(t, ibmID, kmipObject.UpdatedBy)
+				assert.NotEqual(t, nil, kmipObject.UpdatedAt)
+				assert.Equal(t, certID, kmipObject.UpdatedByCertID)
+
+				return nil
+			},
+		},
+		{
+			"KMIP Object Delete",
+			func(t *testing.T, api *API, ctx context.Context) error {
+				defer gock.Off()
+				MockAuth()
+				gock.New(baseURL).
+					Delete(objectPath + "/" + UUID).
+					Reply(http.StatusNoContent)
+				err := api.DeleteKMIPObject(ctx, UUID, UUID)
+				assert.NoError(t, err)
+				return nil
+			},
+		},
+	}
+	cases.Run(t)
+}
