@@ -13,7 +13,7 @@ env:
 
 before_install:
   - sudo apt-get update
-  - pyenv global 3.8
+  - pyenv global 3.10
 
 before_script:
   - GO111MODULE=off go get -u github.com/haya14busa/goverage
