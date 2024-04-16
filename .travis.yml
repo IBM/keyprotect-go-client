@@ -27,6 +27,9 @@ script:
   - $GOPATH/bin/goverage -v -race -coverprofile=cover.out $(go list ./... | grep -v '/vendor|/scripts')
   - go tool cover -func=cover.out
   - go tool cover -html=cover.out -o=cover.html
+ # these steps are to make sure that node will properly install for semantic release.
+  - nvm install node
+  - npm install -g npm
 
 # To enable semantic-release, uncomment these sections.
 before_deploy:
@@ -40,8 +43,8 @@ before_deploy:
 #
 deploy:
   - provider: script
-    script: npm -v
+    script: npx semantic-release
     skip_cleanup: true
     on:
       go: '1.18.x'
-      branch: travis-dist
+      branch: master
