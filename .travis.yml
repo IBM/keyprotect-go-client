@@ -40,8 +40,8 @@ before_deploy:
 #
 deploy:
   - provider: script
-    script: npx semantic-release
+    script: npm -v
     skip_cleanup: true
     on:
       go: '1.18.x'
-      branch: master
+      branch: travis-dist
