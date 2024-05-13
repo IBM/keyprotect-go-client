@@ -451,7 +451,11 @@ type AllowedIPPolicyData struct {
 
 // KeyAccessInstancePolicyData defines the attribute input for the Key Create Import Access instance policy
 type KeyCreateImportAccessInstancePolicy struct {
-	Enabled           bool
+	Enabled    bool
+	Attributes *KeyCreateImportAccessInstancePolicyAttributes
+}
+
+type KeyCreateImportAccessInstancePolicyAttributes struct {
 	CreateRootKey     *bool
 	CreateStandardKey *bool
 	ImportRootKey     *bool
@@ -533,15 +537,13 @@ func (c *Client) SetInstancePolicies(ctx context.Context, policies MultiplePolic
 			},
 		}
 
-		// attributes can only be provided if policy is being enabled
-		// ignore any attribute inputs if provided during a disable
-		if policies.KeyCreateImportAccess.Enabled {
+		if attr := policies.KeyCreateImportAccess.Attributes; attr != nil {
 			policy.PolicyData.Attributes = &Attributes{
-				CreateRootKey:     policies.KeyCreateImportAccess.CreateRootKey,
-				CreateStandardKey: policies.KeyCreateImportAccess.CreateStandardKey,
-				ImportRootKey:     policies.KeyCreateImportAccess.ImportRootKey,
-				ImportStandardKey: policies.KeyCreateImportAccess.ImportStandardKey,
-				EnforceToken:      policies.KeyCreateImportAccess.EnforceToken,
+				CreateRootKey:     attr.CreateRootKey,
+				CreateStandardKey: attr.CreateStandardKey,
+				ImportRootKey:     attr.ImportRootKey,
+				ImportStandardKey: attr.ImportStandardKey,
+				EnforceToken:      attr.EnforceToken,
 			}
 		}
 
