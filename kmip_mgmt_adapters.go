@@ -82,7 +82,7 @@ type ListKmipAdaptersOptions struct {
 	Limit      *uint32
 	Offset     *uint32
 	TotalCount *bool
-	// CrkID      *string
+	CrkID      *string
 }
 
 // GetKMIPAdapters method lists KMIP Adapters associated with a specific KP instance.
@@ -104,9 +104,9 @@ func (c *Client) GetKMIPAdapters(ctx context.Context, listOpts *ListKmipAdapters
 		if listOpts.TotalCount != nil {
 			values.Set("totalCount", fmt.Sprint(*listOpts.TotalCount))
 		}
-		// if listOpts.CrkID != nil {
-		// 	values.Set("crk_id", *listOpts.CrkID)
-		// }
+		if listOpts.CrkID != nil {
+			values.Set("crk_id", *listOpts.CrkID)
+		}
 		req.URL.RawQuery = values.Encode()
 	}
 
