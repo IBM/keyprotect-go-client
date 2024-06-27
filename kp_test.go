@@ -5623,7 +5623,7 @@ func TestKMIPMgmtAPI(t *testing.T) {
 				gock.New(baseURL).
 					Delete(objectPath + "/" + UUID).
 					Reply(http.StatusNoContent)
-				err := api.DeleteKMIPObject(ctx, UUID, UUID)
+				err := api.DeleteKMIPObject(ctx, UUID, UUID, WithForce(false))
 				assert.NoError(t, err)
 				return nil
 			},
