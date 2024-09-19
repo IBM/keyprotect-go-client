@@ -3748,7 +3748,7 @@ func TestPurgeKey(t *testing.T) {
 		Reply(200)
 
 	key, err = c.PurgeKey(context.Background(), keyID, ReturnMinimal)
-
+	assert.NoError(t, err)
 	assert.Nil(t, key)
 
 	// Error scenarion - Request too early
@@ -3968,6 +3968,7 @@ func TestGetPurgeKey(t *testing.T) {
 		Body(bytes.NewReader(getResponse2))
 
 	c, _, err = NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
