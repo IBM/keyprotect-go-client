@@ -229,7 +229,7 @@ func TestRotatedKeyHasLastUpdatedAndRotated(t *testing.T) {
 	t.Logf("CRK rotated successfully: id=%s\n", crk.ID)
 
 	rotated, err := c.GetKey(ctx, crk.ID)
-
+	assert.NoError(err)
 	assert.NotEmpty(rotated.LastUpdateDate)
 	assert.NotEmpty(rotated.LastRotateDate)
 

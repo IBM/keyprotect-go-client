@@ -493,7 +493,7 @@ func dumpBody(reqBody, resBody []byte, log Logger, redactStrings []string, redac
 		if err != nil {
 			log.Info(err)
 		}
-		redactStrings = append(redactStrings, auth.AccessToken, auth.RefreshToken)
+		redactStrings = append(redactStrings, auth.AccessToken, auth.RefreshToken) //nolint:all
 	}
 	// log.Info(string(redact(string(resBody), redactStrings)))
 }
