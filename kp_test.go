@@ -657,7 +657,7 @@ func TestKeys(t *testing.T) {
 				gock.New("https://iam.cloud.ibm.com/oidc/token").Reply(http.StatusBadRequest).JSON(body)
 				gock.InterceptClient(&a.HttpClient)
 
-				_, err = api.GetKeys(ctx, 0, 0)
+				_, err := api.GetKeys(ctx, 0, 0)
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), "BXNIM0415E")
 				assert.Contains(t, err.Error(), "Provided API key could not be found")
