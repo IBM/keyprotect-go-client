@@ -229,6 +229,7 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, _ *API, _ context.Context) error {
 				var l Logger
 				testapi, err := NewWithLogger(NewTestClientConfig(), DefaultTransport(), l)
+				assert.NoError(t, err)
 				assert.NotNil(t, testapi)
 
 				// hard-to-reach bits:
@@ -468,7 +469,7 @@ func TestKeys(t *testing.T) {
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
 				testKeys.Keys = append(testKeys.Keys[:0], testKeys.Keys[1:]...)
 				testKeys.Metadata.NumberOfKeys--
-				k, err = api.DeleteKey(ctx, key2, ReturnRepresentation)
+				_, err = api.DeleteKey(ctx, key2, ReturnRepresentation)
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
@@ -635,7 +636,6 @@ func TestKeys(t *testing.T) {
 		{
 			"Bad API Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				api, _, err := NewTestClient(t, nil)
 				_, cancel := context.WithTimeout(ctx, time.Second*2)
 				defer cancel()
 				defer gock.Off()
@@ -1291,6 +1291,7 @@ func TestDo_ConnectionError_HasCorrelationID(t *testing.T) {
 		ReplyError(errors.New("test error"))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
