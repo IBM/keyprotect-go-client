@@ -19,7 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	ioutil "io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -415,13 +415,13 @@ func TestKeys(t *testing.T) {
 				testKeys.Metadata.NumberOfKeys--
 
 				MockAuthURL(keyURL, http.StatusOK, "{}")
-				k, err = api.DeleteKey(ctx, key1, ReturnMinimal)
+				_, err = api.DeleteKey(ctx, key1, ReturnMinimal)
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
 				testKeys.Keys = append(testKeys.Keys[:0], testKeys.Keys[1:]...)
 				testKeys.Metadata.NumberOfKeys--
-				k, err = api.DeleteKey(ctx, key2, ReturnRepresentation)
+				_, err = api.DeleteKey(ctx, key2, ReturnRepresentation)
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
@@ -462,7 +462,7 @@ func TestKeys(t *testing.T) {
 				testKeys.Metadata.NumberOfKeys--
 
 				MockAuthURL(keyURL, http.StatusOK, "{}")
-				k, err = api.DeleteKey(ctx, key1, ReturnMinimal)
+				_, err = api.DeleteKey(ctx, key1, ReturnMinimal)
 				assert.NoError(t, err)
 
 				MockAuthURL(keyURL, http.StatusOK, testKeys)
@@ -547,7 +547,7 @@ func TestKeys(t *testing.T) {
 		{
 			"Timeout",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+				_, cancel := context.WithTimeout(ctx, time.Second*2)
 				defer cancel()
 				c := NewTestClientConfig()
 				c.BaseURL = DefaultBaseURL + ":22"
@@ -586,7 +586,7 @@ func TestKeys(t *testing.T) {
 					Verbose:       VerboseAllNoRedact,
 				}
 
-				a, ctx, err := NewTestClient(t, c)
+				a, _, err := NewTestClient(t, c)
 				assert.NoError(t, err)
 				gock.InterceptClient(&a.HttpClient)
 
@@ -623,7 +623,7 @@ func TestKeys(t *testing.T) {
 		{
 			"API Key Timeout",
 			func(t *testing.T, api *API, ctx context.Context) error {
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+				ctx, cancel := context.WithTimeout(ctx, time.Second*2)
 				defer cancel()
 				defer gock.Off()
 
@@ -661,7 +661,7 @@ func TestKeys(t *testing.T) {
 			"Bad API Key",
 			func(t *testing.T, api *API, ctx context.Context) error {
 				api, ctx, err := NewTestClient(t, nil)
-				ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+				_, cancel := context.WithTimeout(ctx, time.Second*2)
 				defer cancel()
 				defer gock.Off()
 
@@ -767,7 +767,7 @@ func TestKeys(t *testing.T) {
 				RetryMax = 1
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
 				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
-				key, err = api.GetKey(ctx, testKey)
+				_, err = api.GetKey(ctx, testKey)
 				assert.Error(t, err)
 
 				// Validate that the error we get back has the status and message from the retry
@@ -790,7 +790,7 @@ func TestKeys(t *testing.T) {
 				RetryMax = 1
 				MockAuthURL(keyURL, http.StatusServiceUnavailable, "service unavailable")
 				MockAuthURL(keyURL, http.StatusBadGateway, "err: bad gateway")
-				key, err = api.GetKeyMetadata(ctx, testKey)
+				_, err = api.GetKeyMetadata(ctx, testKey)
 				assert.Error(t, err)
 
 				// Validate that the error we get back has the status and message from the retry
@@ -2600,7 +2600,7 @@ func TestGetPrivateEndpointPortNumber(t *testing.T) {
 		Reply(200).
 		Body(bytes.NewReader(noPortResponse))
 
-	port, err = c.GetAllowedIPPrivateNetworkPort(context.Background())
+	_, err = c.GetAllowedIPPrivateNetworkPort(context.Background())
 
 	assert.Error(t, err)
 	assert.Equal(t, err.Error(), "No port number available. Please check the instance has an enabled allowedIP policy")
@@ -2666,11 +2666,11 @@ func TestSetRotationInstancePolicyError(t *testing.T) {
 		},
 		"resources": [
 		  {
-			"errorMsg": "Bad Request: Instance policy could not be created: Please see "reasons" for more details (INVALID_FIELD_ERR)",
+			"errorMsg": "Bad Request: Instance policy could not be created: Please see \"reasons\" for more details (INVALID_FIELD_ERR)",
 			"reasons": [
 			  {
 				"code": "INVALID_FIELD_ERR",
-				"message": "The field "interval_month" must be: an integer between 1 and 12 (inclusive)",
+				"message": "The field \"interval_month\" must be: an integer between 1 and 12 (inclusive)",
 				"status": 400,
 				"moreInfo": "https://cloud.ibm.com/apidocs/key-protect",
 				"target": { "type": "field", "name": "interval_month" }
@@ -5045,7 +5045,7 @@ func TestListKeySearch(t *testing.T) {
 		Search: srcStr2,
 	}
 
-	keys, err = c.ListKeys(context.Background(), listKeysOptions)
+	_, err = c.ListKeys(context.Background(), listKeysOptions)
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 	assert.NoError(t, err)
 

@@ -110,7 +110,7 @@ func ExampleClient_UnwrapV2() {
 		fmt.Printf("Your DEK was rewrapped with a new key version. Your new WDEK is %v\n", rewrapped)
 
 		// store new WDEK
-		wrappedDek = rewrapped
+		wrappedDek = rewrapped //nolint:all
 	}
 
 }
@@ -174,7 +174,7 @@ func ExampleClient_DeleteKey() {
 	}
 }
 
-func ExampleClient_InstancePolicies() {
+func ExampleClient_SetInstancePolicies() {
 	client, _ := kp.New(
 		kp.ClientConfig{
 			BaseURL:    "https://us-south.kms.cloud.ibm.com",

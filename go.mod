@@ -10,8 +10,8 @@ require (
 )
 
 retract (
-	v0.11.0 // Contains bugs that break create key
-	v0.12.0 // Contains bugs that break create key
-	v0.12.1 // Contains bugs that break create key
 	v0.12.3 // Contains only retractions
+	v0.12.1 // Contains bugs that break create key
+	v0.12.0 // Contains bugs that break create key
+	v0.11.0 // Contains bugs that break create key
 )

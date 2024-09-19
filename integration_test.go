@@ -17,7 +17,14 @@
 
 package kp
 
-import "time"
+import (
+	"context"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
 
 // These are tests that run across the network against a real KeyProtect service.
 // The goal of this is to provide a more extended test other than regular unit
@@ -29,14 +36,6 @@ import "time"
 // To use this, you will need to set KP_INSTANCE_ID and IBMCLOUD_API_KEY environment variables.
 // KP_INSTANCE_ID should be set to the UUID of a pre-created instance of the KeyProtect service in the US-SOUTH region.
 // IBMCLOUD_API_KEY should be an IAM API Key that has access to the instance that KP_INSTANCE_ID refers to.
-
-import (
-	"context"
-	"os"
-
-	"github.com/stretchr/testify/assert"
-	"testing"
-)
 
 func NewIntegrationTestClient(t *testing.T) (*API, error) {
 	instanceId, ok := os.LookupEnv("KP_INSTANCE_ID")
@@ -91,6 +90,7 @@ func TestWrapUnwrap(t *testing.T) {
 	assert.NoError(err)
 
 	unwrapped, err := c.Unwrap(ctx, crk.ID, wdek, nil)
+	assert.NoError(err)
 	assert.EqualValues(unwrapped, ptDek)
 
 	keys, err = c.GetKeys(context.Background(), 0, 0)
@@ -128,6 +128,7 @@ func TestWrapDEKV2UnWrap(t *testing.T) {
 	assert.EqualValues(getKeyVersion.KeyVersion[0].ID, wrapKeyDetails.KeyVersion.ID)
 
 	unwrapped, err := c.Unwrap(ctx, crk.ID, []byte(wrapKeyDetails.CipherText), nil)
+	assert.NoError(err)
 	assert.EqualValues(unwrapped, wrapKeyDetails.PlainText)
 
 	_, err = c.DeleteKey(ctx, crk.ID, 0)
@@ -193,6 +194,7 @@ func TestWrapUnwrapWithAlias(t *testing.T) {
 	assert.NoError(err)
 
 	unwrapped, err := c.Unwrap(ctx, crkAlias.Alias, wdek, nil)
+	assert.NoError(err)
 	assert.EqualValues(unwrapped, ptDek)
 
 	_, err = c.DeleteKey(ctx, crkAlias.Alias, 0)
