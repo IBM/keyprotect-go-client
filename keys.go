@@ -23,6 +23,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/IBM/keyprotect-go-client/common"
 )
 
 const (
@@ -398,6 +400,7 @@ func (c *Client) SetKeyRing(ctx context.Context, idOrAlias, newKeyRingID string)
 
 // GetKeys retrieves a collection of keys that can be paged through.
 func (c *Client) GetKeys(ctx context.Context, limit int, offset int) (*Keys, error) {
+	fmt.Println(common.GetComponentInfo())
 	if limit == 0 {
 		limit = 2000
 	}

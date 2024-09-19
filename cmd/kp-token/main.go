@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/IBM/keyprotect-go-client/common"
 	"github.com/IBM/keyprotect-go-client/iam"
 )
 
@@ -38,7 +37,6 @@ import (
 // or use a utility with more intelligence.
 
 func main() {
-	common.GetComponentInfo()
 	apiKey, ok := os.LookupEnv("IBMCLOUD_API_KEY")
 	if !ok {
 		fmt.Printf("'IBMCLOUD_API_KEY' not set in environment!\n")
