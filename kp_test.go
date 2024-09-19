@@ -1313,6 +1313,7 @@ func TestDo_CorrelationID_Set(t *testing.T) {
 		ReplyError(errors.New("test error"))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1350,6 +1351,7 @@ func TestDo_KPErrorResponseWithReasons_IsErrorStruct(t *testing.T) {
 
 	gock.New("http://example.com").Reply(409).Body(bytes.NewReader(errorWithReasons))
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1385,6 +1387,7 @@ func TestDo_KPErrorResponseWithoutReasons_IsErrorStruct(t *testing.T) {
 
 	gock.New("http://example.com").Reply(401).Body(bytes.NewReader(errorWithoutReasons))
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1410,6 +1413,7 @@ func TestDeleteKey_ForceOptTrue_URLHasForce(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1468,6 +1472,7 @@ func TestDeleteKey_WithRegistrations_ErrorCases(t *testing.T) {
 		Reply(409).Body(bytes.NewReader(errorDeleteKeyWithRegistrations))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1627,6 +1632,7 @@ func TestRegistrationsList(t *testing.T) {
 		Reply(200).Body(bytes.NewReader(allRegsResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1714,6 +1720,7 @@ func TestRestoreKey(t *testing.T) {
 		Reply(201).Body(bytes.NewReader(restoreKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1828,6 +1835,7 @@ func TestSetAndGetMultipleInstancePolicies(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1917,6 +1925,7 @@ func TestSetAndGetDualAuthInstancePolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -1993,6 +2002,7 @@ func TestSetAndGetRotationInstancePolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2131,6 +2141,7 @@ func TestSetAndGetAllowedNetworkPolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2207,6 +2218,7 @@ func TestSetAndGetAllowedIPInstancePolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2385,6 +2397,7 @@ func TestSetAndGetKeyCreateImportAccessInstancePolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2488,6 +2501,7 @@ func TestSetMetricsPolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2520,6 +2534,7 @@ func TestSetMetricsPolicy(t *testing.T) {
 // TestSetAllowedIPPolicyError tests the error scenarios while setting Allowed IP policy
 func TestSetAllowedIPPolicyError(t *testing.T) {
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	c.tokenSource = &FakeTokenSource{}
 
 	err = c.SetAllowedIPInstancePolicy(context.Background(), false, []string{"192.0.2.0/24", "203.0.113.0/32"})
@@ -2553,6 +2568,7 @@ func TestGetPrivateEndpointPortNumber(t *testing.T) {
 		Body(bytes.NewReader(response))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2613,6 +2629,7 @@ func TestSetInstanceDualAuthPolicyError(t *testing.T) {
 		Body(bytes.NewReader(errorResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2664,6 +2681,7 @@ func TestSetRotationInstancePolicyError(t *testing.T) {
 		Body(bytes.NewReader(errorResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2758,6 +2776,7 @@ func TestSetKeyPolicies(t *testing.T) {
 		Reply(200).Body(bytes.NewReader(dualAuthPolicyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -2883,6 +2902,7 @@ func TestEnabeOrDisableRotationPolicy(t *testing.T) {
 	}`)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3008,6 +3028,7 @@ func TestGetKeyPolicies(t *testing.T) {
 		Reply(200).Body(bytes.NewReader(getPoliciesResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3104,6 +3125,7 @@ func TestDisableKey(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3173,6 +3195,7 @@ func TestEnableKey(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3203,6 +3226,7 @@ func TestInitiate_DualAuthDelete(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3222,6 +3246,7 @@ func TestCancel_DualAuthDelete(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3242,6 +3267,7 @@ func TestCreateKeyRing(t *testing.T) {
 		Reply(201)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3262,6 +3288,7 @@ func TestDeleteKeyRing(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3304,6 +3331,7 @@ func TestGetKeyRings(t *testing.T) {
 		Body(bytes.NewReader(keyRingsResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3364,6 +3392,7 @@ func TestSetKeyRing(t *testing.T) {
 		Body(bytes.NewReader((keyResponse)))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3418,6 +3447,7 @@ func TestGetKeyVerifyKeyRingDetail(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3471,6 +3501,7 @@ func TestCreateKeyWithAliases(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3529,6 +3560,7 @@ func TestCreateImportedKeyWithAliases(t *testing.T) {
 		Body(bytes.NewReader(standardKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3617,6 +3649,7 @@ func TestCreateKeyAlias(t *testing.T) {
 		Body(bytes.NewReader(keyAliasResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3641,6 +3674,7 @@ func TestDeleteKeyAlias(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3694,6 +3728,7 @@ func TestPurgeKey(t *testing.T) {
 		Body(bytes.NewReader(keyPurgeResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -3879,6 +3914,7 @@ func TestGetPurgeKey(t *testing.T) {
 		Body(bytes.NewReader(getResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4009,6 +4045,7 @@ func TestWrapWithAlias(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4047,6 +4084,7 @@ func TestUnWrapWithAlias(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4102,6 +4140,7 @@ func TestGetKeyWithAlias(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4155,6 +4194,7 @@ func TestGetKeyMetadataWithAlias(t *testing.T) {
 		Body(bytes.NewReader(keyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4203,6 +4243,7 @@ func TestListKeyVersions(t *testing.T) {
 		Reply(400).Body(bytes.NewReader(KeyVersionResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4366,6 +4407,7 @@ func TestListKeys(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4512,6 +4554,7 @@ func TestRotate2WithoutPayload(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4531,6 +4574,7 @@ func TestRotate2WithPayload(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4554,6 +4598,7 @@ func TestRotate2SecurelyImport(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4599,6 +4644,7 @@ func TestRotate2GeneratedKeyWithPayload(t *testing.T) {
 		Body(bytes.NewReader(errResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4644,6 +4690,7 @@ func TestRotate2ImportedKeyWithoutPayload(t *testing.T) {
 		Body(bytes.NewReader(errResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4663,6 +4710,7 @@ func TestSyncAssociatedResources(t *testing.T) {
 		Reply(204)
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4702,6 +4750,7 @@ func TestSyncAssociatedResourcesError(t *testing.T) {
 		Body(bytes.NewReader(errorResp))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4781,6 +4830,7 @@ func TestListKeySort(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -4956,6 +5006,7 @@ func TestListKeySearch(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
@@ -5096,6 +5147,7 @@ func TestListKeyFilter(t *testing.T) {
 		Body(bytes.NewReader(listKeyResponse))
 
 	c, _, err := NewTestClient(t, nil)
+	assert.NoError(t, err)
 	gock.InterceptClient(&c.HttpClient)
 	defer gock.RestoreClient(&c.HttpClient)
 	c.tokenSource = &FakeTokenSource{}
