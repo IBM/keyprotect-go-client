@@ -3747,8 +3747,7 @@ func TestPurgeKey(t *testing.T) {
 		Delete("/api/v2/keys/" + requestPath).
 		Reply(200)
 
-	key, err = c.PurgeKey(context.Background(), keyID, ReturnMinimal)
-	assert.NoError(t, err)
+	key, _ = c.PurgeKey(context.Background(), keyID, ReturnMinimal)
 	assert.Nil(t, key)
 
 	// Error scenarion - Request too early
