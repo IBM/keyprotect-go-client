@@ -61,7 +61,7 @@ func Example() {
 	}
 
 	// Unwrap our WDEK, getting back the corresponding DEK
-	unwrapped, _, err := c.UnwrapV2(ctx, crk.ID, wdek, nil)
+	unwrapped, _, _ := c.UnwrapV2(ctx, crk.ID, wdek, nil)
 
 	if string(unwrapped) != string(ptDek) {
 		panic("Unwrapped DEK did not match DEK from Wrap!")

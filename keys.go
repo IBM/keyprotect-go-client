@@ -65,7 +65,7 @@ type Key struct {
 	CreationDate        *time.Time  `json:"creationDate,omitempty"`
 	LastUpdateDate      *time.Time  `json:"lastUpdateDate,omitempty"`
 	LastRotateDate      *time.Time  `json:"lastRotateDate,omitempty"`
-	KeyVersion          *KeyVersion `json:"keyVersion,omitempty" mapstructure:keyVersion`
+	KeyVersion          *KeyVersion `json:"keyVersion,omitempty"`
 	KeyRingID           string      `json:"keyRingID,omitempty"`
 	Extractable         bool        `json:"extractable"`
 	Expiration          *time.Time  `json:"expirationDate,omitempty"`
