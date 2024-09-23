@@ -3,6 +3,7 @@ module github.com/IBM/keyprotect-go-client
 go 1.15
 
 require (
+	github.com/IBM/go-sdk-core/v5 v5.17.5 // indirect
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/stretchr/testify v1.9.0
