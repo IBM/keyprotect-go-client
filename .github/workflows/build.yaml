@@ -79,7 +79,7 @@ jobs:
           fi
 
   publish-release:
-    if: "github.ref_name == 'main' && github.event_name != 'pull_request'"
+    if: "github.ref_name == 'master' && github.event_name != 'pull_request'"
     needs: build
     name: publish
     runs-on: ubuntu-latest
