@@ -21,7 +21,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1" //nolint:all
+	"crypto/sha1" //nolint:gosec
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
@@ -182,7 +182,6 @@ func EncryptNonceWithCBCPAD(key, value, iv string) (string, string, error) {
 
 	mode := cipher.NewCBCEncrypter(block, newIv)
 	mode.CryptBlocks(cipherText, nonce)
-
 	return base64.StdEncoding.EncodeToString(cipherText), base64.StdEncoding.EncodeToString(newIv), nil
 }
 
@@ -192,8 +191,10 @@ func encryptKey(key, pubKey string) (string, error) {
 }
 
 // EncryptKeyWithSHA1 uses sha1 to encrypt the key
+//
+// Deprecated: SHA-1 is officially deprecated by NIST due to being cryptographicaly insecure. Not recommended for use
 func EncryptKeyWithSHA1(key, pubKey string) (string, error) {
-	return encryptKeyWithSHA(key, pubKey, sha1.New()) //nolint:all
+	return encryptKeyWithSHA(key, pubKey, sha1.New()) //nolint:gosec
 }
 
 func encryptKeyWithSHA(key, pubKey string, sha hash.Hash) (string, error) {
