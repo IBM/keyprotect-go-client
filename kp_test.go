@@ -550,11 +550,8 @@ func TestKeys(t *testing.T) {
 			func(t *testing.T, api *API, ctx context.Context) error {
 				_, cancel := context.WithTimeout(ctx, time.Second*2)
 				defer cancel()
-				c := NewTestClientConfig()
-				c.BaseURL = DefaultBaseURL + ":22"
-				c.Verbose = VerboseAll
 
-				a, ctx, err := NewTestClient(t, &c)
+				a, ctx, err := NewTestClient(t, nil)
 				assert.NoError(t, err)
 				gock.InterceptClient(&a.HttpClient)
 
@@ -2545,7 +2542,7 @@ func TestSetAllowedIPPolicyError(t *testing.T) {
 	err = c.SetAllowedIPInstancePolicy(context.Background(), true, []string{})
 
 	assert.Error(t, err)
-	assert.Equal(t, "Please provide at least 1 IP subnet specified with CIDR notation", err.Error())
+	assert.Equal(t, "please provide at least 1 IP subnet specified with CIDR notation", err.Error())
 
 }
 
@@ -2595,7 +2592,7 @@ func TestGetPrivateEndpointPortNumber(t *testing.T) {
 	_, err = c.GetAllowedIPPrivateNetworkPort(context.Background())
 
 	assert.Error(t, err)
-	assert.Equal(t, err.Error(), "No port number available. Please check the instance has an enabled allowedIP policy")
+	assert.Equal(t, err.Error(), "no port number available. Please check the instance has an enabled allowedIP policy")
 
 	assert.True(t, gock.IsDone(), "Expected HTTP requests not called")
 }
