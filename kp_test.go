@@ -554,7 +554,7 @@ func TestKeys(t *testing.T) {
 				c.BaseURL = DefaultBaseURL + ":22"
 				c.Verbose = VerboseAll
 
-				a, ctx, err := NewTestClient(t, nil)
+				a, ctx, err := NewTestClient(t, &c)
 				assert.NoError(t, err)
 				gock.InterceptClient(&a.HttpClient)
 
