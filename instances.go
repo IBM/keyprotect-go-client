@@ -265,9 +265,9 @@ func addRotationInstancePolicyData(enable bool, intervalMonth *int) (InstancePol
 	}
 
 	if enable && intervalMonth == nil {
-		return InstancePolicy{}, fmt.Errorf("Interval Month is required to enable rotation instance policy") //nolint:all
+		return InstancePolicy{}, fmt.Errorf("\"Interval Month\" is required to enable rotation instance policy")
 	} else if !enable && intervalMonth != nil {
-		return InstancePolicy{}, fmt.Errorf("Interval Month should only be provided if the policy is being enabled") //nolint:all
+		return InstancePolicy{}, fmt.Errorf("\"Interval Month\" should only be provided if the policy is being enabled")
 	} else if intervalMonth != nil {
 		rotationPolicyData.PolicyData.Attributes = &Attributes{
 			IntervalMonth: intervalMonth,
