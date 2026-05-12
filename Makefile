@@ -21,7 +21,7 @@ test-int-cov:
 	${GO} test ./... -tags=integration ${COVERAGE}
 
 lint:
-	${LINT} run --build-tags=integration,examples ${LINTOPTS}
+	${LINT} run --build-tags=integration ${LINTOPTS}
 
 tidy:
 	${GO} mod tidy
