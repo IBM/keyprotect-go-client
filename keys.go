@@ -119,13 +119,13 @@ type KeysActionRequest struct {
 	EncryptedNonce      string      `json:"encryptedNonce,omitempty"`
 	IV                  string      `json:"iv,omitempty"`
 	EncryptionAlgorithm string      `json:"encryptionAlgorithm,omitempty"`
-	KeyVersion          *KeyVersion `json:"keyVersion,,omitempty"`
+	KeyVersion          *KeyVersion `json:"keyVersion,omitempty"`
 }
 
 type KeyActionResponse struct {
 	PlainText  string      `json:"plaintext,omitempty"`
 	CipherText string      `json:"ciphertext,omitempty"`
-	KeyVersion *KeyVersion `json:"keyVersion,,omitempty"`
+	KeyVersion *KeyVersion `json:"keyVersion,omitempty"`
 }
 
 type KeyVersion struct {
@@ -371,11 +371,11 @@ func (c *Client) createKeyResource(ctx context.Context, key Key, path string) (*
 // https://cloud.ibm.com/docs/key-protect?topic=key-protect-grouping-keys#transfer-key-key-ring
 func (c *Client) SetKeyRing(ctx context.Context, idOrAlias, newKeyRingID string) (*Key, error) {
 	if idOrAlias == "" {
-		return nil, fmt.Errorf("Please provide a valid key ID or alias")
+		return nil, fmt.Errorf("please provide a valid key ID or alias")
 	}
 
 	if newKeyRingID == "" {
-		return nil, fmt.Errorf("Please provide a valid key ring id")
+		return nil, fmt.Errorf("please provide a valid key ring id")
 	}
 
 	keyRingRequestBody := struct {
