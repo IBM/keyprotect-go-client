@@ -47,57 +47,48 @@ var (
 	sessionTokens = make(map[uintptr]string)
 )
 
-// initLibrary performs one-time library initialization with lazy loading.
-// It checks platform support, loads the shared library, and registers function symbols.
-// This function is thread-safe and will only execute once, even if called multiple times.
-func initLibrary() error {
-	initOnce.Do(func() {
-		// Check platform support first
-		var libName string
-		switch runtime.GOOS {
-		case "linux":
-			libName = "ibmkmscrypto.so.1.0.0"
-		case "windows":
-			libName = "ibmkmscrypto.dll"
-		case "darwin":
-			libName = "ibmkmscrypto.1.0.0.dylib"
-		default:
-			initError = fmt.Errorf("unsupported platform: %s (supported: linux, windows, darwin)", runtime.GOOS)
-			return
-		}
+func init() {
+	// Determine library name based on platform
+	var libName string
+	switch runtime.GOOS {
+	case "linux":
+		libName = "ibmkmscrypto.so.1.0.0"
+	case "windows":
+		libName = "ibmkmscrypto.dll"
+	case "darwin":
+		libName = "ibmkmscrypto.1.0.0.dylib"
+	default:
+		panic(fmt.Sprintf("unsupported platform: %s", runtime.GOOS))
+	}
 
-		// Load library
-		libPath := getLibraryPath(libName)
-		ensurePreload(libPath)
+	// Load library
+	libPath := getLibraryPath(libName)
+	ensurePreload(libPath)
 
-		var err error
-		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
-		if err != nil {
-			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
-			return
-		}
+	var err error
+	libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load library %s: %v\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err))
+	}
 
-		// Load function symbols
-		// These must match the //export function names in internal/bridge/exports.go
-		purego.RegisterLibFunc(&createSessionFunc, libHandle, "CreateSessionC")
-		purego.RegisterLibFunc(&closeSessionFunc, libHandle, "CloseSessionC")
-		purego.RegisterLibFunc(&setTokenGetterFunc, libHandle, "SetTokenGetterC")
-		purego.RegisterLibFunc(&getAuthStateFunc, libHandle, "GetAuthStateC")
-		purego.RegisterLibFunc(&listUsersFunc, libHandle, "ListUsersC")
-		purego.RegisterLibFunc(&addUserFunc, libHandle, "AddUserC")
-		purego.RegisterLibFunc(&deleteUserFunc, libHandle, "DeleteUserC")
-		purego.RegisterLibFunc(&generateRSAKeyFunc, libHandle, "GenerateRSAKeyC")
-		purego.RegisterLibFunc(&generateECDSAKeyFunc, libHandle, "GenerateECDSAKeyC")
-		purego.RegisterLibFunc(&listMBKKeysFunc, libHandle, "ListMBKKeysC")
-		purego.RegisterLibFunc(&generateMBKFunc, libHandle, "GenerateMBKC")
-		purego.RegisterLibFunc(&importMBKFunc, libHandle, "ImportMBKC")
-		purego.RegisterLibFunc(&changeUserPasswordFunc, libHandle, "ChangeUserPasswordC")
-		purego.RegisterLibFunc(&getCryptoUnitIDFunc, libHandle, "GetCryptoUnitIDC")
-		purego.RegisterLibFunc(&freeStringFunc, libHandle, "FreeStringC")
-		purego.RegisterLibFunc(&getLastErrorFunc, libHandle, "GetLastErrorC")
-	})
-
-	return initError
+	// Load function symbols
+	// These must match the //export function names in internal/bridge/exports.go
+	purego.RegisterLibFunc(&createSessionFunc, libHandle, "CreateSessionC")
+	purego.RegisterLibFunc(&closeSessionFunc, libHandle, "CloseSessionC")
+	purego.RegisterLibFunc(&setTokenGetterFunc, libHandle, "SetTokenGetterC")
+	purego.RegisterLibFunc(&getAuthStateFunc, libHandle, "GetAuthStateC")
+	purego.RegisterLibFunc(&listUsersFunc, libHandle, "ListUsersC")
+	purego.RegisterLibFunc(&addUserFunc, libHandle, "AddUserC")
+	purego.RegisterLibFunc(&deleteUserFunc, libHandle, "DeleteUserC")
+	purego.RegisterLibFunc(&generateRSAKeyFunc, libHandle, "GenerateRSAKeyC")
+	purego.RegisterLibFunc(&generateECDSAKeyFunc, libHandle, "GenerateECDSAKeyC")
+	purego.RegisterLibFunc(&listMBKKeysFunc, libHandle, "ListMBKKeysC")
+	purego.RegisterLibFunc(&generateMBKFunc, libHandle, "GenerateMBKC")
+	purego.RegisterLibFunc(&importMBKFunc, libHandle, "ImportMBKC")
+	purego.RegisterLibFunc(&changeUserPasswordFunc, libHandle, "ChangeUserPasswordC")
+	purego.RegisterLibFunc(&getCryptoUnitIDFunc, libHandle, "GetCryptoUnitIDC")
+	purego.RegisterLibFunc(&freeStringFunc, libHandle, "FreeStringC")
+	purego.RegisterLibFunc(&getLastErrorFunc, libHandle, "GetLastErrorC")
 }
 
 // getLibraryPath searches for the shared library in multiple locations

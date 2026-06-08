@@ -75,6 +75,7 @@ func NewKeyProtectCryptoUnitAPIOptions(url string) (*KeyProtectCryptoUnitAPIOpti
 
 // NewKeyProtectCryptoUnitAPI creates a KeyProtectCryptoUnitAPI instance. Always call disconnect() when done.
 func NewKeyProtectCryptoUnitAPI(options *KeyProtectCryptoUnitAPIOptions) (service *KeyProtectCryptoUnitAPI, disconnect func(), err error) {
+
 	// Initialize the crypto library early to catch platform/library issues immediately
 	if initErr := initLibrary(); initErr != nil {
 		err = core.SDKErrorf(
