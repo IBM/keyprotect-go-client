@@ -1,10 +1,10 @@
 # KeyProtect CryptoUnit Go SDK - API
 
-This package provides a simplified, secure Go interface to KeyProtect SingleTenant CryptoUnits.
+This package provides a simplified, secure Go interface to KeyProtect Dedicated CryptoUnits.
 
 ## Overview
 
-This is the **public API** for the KeyProtect SingleTenant keyprotect-dedicated Go wrapper. The actual implementation is packaged separately as platform-specific prebuilt artifacts while maintaining ease of use.
+This is the **public API** for the KeyProtect Dedicated keyprotect-dedicated Go wrapper. The actual implementation is packaged separately as platform-specific prebuilt artifacts while maintaining ease of use.
 
 > Current packaging contract: the public module remains source-only, while the build pipeline publishes standardized platform archives containing redistributed prebuilt Go archive artifacts and vendor libraries for future integration.
 
@@ -33,9 +33,9 @@ go get github.com/IBM/keyprotect-go-client/dedicated
 
 The module includes precompiled shared libraries for all supported platforms in `internal/lib/`:
 
-- `linux-amd64/libc2api.so.${VERSION}`
-- `darwin-arm64/libc2api.${VERSION}.dylib`
-- `windows-amd64/libc2api.dll`
+- `linux-amd64/ibmkmscrypto.so.${VERSION}`
+- `darwin-arm64/ibmkmscrypto.${VERSION}.dylib`
+- `windows-amd64/ibmkmscrypto.dll`
 
 At runtime, the package automatically finds and loads the correct library for your platform using [purego](https://github.com/ebitengine/purego).
 
@@ -238,5 +238,5 @@ This software is provided under the IBM license agreement. Refer to the LICENSE 
 ### v1.0.0 (2026-04-10)
 
 - Initial release
-- Support for KeyProtect SingleTenant CryptoUnit
+- Support for initializing KeyProtect Dedicated CryptoUnits
 - Pre-compiled binaries for all major platforms
