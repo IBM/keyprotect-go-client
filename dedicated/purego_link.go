@@ -47,6 +47,7 @@ var (
 	sessionTokens = make(map[uintptr]string)
 )
 
+<<<<<<< HEAD
 func init() {
 	// Determine library name based on platform
 	var libName string
@@ -60,16 +61,87 @@ func init() {
 	default:
 		panic(fmt.Sprintf("unsupported platform: %s", runtime.GOOS))
 	}
+||||||| parent of 67d93d9 (sending commit)
+// initLibrary performs one-time library initialization with lazy loading.
+// It checks platform support, loads the shared library, and registers function symbols.
+// This function is thread-safe and will only execute once, even if called multiple times.
+func initLibrary() error {
+	initOnce.Do(func() {
+		// Check platform support first
+		var libName string
+		switch runtime.GOOS {
+		case "linux":
+			libName = "ibmkmscrypto.so.1.0.0"
+		case "windows":
+			libName = "ibmkmscrypto.dll"
+		case "darwin":
+			libName = "ibmkmscrypto.1.0.0.dylib"
+		default:
+			initError = fmt.Errorf("unsupported platform: %s (supported: linux, windows, darwin)", runtime.GOOS)
+			return
+		}
+=======
+// resolveLibName returns the shared library filename for the given GOOS and GOARCH,
+// or an error if the platform/architecture combination is not supported.
+func resolveLibName(goos, goarch string) (string, error) {
+	switch goos {
+	case "linux":
+		if goarch != "amd64" {
+			return "", fmt.Errorf("unsupported architecture for linux: %s (supported: amd64)", goarch)
+		}
+		return "ibmkmscrypto.so.1.0.0", nil
+	case "darwin":
+		if goarch != "arm64" {
+			return "", fmt.Errorf("unsupported architecture for darwin: %s (supported: arm64)", goarch)
+		}
+		return "ibmkmscrypto.1.0.0.dylib", nil
+	case "windows":
+		if goarch != "amd64" {
+			return "", fmt.Errorf("unsupported architecture for windows: %s (supported: amd64)", goarch)
+		}
+		return "ibmkmscrypto.dll", nil
+	default:
+		return "", fmt.Errorf("unsupported platform: %s/%s (supported: linux/amd64, darwin/arm64, windows/amd64)", goos, goarch)
+	}
+}
+
+// initLibrary performs one-time library initialization with lazy loading.
+// It checks platform support, loads the shared library, and registers function symbols.
+// This function is thread-safe and will only execute once, even if called multiple times.
+func initLibrary() error {
+	initOnce.Do(func() {
+		// Check platform support first
+		libName, err := resolveLibName(runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			initError = err
+			return
+		}
+>>>>>>> 67d93d9 (sending commit)
 
 	// Load library
 	libPath := getLibraryPath(libName)
 	ensurePreload(libPath)
 
+<<<<<<< HEAD
 	var err error
 	libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 	if err != nil {
 		panic(fmt.Sprintf("failed to load library %s: %v\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err))
 	}
+||||||| parent of 67d93d9 (sending commit)
+		var err error
+		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+		if err != nil {
+			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
+			return
+		}
+=======
+		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+		if err != nil {
+			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
+			return
+		}
+>>>>>>> 67d93d9 (sending commit)
 
 	// Load function symbols
 	// These must match the //export function names in internal/bridge/exports.go
