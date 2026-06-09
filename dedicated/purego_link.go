@@ -68,7 +68,9 @@ func initLibrary() error {
 
 		// Load library
 		libPath := getLibraryPath(libName)
-		ensurePreload(libPath)
+		if err := ensurePreload(libPath); err != nil {
+			return
+		}
 
 		var err error
 		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
@@ -602,20 +604,20 @@ func wrapError(err error, context string) error {
 	return fmt.Errorf("%s: %w", context, err)
 }
 
-func ensurePreload(libPath string) {
+func ensurePreload(libPath string) error {
 	// Only do this on Linux
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
 	// Avoid infinite recursion
 	if os.Getenv("KP_PRELOADED") == "1" {
-		return
+		return nil
 	}
 
 	// If already preloaded, skip
 	if strings.Contains(os.Getenv("LD_PRELOAD"), libPath) {
-		return
+		return nil
 	}
 
 	// Build new environment
@@ -630,8 +632,9 @@ func ensurePreload(libPath string) {
 	// #nosec G204,G702 - This is intentional: re-executing the current process with modified environment
 	err := syscall.Exec(os.Args[0], os.Args, env)
 	if err != nil {
-		panic(fmt.Sprintf("failed to exec with LD_PRELOAD: %v", err))
+		return err
 	}
+	return nil
 }
 
 // Made with Bob
