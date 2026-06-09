@@ -3,7 +3,6 @@ package dedicated
 import (
 	"fmt"
 	"sync"
-	"unsafe"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 )
@@ -325,7 +324,7 @@ type session struct {
 
 // newSession creates a new session object with a valid pointer and non-empty fields
 func newSession(id uintptr, cuid, userName string) (*session, error) {
-	if id == 0 || unsafe.Pointer(id) == nil {
+	if id == 0 {
 		return nil, fmt.Errorf("session object cannot have a nil pointer")
 	}
 	if cuid == "" {

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -17,6 +18,8 @@ import (
 
 var (
 	libHandle uintptr
+	initOnce  sync.Once
+	initError error
 
 	// Function pointers loaded from shared library
 	// These match the //export functions in internal/bridge/exports.go
@@ -44,48 +47,75 @@ var (
 	sessionTokens = make(map[uintptr]string)
 )
 
-func init() {
-	// Determine library name based on platform
-	var libName string
-	switch runtime.GOOS {
+// resolveLibName returns the shared library filename for the given GOOS and GOARCH,
+// or an error if the platform/architecture combination is not supported.
+func resolveLibName(goos, goarch string) (string, error) {
+	switch goos {
 	case "linux":
-		libName = "ibmkmscrypto.so.1.0.0"
-	case "windows":
-		libName = "ibmkmscrypto.dll"
+		if goarch != "amd64" {
+			return "", fmt.Errorf("unsupported architecture for linux: %s (supported: amd64)", goarch)
+		}
+		return "ibmkmscrypto.so.1.0.0", nil
 	case "darwin":
-		libName = "ibmkmscrypto.1.0.0.dylib"
+		if goarch != "arm64" {
+			return "", fmt.Errorf("unsupported architecture for darwin: %s (supported: arm64)", goarch)
+		}
+		return "ibmkmscrypto.1.0.0.dylib", nil
+	case "windows":
+		if goarch != "amd64" {
+			return "", fmt.Errorf("unsupported architecture for windows: %s (supported: amd64)", goarch)
+		}
+		return "ibmkmscrypto.dll", nil
 	default:
-		panic(fmt.Sprintf("unsupported platform: %s", runtime.GOOS))
+		return "", fmt.Errorf("unsupported platform: %s/%s (supported: linux/amd64, darwin/arm64, windows/amd64)", goos, goarch)
 	}
+}
 
-	// Load library
-	libPath := getLibraryPath(libName)
-	ensurePreload(libPath)
+// initLibrary performs one-time library initialization with lazy loading.
+// It checks platform support, loads the shared library, and registers function symbols.
+// This function is thread-safe and will only execute once, even if called multiple times.
+func initLibrary() error {
+	initOnce.Do(func() {
+		// Check platform support first
+		libName, err := resolveLibName(runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			initError = err
+			return
+		}
 
-	var err error
-	libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
-	if err != nil {
-		panic(fmt.Sprintf("failed to load library %s: %v\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err))
-	}
+		// Load library
+		libPath := getLibraryPath(libName)
+		if err := ensurePreload(libPath); err != nil {
+			return
+		}
 
-	// Load function symbols
-	// These must match the //export function names in internal/bridge/exports.go
-	purego.RegisterLibFunc(&createSessionFunc, libHandle, "CreateSessionC")
-	purego.RegisterLibFunc(&closeSessionFunc, libHandle, "CloseSessionC")
-	purego.RegisterLibFunc(&setTokenGetterFunc, libHandle, "SetTokenGetterC")
-	purego.RegisterLibFunc(&getAuthStateFunc, libHandle, "GetAuthStateC")
-	purego.RegisterLibFunc(&listUsersFunc, libHandle, "ListUsersC")
-	purego.RegisterLibFunc(&addUserFunc, libHandle, "AddUserC")
-	purego.RegisterLibFunc(&deleteUserFunc, libHandle, "DeleteUserC")
-	purego.RegisterLibFunc(&generateRSAKeyFunc, libHandle, "GenerateRSAKeyC")
-	purego.RegisterLibFunc(&generateECDSAKeyFunc, libHandle, "GenerateECDSAKeyC")
-	purego.RegisterLibFunc(&listMBKKeysFunc, libHandle, "ListMBKKeysC")
-	purego.RegisterLibFunc(&generateMBKFunc, libHandle, "GenerateMBKC")
-	purego.RegisterLibFunc(&importMBKFunc, libHandle, "ImportMBKC")
-	purego.RegisterLibFunc(&changeUserPasswordFunc, libHandle, "ChangeUserPasswordC")
-	purego.RegisterLibFunc(&getCryptoUnitIDFunc, libHandle, "GetCryptoUnitIDC")
-	purego.RegisterLibFunc(&freeStringFunc, libHandle, "FreeStringC")
-	purego.RegisterLibFunc(&getLastErrorFunc, libHandle, "GetLastErrorC")
+		libHandle, err = openLibrary(libPath)
+		if err != nil {
+			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
+			return
+		}
+
+		// Load function symbols
+		// These must match the //export function names in internal/bridge/exports.go
+		purego.RegisterLibFunc(&createSessionFunc, libHandle, "CreateSessionC")
+		purego.RegisterLibFunc(&closeSessionFunc, libHandle, "CloseSessionC")
+		purego.RegisterLibFunc(&setTokenGetterFunc, libHandle, "SetTokenGetterC")
+		purego.RegisterLibFunc(&getAuthStateFunc, libHandle, "GetAuthStateC")
+		purego.RegisterLibFunc(&listUsersFunc, libHandle, "ListUsersC")
+		purego.RegisterLibFunc(&addUserFunc, libHandle, "AddUserC")
+		purego.RegisterLibFunc(&deleteUserFunc, libHandle, "DeleteUserC")
+		purego.RegisterLibFunc(&generateRSAKeyFunc, libHandle, "GenerateRSAKeyC")
+		purego.RegisterLibFunc(&generateECDSAKeyFunc, libHandle, "GenerateECDSAKeyC")
+		purego.RegisterLibFunc(&listMBKKeysFunc, libHandle, "ListMBKKeysC")
+		purego.RegisterLibFunc(&generateMBKFunc, libHandle, "GenerateMBKC")
+		purego.RegisterLibFunc(&importMBKFunc, libHandle, "ImportMBKC")
+		purego.RegisterLibFunc(&changeUserPasswordFunc, libHandle, "ChangeUserPasswordC")
+		purego.RegisterLibFunc(&getCryptoUnitIDFunc, libHandle, "GetCryptoUnitIDC")
+		purego.RegisterLibFunc(&freeStringFunc, libHandle, "FreeStringC")
+		purego.RegisterLibFunc(&getLastErrorFunc, libHandle, "GetLastErrorC")
+	})
+
+	return initError
 }
 
 // getLibraryPath searches for the shared library in multiple locations
@@ -291,6 +321,11 @@ func callCreateSession(endpoint, instanceID, cryptoUnitID, username, keyfile, pa
 
 // callCloseSession wraps the C function call to close the session
 func callCloseSession(sessionID uintptr) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	result := closeSessionFunc(sessionID)
 	if result != 0 {
 		// Validate result is non-negative before conversion
@@ -305,6 +340,11 @@ func callCloseSession(sessionID uintptr) error {
 
 // callGetAuthState wraps the C function call to get the auth state of the cryptounit session
 func callGetAuthState(sessionID uintptr) (int32, error) {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return 0, fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var authState int32
 	result := getAuthStateFunc(sessionID, &authState)
 	if result != 0 {
@@ -321,6 +361,11 @@ func callGetAuthState(sessionID uintptr) (int32, error) {
 
 // callListUsers wraps the C function call to list users in the cryptounit
 func callListUsers(sessionID uintptr) (string, error) {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return "", fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var resultPtr *byte
 	status := listUsersFunc(sessionID, &resultPtr)
 	if status != 0 {
@@ -340,6 +385,11 @@ func callListUsers(sessionID uintptr) (string, error) {
 // callAddUser wraps the C function call
 // attributes should be a semicolon-separated string of key=value pairs (e.g., "CXI_GROUP=SLOT_0042;KEY2=VALUE2")
 func callAddUser(sessionID uintptr, username, userType, credential, credHash, attributes string, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	headerStr := convertHeadersToString(addtlHeaders)
 	var resultPtr *byte
 	status := addUserFunc(
@@ -366,6 +416,11 @@ func callAddUser(sessionID uintptr, username, userType, credential, credHash, at
 
 // callDeleteUser wraps the C function call
 func callDeleteUser(sessionID uintptr, username string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	result := deleteUserFunc(sessionID, cString(username))
 	if result != 0 {
 		// Validate result is non-negative before conversion
@@ -382,6 +437,11 @@ func callDeleteUser(sessionID uintptr, username string) error {
 // callGenerateRSAKeyStatic generates an RSA key using instance ID directly (no session required)
 // This is a local operation that doesn't communicate with the HSM
 func callGenerateRSAKeyStatic(instanceID, keySpec string, keySizeBits uint32, owner, passphrase string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var resultPtr *byte
 	status := generateRSAKeyFunc(
 		cString(instanceID),
@@ -405,6 +465,11 @@ func callGenerateRSAKeyStatic(instanceID, keySpec string, keySizeBits uint32, ow
 
 // callListMasterKeys wraps the C function call to list Master Keys
 func callListMasterKeys(sessionID uintptr) (string, error) {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return "", fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var resultPtr *byte
 	status := listMBKKeysFunc(sessionID, &resultPtr)
 	if status != 0 {
@@ -423,6 +488,11 @@ func callListMasterKeys(sessionID uintptr) (string, error) {
 
 // callGenerateMBK wraps the C function call to generate Master key
 func callGenerateMBK(sessionID uintptr, keyspec, keytype string, keylen int, n, k uint8, keyname string, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	headerStr := convertHeadersToString(addtlHeaders)
 
 	// Validate keylen is within int32 range
@@ -455,6 +525,11 @@ func callGenerateMBK(sessionID uintptr, keyspec, keytype string, keylen int, n, 
 
 // callImportMasterKey wraps the C function call to import Master key
 func callImportMasterKey(sessionID uintptr, keyspec string, slotNo int, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	// Convert headers map to semicolon-separated string
 	headerStr := convertHeadersToString(addtlHeaders)
 
@@ -484,6 +559,11 @@ func callImportMasterKey(sessionID uintptr, keyspec string, slotNo int, addtlHea
 
 // callGetCryptoUnitID wraps the C function call to obtain the crypto unit ID
 func callGetCryptoUnitID(sessionID uintptr) (string, error) {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return "", fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var resultPtr *byte
 	status := getCryptoUnitIDFunc(sessionID, &resultPtr)
 	if status != 0 {
@@ -502,6 +582,11 @@ func callGetCryptoUnitID(sessionID uintptr) (string, error) {
 
 // callGetLastError wraps the C function call to get the last error message
 func callGetLastError(sessionID uintptr) (string, error) {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return "", fmt.Errorf("library initialization failed: %w", err)
+	}
+
 	var resultPtr *byte
 	status := getLastErrorFunc(sessionID, &resultPtr)
 	if status != 0 {
@@ -535,20 +620,20 @@ func wrapError(err error, context string) error {
 	return fmt.Errorf("%s: %w", context, err)
 }
 
-func ensurePreload(libPath string) {
+func ensurePreload(libPath string) error {
 	// Only do this on Linux
 	if runtime.GOOS != "linux" {
-		return
+		return nil
 	}
 
 	// Avoid infinite recursion
 	if os.Getenv("KP_PRELOADED") == "1" {
-		return
+		return nil
 	}
 
 	// If already preloaded, skip
 	if strings.Contains(os.Getenv("LD_PRELOAD"), libPath) {
-		return
+		return nil
 	}
 
 	// Build new environment
@@ -563,8 +648,9 @@ func ensurePreload(libPath string) {
 	// #nosec G204,G702 - This is intentional: re-executing the current process with modified environment
 	err := syscall.Exec(os.Args[0], os.Args, env)
 	if err != nil {
-		panic(fmt.Sprintf("failed to exec with LD_PRELOAD: %v", err))
+		return err
 	}
+	return nil
 }
 
 // Made with Bob
