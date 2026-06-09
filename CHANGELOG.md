@@ -1,3 +1,10 @@
+## [0.17.1](https://github.com/IBM/keyprotect-go-client/compare/v0.17.0...v0.17.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **build:** changing init() to lib_lazy_load() ([#150](https://github.com/IBM/keyprotect-go-client/issues/150)) ([af4b1a1](https://github.com/IBM/keyprotect-go-client/commit/af4b1a151618a2d9e61c4e31a863c1ec03e51b98))
+
 # [0.17.0](https://github.com/IBM/keyprotect-go-client/compare/v0.16.0...v0.17.0) (2026-06-08)
 
 
