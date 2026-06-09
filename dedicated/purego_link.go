@@ -87,7 +87,7 @@ func initLibrary() error {
 		libPath := getLibraryPath(libName)
 		ensurePreload(libPath)
 
-		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
+		libHandle, err = openLibrary(libPath)
 		if err != nil {
 			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
 			return
