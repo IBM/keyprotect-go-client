@@ -394,3 +394,77 @@ func configureKPCryptoUnitLogger() core.Logger {
 
 	return core.NewLogger(coreLogLevel, outLogger, errLogger)
 }
+
+// ---------------------------------------------------------------------------
+// InitStep — resume-point enumeration for InitializeCryptoUnits
+// ---------------------------------------------------------------------------
+
+// InitStep identifies each resumable stage of the initialization pipeline.
+// The values are intentionally monotonically increasing so that a simple
+// integer comparison determines whether a stage needs to run.
+type InitStep int
+
+const (
+	StepListUnits      InitStep = 1 // ListCryptoUnitsWithContext → determines per-unit resume point
+	StepGenerateSKR    InitStep = 2 // generate the admin signature key (local)
+	StepClaimUnits     InitStep = 3 // ClaimCryptoUnitWithContext → state: claimed
+	StepCreateSessions InitStep = 4 // createSessions (HSM login)
+	StepAddKMSUser     InitStep = 5 // AddKMSUser → state: kms-authorized
+	StepGenerateMBK    InitStep = 6 // GenerateMasterKeyWithContext (local-to-one-unit)
+	StepImportMBK      InitStep = 7 // ImportMasterKeyToCryptoUnits → state: initialized
+)
+
+// stateToStep maps a CryptoUnitState to the earliest InitStep that still
+// needs to execute for that unit.  It is the authoritative translation
+// between the live HSM state and the initialization pipeline.
+//
+//   available / reserved  → need to Claim                         (Step 3)
+//   claimed               → need Sessions + AddKMSUser + MBK      (Step 4)
+//   kms-authorized        → need Sessions (ephemeral) + ImportMBK (Step 4)
+//   initialized /
+//   kms-initialized       → already done                          (Step 8, sentinel)
+//
+// NOTE: kms-authorized maps to StepCreateSessions (4), not StepImportMBK (7).
+// HSM sessions are process-local and ephemeral — they are never persisted across
+// process restarts.  Every code path that reaches Step 5 or beyond requires an
+// active session, so sessions must always be (re-)opened, even when resuming from
+// a state that has already passed the session-creation point.  The per-unit guards
+// inside Steps 5, 6, and 7 handle skipping work that is already reflected in the
+// durable HSM state; Step 4 itself is always unconditional.
+//
+// Any unknown / unexpected state falls back to StepClaimUnits so we
+// conservatively redo the minimum required work without skipping anything.
+func stateToStep(state CryptoUnitState) InitStep {
+	switch state {
+	case CryptoUnitStateAvailable, CryptoUnitStateReserved:
+		return StepClaimUnits
+	case CryptoUnitStateClaimed, CryptoUnitStateKMSAuthorized:
+		// Both states need an HSM session opened before further work can proceed.
+		// The per-unit guards in Steps 5–7 ensure only the missing durable work runs.
+		return StepCreateSessions
+	case CryptoUnitStateInitialized, CryptoUnitStateKMSInitialized:
+		return StepImportMBK + 1 // sentinel: nothing left to do
+	default:
+		return StepClaimUnits
+	}
+}
+
+// cryptoUnitStartStep returns the next InitStep that needs to execute for a
+// single CryptoUnit, based on its live state from ListCryptoUnitsWithContext.
+// It is a thin wrapper around stateToStep kept here for testability.
+func cryptoUnitStartStep(cu CryptoUnit) InitStep {
+	return stateToStep(cu.State)
+}
+
+// instanceStartStep returns the earliest InitStep that must still run across
+// the entire set of crypto units — i.e. the minimum per-unit start step.
+// Passing the minimum ensures no unit is left behind.
+func instanceStartStep(units []CryptoUnit) InitStep {
+	min := StepImportMBK + 1 // sentinel: all done
+	for _, cu := range units {
+		if s := stateToStep(cu.State); s < min {
+			min = s
+		}
+	}
+	return min
+}

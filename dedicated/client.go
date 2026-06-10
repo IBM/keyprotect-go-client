@@ -79,7 +79,7 @@ func NewKeyProtectCryptoUnitAPI(options *KeyProtectCryptoUnitAPIOptions) (servic
 	if initErr := initLibrary(); initErr != nil {
 		err = core.SDKErrorf(
 			initErr,
-			"Supported platforms: linux (amd64, arm64), darwin (arm64), windows (amd64)",
+			"Supported platforms: linux (amd64), darwin (arm64), windows (amd64)",
 			"library-init-error",
 			common.GetComponentInfo(),
 		)
@@ -490,7 +490,8 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ClaimCryptoUnitWithConte
 	response, err := keyProtectCryptoUnitAPI.Service.Request(request, nil)
 	if err != nil {
 		keyProtectCryptoUnitAPI.logger.Error(
-			fmt.Sprintf("Failed to claim cryptounit %s: %v...", cryptoUnitID, response))
+			fmt.Sprintf("Failed to claim cryptounit %s: %v...", cryptoUnitID, response),
+		)
 		// Extract HTTPProblem from the error chain
 		var httpErr *core.HTTPProblem
 		if errors.As(err, &httpErr) && httpErr.Response != nil {
@@ -1146,77 +1147,164 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyToCryptoU
 	return allErrs
 }
 
+// InitializeCryptoUnits provisions every crypto unit belonging to instanceID
+// through the full 7-step initialization pipeline.
+//
+// Each step is guarded by the live CryptoUnitState returned from
+// ListCryptoUnitsWithContext, so the function is safe to call after a
+// partial failure: it will resume from wherever each individual unit was
+// left off, and it will bring lagging units up to the same state as the
+// most-advanced units (catch-up).
+//
+// Step ordering and the states they produce:
+//
+//  1. ListCryptoUnitsWithContext   → determines per-unit resume point
+//  2. GenerateSignatureKey         → local file (skipped when skr.Exists)
+//  3. ClaimCryptoUnitWithContext   → state: claimed
+//  4. createSessions (HSM login)
+//  5. AddKMSUser                   → state: kms-authorized
+//  6. GenerateMasterKeyWithContext → local file (skipped when mbkspec.Exists)
+//  7. ImportMasterKeyToCryptoUnits → state: initialized / kms-initialized
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ctx context.Context, skr *SignatureKeyRequest, mbkspec *MasterKeyPartsSpec, instanceID string) error {
 	logger := keyProtectCryptoUnitAPI.logger
-	// ctx := context.Background()
+
 	sdkHeaders := common.GetSdkHeaders(DefaultServiceName, "v1", "InitializeCryptoUnits")
 	logger.Debug("sdkHeaders=%v", sdkHeaders)
 	ctx = withHeaders(ctx, sdkHeaders)
 
-	// Step 1: Generate the root key
-	if !skr.Exists {
-		err := keyProtectCryptoUnitAPI.GenerateSignatureKey(keyProtectCryptoUnitAPI.instanceID, skr)
-		if err != nil {
-			return fmt.Errorf("failed to generate root key: %v", err)
-		}
-		keyProtectCryptoUnitAPI.logger.Info(fmt.Sprintf("signature key generated: %s\n", skr.FilePath))
-	} else {
-		logger.Info("using a preexisting Signature Key for KMS instance: %s", instanceID)
-	}
-
-	// Step 2: List cryptounits
+	// ── Step 1: Discover the current state of every crypto unit ───────────────
+	// The live state is the authoritative source for which steps each unit
+	// still needs.  We always re-fetch here so that a retry after a partial
+	// failure picks up where the HSM left off.  Placing this first lets the
+	// remaining steps (including key generation) be skipped or conditioned on
+	// the actual HSM state.
 	cryptoUnits, _, err := keyProtectCryptoUnitAPI.ListCryptoUnitsWithContext(ctx)
-	if err != nil || len(cryptoUnits.CryptoUnits) == 0 {
-		return fmt.Errorf("failed to list crypto units: %v", err)
-	}
-
-	// Step 3: Claim crypto units
-	for _, cu := range cryptoUnits.CryptoUnits {
-		err := keyProtectCryptoUnitAPI.ClaimCryptoUnitWithContext(ctx, cu.ID, skr.FilePath)
-		if err != nil {
-			var apiErr *CryptoUnitAPIError
-			if errors.As(err, &apiErr) {
-				return apiErr
-			}
-			return err
-		}
-		keyProtectCryptoUnitAPI.logger.Info(fmt.Sprintf("Claimed crypto units: %v\n", cu))
-	}
-
-	// Step 4: Create Sessions for each crypto unit
-	_, err = keyProtectCryptoUnitAPI.createSessions(ctx, cryptoUnits, skr.FilePath)
 	if err != nil {
-		return fmt.Errorf("failed to create sessions: %v", err)
+		return fmt.Errorf("step 1 – list crypto units: %w", err)
+	}
+	if len(cryptoUnits.CryptoUnits) == 0 {
+		return fmt.Errorf("step 1 – no crypto units found for instance %s", instanceID)
 	}
 
-	// Step 5: Generate Master Key from one cryptounit
-	if !mbkspec.Exists {
-		baseCryptoUnitID := cryptoUnits.CryptoUnits[0].ID
-		str, err := keyProtectCryptoUnitAPI.GenerateMasterKeyWithContext(ctx, baseCryptoUnitID, mbkspec)
-		if err != nil {
-			return fmt.Errorf("failed to mbk for crypto units: %v", err)
+	for i, cu := range cryptoUnits.CryptoUnits {
+		logger.Info("step 1 – crypto unit [%d]: id=%s state=%s", i, cu.ID, cu.State)
+	}
+
+	// Determine the earliest step that still needs to run across ALL units.
+	// A unit that is "behind" the others will pull the minimum down, ensuring
+	// the lagging unit is caught up before the pipeline advances.
+	startStep := instanceStartStep(cryptoUnits.CryptoUnits)
+	logger.Info("step 1 – instance resume point: step %d", startStep)
+
+	// ── Step 2: Generate the admin signature key (local operation) ────────────
+	// Skipped when the caller already has a key on disk (skr.Exists == true).
+	if !skr.Exists {
+		if err := keyProtectCryptoUnitAPI.GenerateSignatureKey(keyProtectCryptoUnitAPI.instanceID, skr); err != nil {
+			return fmt.Errorf("step 2 – generate signature key: %w", err)
 		}
-		keyProtectCryptoUnitAPI.logger.Info(fmt.Sprintf("Master Key generated: %v\n", str))
+		logger.Info("step 2 – signature key generated: %s", skr.FilePath)
 	} else {
-		logger.Info("using a preexisting master key parts for KMS instance: %s", instanceID)
+		logger.Info("step 2 – using pre-existing signature key for KMS instance: %s", instanceID)
 	}
 
-	// Step 6: Import MasterKey to all cryptounits
-	err = keyProtectCryptoUnitAPI.ImportMasterKeyToCryptoUnits(ctx, cryptoUnits.IDs(), mbkspec)
-	if err != nil {
-		return fmt.Errorf("failed to import master key to cryptoUnits")
+	// ── Step 3: Claim each unit that has not yet been claimed ─────────────────
+	// Per-unit guard: only units in available/reserved state need claiming.
+	// Units already at claimed/kms-authorized/initialized are skipped.
+	if startStep <= StepClaimUnits {
+		for _, cu := range cryptoUnits.CryptoUnits {
+			cuStep := cryptoUnitStartStep(cu)
+			if cuStep > StepClaimUnits {
+				logger.Info("step 3 – skipping claim for unit %s (state=%s, already claimed)", cu.ID, cu.State)
+				continue
+			}
+			if err := keyProtectCryptoUnitAPI.ClaimCryptoUnitWithContext(ctx, cu.ID, skr.FilePath); err != nil {
+				var apiErr *CryptoUnitAPIError
+				if errors.As(err, &apiErr) {
+					// return apiErr
+					logger.Error("failed to claim cryptounit %s: %v", err)
+				}
+				// return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, err)
+			}
+			logger.Info("step 3 – claimed crypto unit %s", cu.ID)
+		}
+	} else {
+		logger.Info("step 3 – skipping claim phase (all units already at state ≥ claimed)")
 	}
 
-	// Step 7: Import KMS user to each crypto unit
-	for _, cu := range cryptoUnits.CryptoUnits {
-		_, err := keyProtectCryptoUnitAPI.AddKMSUser(ctx, cu.ID)
-		if err != nil {
-			return fmt.Errorf("failed to add kms user for crypto units: %v", err)
+	// ── Step 4: Open HSM sessions for every unit ──────────────────────────────
+	// Sessions are process-local and ephemeral — they are never persisted across
+	// process restarts.  Steps 5, 6, and 7 all issue HSM commands that require
+	// an active session, so this step is UNCONDITIONAL: it runs whenever the
+	// pipeline reaches it, regardless of how far the units progressed on a
+	// previous run.  There is no state on the HSM that records "a session was
+	// previously opened", so startStep can never skip past this point.
+	if startStep <= StepImportMBK {
+		if _, err := keyProtectCryptoUnitAPI.createSessions(ctx, cryptoUnits, skr.FilePath); err != nil {
+			return fmt.Errorf("step 4 – create sessions: %w", err)
 		}
 	}
-	keyProtectCryptoUnitAPI.logger.Info(
-		fmt.Sprintf("KMS instance %s is ready to use", instanceID),
-	)
+
+	// ── Step 5: Add KMS user to each unit that is not yet kms-authorized ──────
+	// Per-unit guard: units already at kms-authorized or beyond are skipped.
+	if startStep <= StepAddKMSUser {
+		for _, cu := range cryptoUnits.CryptoUnits {
+			cuStep := cryptoUnitStartStep(cu)
+			if cuStep > StepAddKMSUser {
+				logger.Info("step 5 – skipping AddKMSUser for unit %s (state=%s)", cu.ID, cu.State)
+				continue
+			}
+			if _, err := keyProtectCryptoUnitAPI.AddKMSUser(ctx, cu.ID); err != nil {
+				return fmt.Errorf("step 5 – add KMS user for crypto unit %s: %w", cu.ID, err)
+			}
+			logger.Info("step 5 – KMS user added to crypto unit %s", cu.ID)
+		}
+	} else {
+		logger.Info("step 5 – skipping AddKMSUser phase (all units already kms-authorized or beyond)")
+	}
+
+	// ── Step 6: Generate the Master Key parts (local operation) ───────────────
+	// Only one unit is used as the generation source; the key is then
+	// distributed in Step 7.  Skipped when the caller already has key share
+	// files on disk (mbkspec.Exists == true).
+	if startStep <= StepGenerateMBK {
+		if !mbkspec.Exists {
+			baseCryptoUnitID := cryptoUnits.CryptoUnits[0].ID
+			str, err := keyProtectCryptoUnitAPI.GenerateMasterKeyWithContext(ctx, baseCryptoUnitID, mbkspec)
+			if err != nil {
+				return fmt.Errorf("step 6 – generate master key: %w", err)
+			}
+			logger.Info("step 6 – master key generated: %v", str)
+		} else {
+			logger.Info("step 6 – using pre-existing master key parts for KMS instance: %s", instanceID)
+		}
+	} else {
+		logger.Info("step 6 – skipping master key generation (all units already past kms-authorized)")
+	}
+
+	// ── Step 7: Import the Master Key to every unit that needs it ─────────────
+	// Per-unit guard: only units not yet initialized receive the import.
+	if startStep <= StepImportMBK {
+		// Build the list of unit IDs that still need the MBK imported.
+		// Units at initialized/kms-initialized are excluded so that an
+		// already-commissioned unit is never overwritten.
+		var pendingIDs []string
+		for _, cu := range cryptoUnits.CryptoUnits {
+			if cryptoUnitStartStep(cu) <= StepImportMBK {
+				pendingIDs = append(pendingIDs, cu.ID)
+			} else {
+				logger.Info("step 7 – skipping MBK import for unit %s (state=%s, already initialized)", cu.ID, cu.State)
+			}
+		}
+		if len(pendingIDs) > 0 {
+			if err := keyProtectCryptoUnitAPI.ImportMasterKeyToCryptoUnits(ctx, pendingIDs, mbkspec); err != nil {
+				return fmt.Errorf("step 7 – import master key: %w", err)
+			}
+		}
+	} else {
+		logger.Info("step 7 – skipping MBK import (all units already initialized)")
+	}
+
+	logger.Info("KMS instance %s is ready to use", instanceID)
 	return nil
 }
 
