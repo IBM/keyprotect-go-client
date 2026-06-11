@@ -47,32 +47,63 @@ var (
 	sessionTokens = make(map[uintptr]string)
 )
 
+// resolveLibName returns the platform-specific shared-library filename for the
+// given GOOS and GOARCH pair, or an error if the combination is not supported.
+//
+// Supported platforms:
+//
+//	linux/amd64   → ibmkmscrypto.so.1.0.0
+//	darwin/arm64  → ibmkmscrypto.1.0.0.dylib
+//	windows/amd64 → ibmkmscrypto.dll
+func resolveLibName(goos, goarch string) (string, error) {
+	type key struct{ os, arch string }
+	supported := map[key]string{
+		{"linux", "amd64"}:   "ibmkmscrypto.so.1.0.0",
+		{"darwin", "arm64"}:  "ibmkmscrypto.1.0.0.dylib",
+		{"windows", "amd64"}: "ibmkmscrypto.dll",
+	}
+	if name, ok := supported[key{goos, goarch}]; ok {
+		return name, nil
+	}
+	// Provide a more specific error when the OS is known but the arch is not.
+	knownOS := map[string]bool{"linux": true, "darwin": true, "windows": true}
+	if knownOS[goos] {
+		return "", fmt.Errorf("unsupported architecture for %s: %s (supported: %s/%s)", goos, goarch, goos, supportedArch(goos))
+	}
+	return "", fmt.Errorf("unsupported platform: %s/%s (supported: linux/amd64, darwin/arm64, windows/amd64)", goos, goarch)
+}
+
+// supportedArch returns the supported architecture string for a known OS.
+func supportedArch(goos string) string {
+	switch goos {
+	case "linux", "windows":
+		return "amd64"
+	case "darwin":
+		return "arm64"
+	default:
+		return "unknown"
+	}
+}
+
 // initLibrary performs one-time library initialization with lazy loading.
 // It checks platform support, loads the shared library, and registers function symbols.
 // This function is thread-safe and will only execute once, even if called multiple times.
 func initLibrary() error {
 	initOnce.Do(func() {
 		// Check platform support first
-		var libName string
-		switch runtime.GOOS {
-		case "linux":
-			libName = "ibmkmscrypto.so.1.0.0"
-		case "windows":
-			libName = "ibmkmscrypto.dll"
-		case "darwin":
-			libName = "ibmkmscrypto.1.0.0.dylib"
-		default:
-			initError = fmt.Errorf("unsupported platform: %s (supported: linux, windows, darwin)", runtime.GOOS)
+		libName, err := resolveLibName(runtime.GOOS, runtime.GOARCH)
+		if err != nil {
+			initError = err
 			return
 		}
 
 		// Load library
 		libPath := getLibraryPath(libName)
-		if err := ensurePreload(libPath); err != nil {
+		if err = ensurePreload(libPath); err != nil {
+			initError = err
 			return
 		}
 
-		var err error
 		libHandle, err = purego.Dlopen(libPath, purego.RTLD_LAZY|purego.RTLD_GLOBAL)
 		if err != nil {
 			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
