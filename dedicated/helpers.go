@@ -362,7 +362,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) createSessions(ctx conte
 	// Detach from the caller's cancellation signal. This operation touches
 	// durable HSM state and must not be interrupted mid-flight; values
 	// (auth tokens, headers) are still inherited from the parent context.
-	ctx = detachContext(ctx)
 
 	for _, v := range cryptounits.CryptoUnits {
 		cryptoUnitID := v.ID
