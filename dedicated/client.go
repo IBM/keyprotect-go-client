@@ -291,16 +291,16 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) connectCryptoUnit(userna
 
 	session, err := newSession(sessionID, cryptoUnitID, username)
 	if err != nil {
-		defer clsSession()
+		clsSession()
 		return 0, err
 	}
 	if err := keyProtectCryptoUnitAPI.sessions.add(session); err != nil {
 		// if there was an error adding to the session pool
-		defer clsSession()
+		clsSession()
 		return 0, err
 	}
 	keyProtectCryptoUnitAPI.usernames[cryptoUnitID] = username
-	keyProtectCryptoUnitAPI.logger.Debug(fmt.Sprintf("Connected to cryptounit %s. UserName: %s", cryptoUnitID, username))
+	keyProtectCryptoUnitAPI.logger.Debug("Connected to cryptounit %s. UserName: %s", cryptoUnitID, username)
 	return sessionID, nil
 }
 
