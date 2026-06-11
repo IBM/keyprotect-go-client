@@ -19,9 +19,6 @@ func validateSignatureKeyRequest(req *SignatureKeyRequest) error {
 	if err := validateFileSyntax(req.FilePath); err != nil {
 		return err
 	}
-	if req.Exists && !req.Overwrite {
-		return fmt.Errorf("SignatureKeyRequest: file already exists and overwrite is false")
-	}
 	if len(req.FilePath) < SigKeyFilePathMinLength || len(req.FilePath) > SigKeyFilePathMaxLength {
 		return fmt.Errorf("file path length must be between %d and %d characters",
 			SigKeyFilePathMinLength, SigKeyFilePathMaxLength)
@@ -37,6 +34,12 @@ func validateSignatureKeyRequest(req *SignatureKeyRequest) error {
 			if err := checkFileExists(dir); err != nil {
 				return fmt.Errorf("directory does not exist: %q", dir)
 			}
+		}
+	}
+
+	if req.Exists && !req.Overwrite {
+		if err := checkFileExists(req.FilePath); err != nil {
+			return fmt.Errorf("directory does not exist: %s", req.FilePath)
 		}
 	}
 
@@ -70,8 +73,8 @@ func validateMasterKeyPartsSpec(mKeySpec *MasterKeyPartsSpec) error {
 		if err := validateFileSyntax(filePath); err != nil {
 			return fmt.Errorf("KeyShareFiles[%d]: invalid path: %w", i, err)
 		}
-		if mKeySpec.Exists && !mKeySpec.Overwrite {
-			return fmt.Errorf("KeyShareFiles[%d]: file already exists and overwrite is false", i)
+		if err := checkFileExists(filePath); err != nil && mKeySpec.Exists && !mKeySpec.Overwrite {
+			return fmt.Errorf("KeyShareFiles[%d]: invalid file specified: %w", i, err)
 		}
 	}
 

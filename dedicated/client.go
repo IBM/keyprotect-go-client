@@ -912,7 +912,9 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateSignatureKey(ins
 	if err := validateSignatureKeyRequest(req); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
-
+	if req.Exists && !req.Overwrite {
+		return nil
+	}
 	// Extract key size from algorithm (e.g., "RSA-2048" -> "2048")
 	keySizeBits := uint32(2048)
 
@@ -996,7 +998,10 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateMasterKeyWithCon
 	if err := validateMasterKeyPartsSpec(mbkSpec); err != nil {
 		return "", fmt.Errorf("invalid MasterKeyPartSpec: %w", err)
 	}
-
+	// early return if the Exists and !Overwrite
+	if mbkSpec.Exists && !mbkSpec.Overwrite {
+		return "", nil
+	}
 	// Pad keyname to exactly 8 characters with spaces if shorter (matches CLI behavior)
 	keyname := mbkSpec.KeyName
 	if len(keyname) < 8 {
@@ -1234,9 +1239,8 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 		}
 		logger.Info("step 2 – signature key generated: %s", skr.FilePath)
 	} else {
-		logger.Info("step 2 – using pre-existing signature key for KMS instance: %s", instanceID)
+		logger.Info("step 2 – attempting to use signature key specified: %s", skr.FilePath)
 	}
-
 	// ── Step 3: Claim each unit that has not yet been claimed ─────────────────
 	// Per-unit guard: only units in available/reserved state need claiming.
 	// Units already at claimed/kms-authorized/initialized are skipped.
