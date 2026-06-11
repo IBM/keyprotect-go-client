@@ -60,9 +60,10 @@ type CryptoUserMetadata struct {
 type AddUserRequest struct {
 	Username   string
 	Permission uint32
-	Mechanism  string            // "hmacpwd", "rsasign", or "ecdsa"
-	Attributes map[string]string // Optional attributes
-	Token      []byte            // Authentication token
+	Mechanism  string // "hmacpwd", "rsasign", or "ecdsa"
+	CredHash   string //
+	Attributes string // Optional attributes
+	Token      string // Authentication token
 }
 
 // GenerateKeyRequest contains parameters for key generation
@@ -92,20 +93,26 @@ type SignatureKeyRequest struct {
 
 	// Exists dictates if the signature key is an existing file from the FilePath
 	Exists bool
+
+	// Overwrite dictates if the signature key should be overwritten if the FilePath exists
+	Overwrite bool
 }
 
-func NewSignatureKeyRequest(filepath, passphrase, owner string, exists bool) (*SignatureKeyRequest, error) {
+func NewSignatureKeyRequest(filepath, passphrase, owner string, exists, overwrite bool) (*SignatureKeyRequest, error) {
 	err := validateFileSyntax(filepath)
 	if err != nil {
 		return nil, err
 	}
-
 	rootKeySpec := &SignatureKeyRequest{
 		FilePath:   filepath,
 		Passphrase: passphrase,
 		Algorithm:  SigKeyAlgorithmRSA2048,
 		Owner:      owner,
 		Exists:     exists,
+		Overwrite:  overwrite,
+	}
+	if err := validateSignatureKeyRequest(rootKeySpec); err != nil {
+		return nil, err
 	}
 	return rootKeySpec, nil
 }
@@ -174,6 +181,9 @@ type MasterKeyPartsSpec struct {
 
 	// Exists determines if the master key parts files in KeyShareFiles are existing files.
 	Exists bool
+
+	// Overwrite dictates if the master key parts should be overwritten if the KeyShareFiles exists
+	Overwrite bool
 }
 
 // NewMasterKeyPartsSpec creates a NewMasterKeyPartsSpec for the client
@@ -187,17 +197,18 @@ type MasterKeyPartsSpec struct {
 //
 // shouldGen is a bool to determine to use the existing files specified in
 // the keysharefiles field
-func NewMasterKeyPartsSpec(K int, keyName string, keysharefiles []string, exists bool) (*MasterKeyPartsSpec, error) {
+func NewMasterKeyPartsSpec(k int, keyName string, keysharefiles []string, exists, overwrite bool) (*MasterKeyPartsSpec, error) {
 	// Validate K is within uint8 range
-	if K < 0 || K > 255 {
-		return nil, fmt.Errorf("k value %d is out of range (0-255)", K)
+	if k < 0 || k > 255 {
+		return nil, fmt.Errorf("k value %d is out of range (0-255)", k)
 	}
 	mkps := &MasterKeyPartsSpec{
-		uint8(K),
-		keyName,
-		keysharefiles,
-		3,
-		exists,
+		K:             uint8(k),
+		KeyName:       keyName,
+		KeyShareFiles: keysharefiles,
+		SlotNo:        3,
+		Exists:        exists,
+		Overwrite:     overwrite,
 	}
 	if err := validateMasterKeyPartsSpec(mkps); err != nil {
 		return nil, err

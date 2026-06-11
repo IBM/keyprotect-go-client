@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -440,6 +439,11 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ClaimCryptoUnit(cryptoUn
 
 // ClaimCryptoUnitWithContext claims a specific cryptounit with context
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ClaimCryptoUnitWithContext(ctx context.Context, cryptoUnitID string, filePath string) error {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
 	// Parse signature key file to extract MOD and PEXP
 	modulusHex, exponentHex, err := parseSignatureKeyFile(filePath)
 	if err != nil {
@@ -754,9 +758,9 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddUserWithContext(ctx c
 		sessionID,
 		req.Username,
 		req.Mechanism,
-		"", // credential
-		"", // credHash
-		"", // attributes (empty for regular AddUser),
+		req.Token,      // credential
+		req.CredHash,   // credHash
+		req.Attributes, // attributes (empty for regular AddUser),
 		sdkHeaders,
 	)
 	if err != nil {
@@ -776,10 +780,15 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddUserWithContext(ctx c
 // 4. Adds the user to the HSM with basic permissions and slot-specific attributes
 // 5. Returns the updated list of users
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddKMSUser(ctx context.Context, cryptoUnitID string) ([]UserInfo, error) {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
 	keyProtectCryptoUnitAPI.logger.Info(
 		fmt.Sprintf("Adding KMS User to crypto unit %s...", cryptoUnitID),
 	)
-	sdkHeaders := createHeadersfromContext(ctx, "add-kms-user", keyProtectCryptoUnitAPI.instanceID)
+
 	// Step 1: Get crypto user metadata from Key Protect API
 	metadata, err := keyProtectCryptoUnitAPI.getCryptoUserMetadataWithContext(ctx)
 	if err != nil {
@@ -811,12 +820,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddKMSUser(ctx context.C
 	// Step 4: Calculate credential hash (SHA-256 of public key)
 	credHash := fmt.Sprintf("%x", sha256Hash(metadata.PublicKey))
 
-	// Step 5: Get session ID
-	sessionID, err := keyProtectCryptoUnitAPI.getSessionID(cryptoUnitID)
-	if err != nil {
-		return nil, err
-	}
-
 	// Step 6: Add user with KMS crypto user settings
 	credential := fmt.Sprintf("%s#", tmpFile.Name()) // Format: filepath#passphrase (empty passphrase)
 	userType := "kmsCryptoUser"                      // This constant is converted to "kms_crypto_user" by library layer
@@ -824,19 +827,34 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddKMSUser(ctx context.C
 	// Format slot ID as SLOT_XXXX (4 digits, zero-padded)
 	// The attributes are passed as a semicolon-separated string of key=value pairs
 	attributes := fmt.Sprintf("CXI_GROUP=SLOT_%04d", metadata.SlotID)
-
-	err = callAddUser(
-		sessionID,
-		metadata.Username,
-		userType,
-		credential,
-		credHash,
-		attributes,
-		sdkHeaders,
-	)
-	if err != nil {
+	// Step 5: Get session ID
+	req := AddUserRequest{
+		Username:   metadata.Username,
+		Mechanism:  userType,
+		Token:      credential,
+		CredHash:   credHash,
+		Attributes: attributes,
+	}
+	if err := keyProtectCryptoUnitAPI.AddUserWithContext(ctx, cryptoUnitID, &req); err != nil {
 		return nil, err
 	}
+	// sessionID, err := keyProtectCryptoUnitAPI.getSessionID(cryptoUnitID)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// err = callAddUser(
+	// 	sessionID,
+	// 	metadata.Username,
+	// 	userType,
+	// 	credential,
+	// 	credHash,
+	// 	attributes,
+	// 	sdkHeaders,
+	// )
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Step 7: Return updated user list
 	return keyProtectCryptoUnitAPI.ListUsers(cryptoUnitID)
@@ -893,13 +911,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateSignatureKey(ins
 	// Validate request
 	if err := validateSignatureKeyRequest(req); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
-	}
-	fp := req.FilePath
-	if !filepath.IsAbs(fp) {
-		_, err := filepath.Abs(".")
-		if err != nil {
-			return fmt.Errorf("key generation failed: %w", err)
-		}
 	}
 
 	// Extract key size from algorithm (e.g., "RSA-2048" -> "2048")
@@ -977,8 +988,13 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateMasterKey(crypto
 // GenerateMasterKeyWithContext generates a Master Backup Key for a specific crypto unit
 // This function creates a new Master Key with the specified parameters including threshold (N/K) scheme
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateMasterKeyWithContext(ctx context.Context, cryptoUnitID string, mbkSpec *MasterKeyPartsSpec) (string, error) {
-	if validateMasterKeyPartsSpec(mbkSpec) != nil {
-		return "", fmt.Errorf("invalid MasterKeyPartSpec: %v", validateMasterKeyPartsSpec(mbkSpec))
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
+	if err := validateMasterKeyPartsSpec(mbkSpec); err != nil {
+		return "", fmt.Errorf("invalid MasterKeyPartSpec: %w", err)
 	}
 
 	// Pad keyname to exactly 8 characters with spaces if shorter (matches CLI behavior)
@@ -1046,6 +1062,11 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKey(cryptoUn
 //	defer cancel()
 //	result, err := client.ImportMasterKeyWithContext(ctx, cryptoUnitID, importRequest)
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyWithContext(ctx context.Context, cryptoUnitID string, request *MasterKeyPartsSpec) error {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
 	logger := keyProtectCryptoUnitAPI.logger
 	if request == nil {
 		return fmt.Errorf("request cannot be nil")
@@ -1128,6 +1149,11 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyWithConte
 //	    }
 //	}
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyToCryptoUnits(ctx context.Context, cryptoUnitIDs []string, request *MasterKeyPartsSpec) error {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
 	// Create a channel to collect results
 	logger := keyProtectCryptoUnitAPI.logger
 	var allErrs error
@@ -1166,8 +1192,12 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyToCryptoU
 //  6. GenerateMasterKeyWithContext → local file (skipped when mbkspec.Exists)
 //  7. ImportMasterKeyToCryptoUnits → state: initialized / kms-initialized
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ctx context.Context, skr *SignatureKeyRequest, mbkspec *MasterKeyPartsSpec, instanceID string) error {
-	logger := keyProtectCryptoUnitAPI.logger
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
 
+	logger := keyProtectCryptoUnitAPI.logger
 	sdkHeaders := common.GetSdkHeaders(DefaultServiceName, "v1", "InitializeCryptoUnits")
 	logger.Debug("sdkHeaders=%v", sdkHeaders)
 	ctx = withHeaders(ctx, sdkHeaders)
@@ -1314,6 +1344,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ZeroizeCryptoUnit(crypto
 }
 
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ZeroizeCryptoUnitWithContext(ctx context.Context, cryptoUnitID string) error {
+
 	if err := keyProtectCryptoUnitAPI.Disconnect(cryptoUnitID); err != nil {
 		return fmt.Errorf("error trying to disconnecting session for cryptounit %s: %s", cryptoUnitID, err.Error())
 	}

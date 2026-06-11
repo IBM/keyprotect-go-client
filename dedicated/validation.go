@@ -1,7 +1,9 @@
 package dedicated
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +19,9 @@ func validateSignatureKeyRequest(req *SignatureKeyRequest) error {
 	if err := validateFileSyntax(req.FilePath); err != nil {
 		return err
 	}
+	if req.Exists && !req.Overwrite {
+		return fmt.Errorf("SignatureKeyRequest: file already exists and overwrite is false")
+	}
 	if len(req.FilePath) < SigKeyFilePathMinLength || len(req.FilePath) > SigKeyFilePathMaxLength {
 		return fmt.Errorf("file path length must be between %d and %d characters",
 			SigKeyFilePathMinLength, SigKeyFilePathMaxLength)
@@ -29,8 +34,8 @@ func validateSignatureKeyRequest(req *SignatureKeyRequest) error {
 	if strings.Contains(req.FilePath, "/") || strings.Contains(req.FilePath, "\\") {
 		dir := filepath.Dir(req.FilePath)
 		if dir != "." && dir != "" {
-			if _, err := os.Stat(dir); os.IsNotExist(err) {
-				return fmt.Errorf("directory does not exist: %s", dir)
+			if err := checkFileExists(dir); err != nil {
+				return fmt.Errorf("directory does not exist: %q", dir)
 			}
 		}
 	}
@@ -61,9 +66,12 @@ func validateMasterKeyPartsSpec(mKeySpec *MasterKeyPartsSpec) error {
 	}
 	for i, keyShareFile := range mKeySpec.KeyShareFiles {
 		parts := strings.Split(keyShareFile, "#")
-		filepath := parts[0]
-		if err := validateFileSyntax(filepath); err != nil {
-			return fmt.Errorf("error with MasterKeyPartsSpec.KeyShareFiles[%d]: %s", i, err)
+		filePath := parts[0]
+		if err := validateFileSyntax(filePath); err != nil {
+			return fmt.Errorf("KeyShareFiles[%d]: invalid path: %w", i, err)
+		}
+		if mKeySpec.Exists && !mKeySpec.Overwrite {
+			return fmt.Errorf("KeyShareFiles[%d]: file already exists and overwrite is false", i)
 		}
 	}
 
@@ -80,6 +88,21 @@ func validateMasterKeyPartsSpec(mKeySpec *MasterKeyPartsSpec) error {
 		return fmt.Errorf("the value K (threshold) must be at least 2")
 	}
 	return nil
+}
+
+// checkFileExists returns an error if the file at path does not exist or
+// cannot be stat'd. Use this when the caller asserts the file must already
+// be present (e.g. MasterKeyPartsSpec.Exists = true).
+func checkFileExists(path string) error {
+	_, err := os.Stat(path)
+	switch {
+	case err == nil:
+		return nil // file is present — good
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("file does not exist at %q", path)
+	default:
+		return fmt.Errorf("unable to check file %q: %w", path, err)
+	}
 }
 
 func validateFileSyntax(path string) error {

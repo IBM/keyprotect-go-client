@@ -16,10 +16,32 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/IBM/keyprotect-go-client/dedicated/common"
 )
+
+// detachedCtx wraps a parent context but is immune to its cancellation.
+// It inherits all Values (auth tokens, request headers, etc.) from the
+// parent, but Done() always returns nil, Err() always returns nil, and
+// Deadline() always reports no deadline.  As a result, net/http will
+// never abort an in-flight request because the parent was canceled.
+type detachedCtx struct{ context.Context }
+
+func (detachedCtx) Deadline() (time.Time, bool) { return time.Time{}, false }
+func (detachedCtx) Done() <-chan struct{}       { return nil }
+func (detachedCtx) Err() error                  { return nil }
+
+// detachContext returns a context that carries parent's values but cannot
+// be canceled or timed out by the parent. If parent is already a
+// detachedCtx it is returned as-is to avoid unnecessary wrapping.
+func detachContext(parent context.Context) context.Context {
+	if _, ok := parent.(detachedCtx); ok {
+		return parent
+	}
+	return detachedCtx{parent}
+}
 
 func getHeaders(ctx context.Context) map[string]string {
 	if headers, ok := ctx.Value(headersKey).(map[string]string); ok {
@@ -337,6 +359,11 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) generateMasterKeyHelper(
 }
 
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) createSessions(ctx context.Context, cryptounits CryptoUnits, keypath string) (func(), error) {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
 	for _, v := range cryptounits.CryptoUnits {
 		cryptoUnitID := v.ID
 		// Connect to the first crypto unit
@@ -418,11 +445,11 @@ const (
 // needs to execute for that unit.  It is the authoritative translation
 // between the live HSM state and the initialization pipeline.
 //
-//   available / reserved  → need to Claim                         (Step 3)
-//   claimed               → need Sessions + AddKMSUser + MBK      (Step 4)
-//   kms-authorized        → need Sessions (ephemeral) + ImportMBK (Step 4)
-//   initialized /
-//   kms-initialized       → already done                          (Step 8, sentinel)
+//	available / reserved  → need to Claim                         (Step 3)
+//	claimed               → need Sessions + AddKMSUser + MBK      (Step 4)
+//	kms-authorized        → need Sessions (ephemeral) + ImportMBK (Step 4)
+//	initialized /
+//	kms-initialized       → already done                          (Step 8, sentinel)
 //
 // NOTE: kms-authorized maps to StepCreateSessions (4), not StepImportMBK (7).
 // HSM sessions are process-local and ephemeral — they are never persisted across
