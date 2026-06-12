@@ -37,12 +37,6 @@ func validateSignatureKeyRequest(req *SignatureKeyRequest) error {
 		}
 	}
 
-	if req.Exists && !req.Overwrite {
-		if err := checkFileExists(req.FilePath); err != nil {
-			return fmt.Errorf("directory does not exist: %s", req.FilePath)
-		}
-	}
-
 	// Validate passphrase
 	if req.Passphrase != "" {
 		if len(req.Passphrase) < SigKeyPassphraseMinLength ||
@@ -73,7 +67,7 @@ func validateMasterKeyPartsSpec(mKeySpec *MasterKeyPartsSpec) error {
 		if err := validateFileSyntax(filePath); err != nil {
 			return fmt.Errorf("KeyShareFiles[%d]: invalid path: %w", i, err)
 		}
-		if err := checkFileExists(filePath); err != nil && mKeySpec.Exists && !mKeySpec.Overwrite {
+		if err := checkFileExists(filePath); err != nil && mKeySpec.Exists {
 			return fmt.Errorf("KeyShareFiles[%d]: invalid file specified: %w", i, err)
 		}
 	}

@@ -176,7 +176,6 @@ func TestSignatureKeyRequestValidation(t *testing.T) {
 				tt.password,
 				tt.role,
 				tt.generate,
-				tt.generate,
 			)
 			if tt.wantErr {
 				assert.Error(t, err, "NewSignatureKeyRequest() should return error")
@@ -237,7 +236,6 @@ func TestMasterKeyPartsSpecValidation(t *testing.T) {
 				tt.threshold,
 				tt.label,
 				tt.parts,
-				tt.generate,
 				tt.generate,
 			)
 			if tt.wantErr {
@@ -333,14 +331,12 @@ func TestInitializeCryptoUnitsWithInvalidParams(t *testing.T) {
 		"testpass",
 		"ADMIN",
 		false,
-		false,
 	)
 
 	mbkSpec, _ := keyprotect_dedicated.NewMasterKeyPartsSpec(
 		2,
 		"TEST",
 		[]string{"key1#pass1", "key2#pass2"},
-		false,
 		false,
 	)
 
@@ -500,7 +496,6 @@ func TestInitializationErrors(t *testing.T) {
 			"",
 			"ADMIN",
 			true,
-			false,
 		)
 		if err != nil {
 			t.Log("Cannot create signature key request error: %w", err)
@@ -512,7 +507,6 @@ func TestInitializationErrors(t *testing.T) {
 			"TEST",
 			[]string{"key1#pass1", "key2#pass2"},
 			true,
-			false,
 		)
 		if err != nil {
 			t.Skip("Cannot create master key parts spec")
@@ -528,7 +522,6 @@ func TestInitializationErrors(t *testing.T) {
 			"",
 			"ADMIN",
 			false,
-			false,
 		)
 		if err != nil {
 			t.Skip("Cannot create signature key request")
@@ -539,7 +532,6 @@ func TestInitializationErrors(t *testing.T) {
 			"TEST",
 			[]string{"key1#pass1", "key2#pass2"},
 			true,
-			false,
 		)
 		if err != nil {
 			t.Skip("Cannot create master key parts spec")
@@ -764,7 +756,6 @@ func TestCryptoUnitInitialization(t *testing.T) {
 		"",
 		"ADMIN",
 		false,
-		false,
 	)
 	require.NoError(t, err, "should create signature key request")
 
@@ -777,7 +768,6 @@ func TestCryptoUnitInitialization(t *testing.T) {
 			"mbk-2.key#abcd12",
 		},
 		false,
-		true,
 	)
 	require.NoError(t, err, "should create master key parts spec")
 
@@ -1109,7 +1099,6 @@ func TestCryptoUnitValidClientError(t *testing.T) {
 		"",
 		"ADMIN",
 		false,
-		false,
 	)
 	require.NoError(t, err, "should create signature key request")
 
@@ -1122,7 +1111,6 @@ func TestCryptoUnitValidClientError(t *testing.T) {
 			"mbk-2.key#abcd12",
 		},
 		false,
-		true,
 	)
 	require.NoError(t, err, "should create master key parts spec")
 
@@ -1168,7 +1156,6 @@ func TestCryptoUnitValidClientError(t *testing.T) {
 				"mbk-4.key#abcd12",
 			},
 			true,
-			false,
 		)
 		assert.Error(t, err, "KeyShareFiles[0]: file already exists and overwrite is false")
 		assert.Nil(t, mbkSpec)

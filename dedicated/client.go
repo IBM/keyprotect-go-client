@@ -912,9 +912,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateSignatureKey(ins
 	if err := validateSignatureKeyRequest(req); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
-	if req.Exists && !req.Overwrite {
-		return nil
-	}
 	// Extract key size from algorithm (e.g., "RSA-2048" -> "2048")
 	keySizeBits := uint32(2048)
 
@@ -998,10 +995,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GenerateMasterKeyWithCon
 	if err := validateMasterKeyPartsSpec(mbkSpec); err != nil {
 		return "", fmt.Errorf("invalid MasterKeyPartSpec: %w", err)
 	}
-	// early return if the Exists and !Overwrite
-	if mbkSpec.Exists && !mbkSpec.Overwrite {
-		return "", nil
-	}
+
 	// Pad keyname to exactly 8 characters with spaces if shorter (matches CLI behavior)
 	keyname := mbkSpec.KeyName
 	if len(keyname) < 8 {
