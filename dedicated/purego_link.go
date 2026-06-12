@@ -47,27 +47,41 @@ var (
 	sessionTokens = make(map[uintptr]string)
 )
 
-// resolveLibName returns the shared library filename for the given GOOS and GOARCH,
-// or an error if the platform/architecture combination is not supported.
+// resolveLibName returns the platform-specific shared-library filename for the
+// given GOOS and GOARCH pair, or an error if the combination is not supported.
+//
+// Supported platforms:
+//
+//	linux/amd64   → ibmkmscrypto.so.1.0.0
+//	darwin/arm64  → ibmkmscrypto.1.0.0.dylib
+//	windows/amd64 → ibmkmscrypto.dll
 func resolveLibName(goos, goarch string) (string, error) {
+	type key struct{ os, arch string }
+	supported := map[key]string{
+		{"linux", "amd64"}:   "ibmkmscrypto.so.1.0.0",
+		{"darwin", "arm64"}:  "ibmkmscrypto.1.0.0.dylib",
+		{"windows", "amd64"}: "ibmkmscrypto.dll",
+	}
+	if name, ok := supported[key{goos, goarch}]; ok {
+		return name, nil
+	}
+	// Provide a more specific error when the OS is known but the arch is not.
+	knownOS := map[string]bool{"linux": true, "darwin": true, "windows": true}
+	if knownOS[goos] {
+		return "", fmt.Errorf("unsupported architecture for %s: %s (supported: %s/%s)", goos, goarch, goos, supportedArch(goos))
+	}
+	return "", fmt.Errorf("unsupported platform: %s/%s (supported: linux/amd64, darwin/arm64, windows/amd64)", goos, goarch)
+}
+
+// supportedArch returns the supported architecture string for a known OS.
+func supportedArch(goos string) string {
 	switch goos {
-	case "linux":
-		if goarch != "amd64" {
-			return "", fmt.Errorf("unsupported architecture for linux: %s (supported: amd64)", goarch)
-		}
-		return "ibmkmscrypto.so.1.0.0", nil
+	case "linux", "windows":
+		return "amd64"
 	case "darwin":
-		if goarch != "arm64" {
-			return "", fmt.Errorf("unsupported architecture for darwin: %s (supported: arm64)", goarch)
-		}
-		return "ibmkmscrypto.1.0.0.dylib", nil
-	case "windows":
-		if goarch != "amd64" {
-			return "", fmt.Errorf("unsupported architecture for windows: %s (supported: amd64)", goarch)
-		}
-		return "ibmkmscrypto.dll", nil
+		return "arm64"
 	default:
-		return "", fmt.Errorf("unsupported platform: %s/%s (supported: linux/amd64, darwin/arm64, windows/amd64)", goos, goarch)
+		return "unknown"
 	}
 }
 
@@ -85,7 +99,8 @@ func initLibrary() error {
 
 		// Load library
 		libPath := getLibraryPath(libName)
-		if err := ensurePreload(libPath); err != nil {
+		if err = ensurePreload(libPath); err != nil {
+			initError = err
 			return
 		}
 

@@ -3,6 +3,7 @@ package dedicated
 import (
 	"fmt"
 	"sync"
+	"unsafe"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 )
@@ -59,9 +60,10 @@ type CryptoUserMetadata struct {
 type AddUserRequest struct {
 	Username   string
 	Permission uint32
-	Mechanism  string            // "hmacpwd", "rsasign", or "ecdsa"
-	Attributes map[string]string // Optional attributes
-	Token      []byte            // Authentication token
+	Mechanism  string // "hmacpwd", "rsasign", or "ecdsa"
+	CredHash   string //
+	Attributes string // Optional attributes
+	Token      string // Authentication token
 }
 
 // GenerateKeyRequest contains parameters for key generation
@@ -98,13 +100,15 @@ func NewSignatureKeyRequest(filepath, passphrase, owner string, exists bool) (*S
 	if err != nil {
 		return nil, err
 	}
-
 	rootKeySpec := &SignatureKeyRequest{
 		FilePath:   filepath,
 		Passphrase: passphrase,
 		Algorithm:  SigKeyAlgorithmRSA2048,
 		Owner:      owner,
 		Exists:     exists,
+	}
+	if err := validateSignatureKeyRequest(rootKeySpec); err != nil {
+		return nil, err
 	}
 	return rootKeySpec, nil
 }
@@ -186,17 +190,17 @@ type MasterKeyPartsSpec struct {
 //
 // shouldGen is a bool to determine to use the existing files specified in
 // the keysharefiles field
-func NewMasterKeyPartsSpec(K int, keyName string, keysharefiles []string, exists bool) (*MasterKeyPartsSpec, error) {
+func NewMasterKeyPartsSpec(k int, keyName string, keysharefiles []string, exists bool) (*MasterKeyPartsSpec, error) {
 	// Validate K is within uint8 range
-	if K < 0 || K > 255 {
-		return nil, fmt.Errorf("k value %d is out of range (0-255)", K)
+	if k < 0 || k > 255 {
+		return nil, fmt.Errorf("k value %d is out of range (0-255)", k)
 	}
 	mkps := &MasterKeyPartsSpec{
-		uint8(K),
-		keyName,
-		keysharefiles,
-		3,
-		exists,
+		K:             uint8(k),
+		KeyName:       keyName,
+		KeyShareFiles: keysharefiles,
+		SlotNo:        3,
+		Exists:        exists,
 	}
 	if err := validateMasterKeyPartsSpec(mkps); err != nil {
 		return nil, err
@@ -324,7 +328,7 @@ type session struct {
 
 // newSession creates a new session object with a valid pointer and non-empty fields
 func newSession(id uintptr, cuid, userName string) (*session, error) {
-	if id == 0 {
+	if id == 0 || unsafe.Pointer(id) == nil {
 		return nil, fmt.Errorf("session object cannot have a nil pointer")
 	}
 	if cuid == "" {
