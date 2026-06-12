@@ -1236,7 +1236,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 					// return apiErr
 					logger.Error("failed to claim cryptounit %s: %v", err)
 				}
-				// return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, err)
+				return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, err)
 			}
 			logger.Info("step 3 – claimed crypto unit %s", cu.ID)
 		}
