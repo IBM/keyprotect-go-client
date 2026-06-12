@@ -94,7 +94,7 @@ func GetSystemInfo() string {
 
 func GetComponentInfo() *core.ProblemComponent {
 	// This should match the module name in go.mod.
-	return core.NewProblemComponent("https://github.ibm.com/Timothy-Yao/keyprotect-st-go-client-public", Version)
+	return core.NewProblemComponent("https://github.com/IBM/keyprotect-go-client", Version)
 }
 
 func GetSdkAnalyticsHeader(serviceName string, serviceVersion string, operationID string) string {

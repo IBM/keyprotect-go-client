@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -78,7 +79,7 @@ func NewKeyProtectCryptoUnitAPI(options *KeyProtectCryptoUnitAPIOptions) (servic
 	if initErr := initLibrary(); initErr != nil {
 		err = core.SDKErrorf(
 			initErr,
-			"Supported platforms: linux (amd64), darwin (arm64), windows (amd64)",
+			fmt.Sprintf("Your platform %s (%s) does not support cryptounit operations. Rerun on one of the following platforms: linux (amd64), darwin (arm64), windows (amd64).", runtime.GOOS, runtime.GOARCH),
 			"library-init-error",
 			common.GetComponentInfo(),
 		)
