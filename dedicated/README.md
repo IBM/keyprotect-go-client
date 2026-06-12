@@ -200,8 +200,8 @@ func main() {
 
 ## Platform Support
 
-- Linux (amd64, arm64)
-- macOS (Intel, Apple Silicon)
+- Linux (amd64)
+- macOS (Apple Silicon)
 - Windows (amd64)
 
 ## Requirements
