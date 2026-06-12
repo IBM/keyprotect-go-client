@@ -236,7 +236,7 @@ func TestMasterKeyPartsSpecValidation(t *testing.T) {
 				tt.threshold,
 				tt.label,
 				tt.parts,
-				tt.generate,
+				!tt.generate,
 			)
 			if tt.wantErr {
 				assert.Error(t, err, "NewMasterKeyPartsSpec() should return error")
