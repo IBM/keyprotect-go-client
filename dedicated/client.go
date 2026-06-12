@@ -820,14 +820,15 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddKMSUser(ctx context.C
 	// Step 4: Calculate credential hash (SHA-256 of public key)
 	credHash := fmt.Sprintf("%x", sha256Hash(metadata.PublicKey))
 
-	// Step 6: Add user with KMS crypto user settings
+	// Step 5: Add user with KMS crypto user settings
 	credential := fmt.Sprintf("%s#", tmpFile.Name()) // Format: filepath#passphrase (empty passphrase)
 	userType := "kmsCryptoUser"                      // This constant is converted to "kms_crypto_user" by library layer
 
 	// Format slot ID as SLOT_XXXX (4 digits, zero-padded)
 	// The attributes are passed as a semicolon-separated string of key=value pairs
 	attributes := fmt.Sprintf("CXI_GROUP=SLOT_%04d", metadata.SlotID)
-	// Step 5: Get session ID
+
+	// Step 6: Get session ID
 	req := AddUserRequest{
 		Username:   metadata.Username,
 		Mechanism:  userType,
@@ -838,23 +839,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) AddKMSUser(ctx context.C
 	if err := keyProtectCryptoUnitAPI.AddUserWithContext(ctx, cryptoUnitID, &req); err != nil {
 		return nil, err
 	}
-	// sessionID, err := keyProtectCryptoUnitAPI.getSessionID(cryptoUnitID)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// err = callAddUser(
-	// 	sessionID,
-	// 	metadata.Username,
-	// 	userType,
-	// 	credential,
-	// 	credHash,
-	// 	attributes,
-	// 	sdkHeaders,
-	// )
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	// Step 7: Return updated user list
 	return keyProtectCryptoUnitAPI.ListUsers(cryptoUnitID)

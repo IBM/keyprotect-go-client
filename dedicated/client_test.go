@@ -1157,7 +1157,7 @@ func TestCryptoUnitValidClientError(t *testing.T) {
 			},
 			true,
 		)
-		assert.Error(t, err, "KeyShareFiles[0]: file already exists and overwrite is false")
+		assert.Error(t, err, "invalid file specified: file does not exist at \"mbk-3.key\"")
 		assert.Nil(t, mbkSpec)
 	})
 }
