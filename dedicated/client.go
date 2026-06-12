@@ -1233,8 +1233,8 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 			if err := keyProtectCryptoUnitAPI.ClaimCryptoUnitWithContext(ctx, cu.ID, skr.FilePath); err != nil {
 				var apiErr *CryptoUnitAPIError
 				if errors.As(err, &apiErr) {
-					// return apiErr
 					logger.Error("failed to claim cryptounit %s: %v", err)
+					return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, apiErr)
 				}
 				return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, err)
 			}
