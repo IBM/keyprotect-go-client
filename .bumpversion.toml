@@ -1,5 +1,5 @@
 [tool.bumpversion]
-current_version = "0.17.2"
+current_version = "1.0.0"
 commit = true
 message = "Update version {current_version} -> {new_version} [skip ci]"
 
@@ -8,3 +8,8 @@ message = "Update version {current_version} -> {new_version} [skip ci]"
 filename = "README.md"
 search = "{current_version}"
 replace = "{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "ibmkeyprotectapiv2/common/version.go"
+search = "const Version = \"{current_version}\""
+replace = "const Version = \"{new_version}\""

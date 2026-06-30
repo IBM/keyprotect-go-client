@@ -1,4 +1,4 @@
-# IBM Cloud Go SDK Version 0.17.2
+# IBM Cloud Go SDK Version 1.0.0
 
 # keyprotect-go-client
 
@@ -372,4 +372,75 @@ key, err := client.CreateKey(params)
   }
 
 client.Config.Headers = http.Header{}
+```
+
+
+## Testing
+
+### Test Types
+
+The SDK has three test suites:
+
+| Suite | Build tag | Location |
+|---|---|---|
+| Unit tests | *(none)* | `ibmkeyprotectapiv2/` |
+| Integration tests | `integration` | `ibmkeyprotectapiv2/` |
+| Example tests | `examples` | `ibmkeyprotectapiv2/` |
+
+### Integration & Example Test Environment Setup
+
+Integration and example tests run against `test.cloud.ibm.com`. Create an
+`ibm_key_protect_api_v2.env` file inside `ibmkeyprotectapiv2/` with the
+following values:
+
+```text
+IBM_KEY_PROTECT_API_URL=https://qa.us-south.kms.test.cloud.ibm.com
+IBM_KEY_PROTECT_API_AUTH_URL=https://iam.test.cloud.ibm.com/identity/token
+IBM_KEY_PROTECT_API_AUTH_TYPE=iam
+IBM_KEY_PROTECT_API_APIKEY=<your-api-key>
+IBM_KEY_PROTECT_API_BLUEMIX_INSTANCE=<your-instance-id>
+```
+
+If your integration or example test file requires unique resource names, assign
+them manually near the top of the file:
+
+```go
+createdKeyringID = "test-keyring"
+kmipName         = "test-kmip"
+kmipCertName     = "Test-certificate"
+```
+
+#### KMIP certificate tests
+
+Tests such as `TestAddKmipClientCertificate` require a temporary certificate.
+Generate one with:
+
+```bash
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out temp.pem -sha256 -days 1 -nodes \
+  -subj "/C=XX/ST=<XX>/L=<locality>/O=<organization>/OU=<unit>/CN=CommonNameOrHostname" > /dev/null
+```
+
+- `key.pem` — private key (not needed for cert creation)
+- `temp.pem` — public certificate used when calling the KMIP client certificate API
+
+### Running Tests
+
+```bash
+# Clear the test cache
+go clean -testcache
+
+# Run all unit tests
+go test ./ibmkeyprotectapiv2/...
+
+# Run all unit tests (verbose)
+go test -v ./ibmkeyprotectapiv2/...
+
+# Run integration tests
+go test -v -tags=integration ./ibmkeyprotectapiv2/...
+
+# Run example tests
+go test -v -tags=examples ./ibmkeyprotectapiv2/...
+
+# Run a specific test by name
+go test -v -run TestCreateKey ./ibmkeyprotectapiv2/...
 ```
