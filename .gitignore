@@ -44,7 +44,6 @@ cover.*
 *.coverprofile
 
 *.env
-*.pem
 
 # SDK generator
 .openapi-generator-ignore

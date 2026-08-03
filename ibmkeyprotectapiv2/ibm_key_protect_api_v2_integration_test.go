@@ -22,10 +22,16 @@ package ibmkeyprotectapiv2_test
 // constructing real JSON request bodies with io.NopCloser wrappers.
 // The generated file only imported "fmt", "log", "os", and "time".
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -35,6 +41,36 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+// MANUAL: generateTestCertPEM produces a self-signed X.509 certificate in memory,
+// removing the need for a pre-generated temp.pem file or an external openssl
+// invocation.
+func generateTestCertPEM() string {
+	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	Expect(err).To(BeNil())
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Country:            []string{"XX"},
+			Province:           []string{"TX"},
+			Locality:           []string{"Austin"},
+			Organization:       []string{"IBM"},
+			OrganizationalUnit: []string{"KP"},
+			CommonName:         "CommonNameOrHostname",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	Expect(err).To(BeNil())
+
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
+}
 
 // MANUAL: Added package-level shared state variables so that resources created
 // in early tests (keys, key rings, KMIP adapters) can be referenced by later
@@ -1199,14 +1235,9 @@ var _ = Describe(`IbmKeyProtectApiV2 Integration Tests`, func() {
 				CollectionTotal: core.Int64Ptr(int64(1)),
 			}
 
-			// MANUAL: Read a real PEM certificate from temp.pem instead of using "testString".
-			// The API validates the certificate format; a placeholder string would be rejected.
-			certBytes, err := os.ReadFile("./temp.pem")
-			Expect(err).To(BeNil())
-
 			createKmipClientCertificateObjectModel := &ibmkeyprotectapiv2.CreateKMIPClientCertificateObject{
-				Certificate: core.StringPtr(string(certBytes)), // MANUAL: was "testString"
-				Name:        core.StringPtr(kmipCertName),      // MANUAL: was "testString"
+				Certificate: core.StringPtr(generateTestCertPEM()), // MANUAL: generated in-process
+				Name:        core.StringPtr(kmipCertName),          // MANUAL: was "testString"
 			}
 
 			addKmipClientCertificateOptions := &ibmkeyprotectapiv2.AddKmipClientCertificateOptions{

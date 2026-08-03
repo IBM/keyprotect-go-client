@@ -1,4 +1,4 @@
-# IBM Cloud Go SDK Version 1.0.0
+# IBM Cloud Go SDK Version 0.17.3
 
 # keyprotect-go-client
 
@@ -409,19 +409,6 @@ createdKeyringID = "test-keyring"
 kmipName         = "test-kmip"
 kmipCertName     = "Test-certificate"
 ```
-
-#### KMIP certificate tests
-
-Tests such as `TestAddKmipClientCertificate` require a temporary certificate.
-Generate one with:
-
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out temp.pem -sha256 -days 1 -nodes \
-  -subj "/C=XX/ST=<XX>/L=<locality>/O=<organization>/OU=<unit>/CN=CommonNameOrHostname" > /dev/null
-```
-
-- `key.pem` — private key (not needed for cert creation)
-- `temp.pem` — public certificate used when calling the KMIP client certificate API
 
 ### Running Tests
 

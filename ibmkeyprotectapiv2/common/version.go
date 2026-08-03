@@ -17,4 +17,4 @@
 package common
 
 // Version of the semi-generated SDK
-const Version = "1.0.0"
+const Version = "0.17.3"
