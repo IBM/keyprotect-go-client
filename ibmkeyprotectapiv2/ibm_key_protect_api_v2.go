@@ -15,7 +15,7 @@
  */
 
 /*
- * IBM OpenAPI SDK Code Generator Version: 3.114.4-9b56d441-20260612-210048
+ * IBM OpenAPI SDK Code Generator Version: 3.115.0-a8d44b59-20260713-123033
  */
 
 // Package ibmkeyprotectapiv2 : Operations and models for the IbmKeyProtectApiV2 service
@@ -357,11 +357,11 @@ func (ibmKeyProtectApi *IbmKeyProtectApiV2) CreateKeyWithContext(ctx context.Con
 // GetKeys : List keys
 // Retrieves a list of keys that are stored in your Key Protect service instance.
 //
-// **Important:** When a user of Key Protect on Satellite views lists of  keys through the [IBM
-// Console](https://cloud.ibm.com/login),  or programmatically via this API, keys with ["fine grain"
-// permissions](/docs/key-protect?topic=key-protect-grant-access-keys#grant-access-key-level)  won't appear due to the
-// manner in which the service aggregates the  collection. While the user can still use the key resource, only by using
-// the CLI or API and passing the specific key ID can a user access the  metadata and other details of the key.
+// **Important:** When a user of Key Protect on Satellite views lists of keys through the [IBM
+// Console](https://cloud.ibm.com/login), or programmatically via this API, keys with ["fine grain"
+// permissions](/docs/key-protect?topic=key-protect-grant-access-keys#grant-access-key-level) won't appear due to the
+// manner in which the service aggregates the collection. While the user can still use the key resource, only by using
+// the CLI or API and passing the specific key ID can a user access the metadata and other details of the key.
 //
 // **Note:** `GET /keys` will not return the key material in the response body. You can retrieve the key material for a
 // standard key with a subsequent `GET /keys/{id}` request.
@@ -654,8 +654,8 @@ func (ibmKeyProtectApi *IbmKeyProtectApiV2) GetKeyWithContext(ctx context.Contex
 // key](/docs/key-protect?topic=key-protect-unwrap-keys)
 // - `wrap`: Use a root key to [wrap or encrypt a data encryption key](/docs/key-protect?topic=key-protect-wrap-keys)
 //
-// **Note:** If you unwrap a wrapped data encryption key (WDEK) that was not  wrapped by the latest version of the key,
-// the service also returns the a  new WDEK, wrapped with the latest version of the key as the ciphertext field.  The
+// **Note:** If you unwrap a wrapped data encryption key (WDEK) that was not wrapped by the latest version of the key,
+// the service also returns the a new WDEK, wrapped with the latest version of the key as the ciphertext field. The
 // recommendation is to store and use that WDEK, although older WDEKs will continue to work.
 // Deprecated: this method is deprecated and may be removed in a future release.
 func (ibmKeyProtectApi *IbmKeyProtectApiV2) ActionOnKey(actionOnKeyOptions *ActionOnKeyOptions) (result KeyActionOneOfResponseIntf, response *core.DetailedResponse, err error) {
@@ -842,9 +842,9 @@ func (ibmKeyProtectApi *IbmKeyProtectApiV2) PatchKeyWithContext(ctx context.Cont
 // [enable a dual authorization policy](#set-key-policies) to safely delete keys from your service instance.
 //
 // **Important:** After a key has been deleted, any data that is encrypted by the key becomes inaccessible, though this
-// can be reversed if the key is  restored within the 30-day time frame. After 30 days, key metadata,  registrations,
-// and policies are available for up to 90 days, at which  point the key becomes eligible to be purged. Note that once a
-// key is no  longer restorable and has been purged, its associated data can no longer  be accessed.
+// can be reversed if the key is restored within the 30-day time frame. After 30 days, key metadata, registrations, and
+// policies are available for up to 90 days, at which point the key becomes eligible to be purged. Note that once a key
+// is no longer restorable and has been purged, its associated data can no longer be accessed.
 //
 // **Note:** By default, Key Protect blocks the deletion of a key that's protecting a cloud resource, such as a Cloud
 // Object Storage bucket. Use
@@ -1012,10 +1012,10 @@ func (ibmKeyProtectApi *IbmKeyProtectApiV2) GetKeyMetadataWithContext(ctx contex
 }
 
 // PurgeKey : Purge a deleted key
-// Purges all key metadata and registrations associated with the specified key.  This method requires setting the
+// Purges all key metadata and registrations associated with the specified key. This method requires setting the
 // [_KeyPurge_
 // permission](https://cloud.ibm.com/docs/key-protect?topic=key-protect-grant-access-keys#grant-access-keys-specific-functions)
-// that is not enabled by default. Purging a key can only be applied to a key in the **Destroyed** (5) state.  After a
+// that is not enabled by default. Purging a key can only be applied to a key in the **Destroyed** (5) state. After a
 // key is deleted, there is a wait period of up to four hours before purge key operation is allowed.
 // **Important:** When you purge a key, you permanently shred its contents and associated data. The action cannot be
 // reversed.
@@ -3585,8 +3585,8 @@ func (ibmKeyProtectApi *IbmKeyProtectApiV2) GetKmipObjectWithContext(ctx context
 
 // DeleteKmipObject : Delete a KMIP object from a KMIP Adapter
 // Deletes a KMIP object from a KMIP Adapter given its id. Changes the state of the KMIP object to 5 (Destroyed) and
-// erases its key material.  Any data encrypted by this KMIP object will be crypto erased when the KMIP Object changes
-// it state to 5 (Destroyed).
+// erases its key material. Any data encrypted by this KMIP object will be crypto erased when the KMIP Object changes it
+// state to 5 (Destroyed).
 func (ibmKeyProtectApi *IbmKeyProtectApiV2) DeleteKmipObject(deleteKmipObjectOptions *DeleteKmipObjectOptions) (response *core.DetailedResponse, err error) {
 	response, err = ibmKeyProtectApi.DeleteKmipObjectWithContext(context.Background(), deleteKmipObjectOptions)
 	err = core.RepurposeSDKProblem(err, "")
@@ -3994,9 +3994,9 @@ type ActionOnKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Alters server behavior for POST or DELETE operations. A header with `return=minimal` causes the service to return
@@ -4277,7 +4277,7 @@ type CollectionMetadataListKeys struct {
 	// The number of elements in the resource array.
 	CollectionTotal *int64 `json:"collectionTotal" validate:"required"`
 
-	// If present, indicates the search did not complete due to the searchable set of keys being too large.  Please retry
+	// If present, indicates the search did not complete due to the searchable set of keys being too large. Please retry
 	// your request with additional or more specific filters (i.e. extractable, state, etc.). To determine the size of the
 	// searchable set of keys, please use `HEAD /api/v2/keys` with the desired search filters. For a search to be
 	// performmed, the resulting set contain at most 5000 keys.
@@ -4451,7 +4451,7 @@ func UnmarshalCollectionMetadataWithTotalCount(m map[string]json.RawMessage, res
 type CreateKMIPAdapterObject struct {
 	// A human-readable name of the KMIP adapter unique within the kms instance. If one is not specified, one will be
 	// autogenerated of the format `kmip_adapter_<random_string>`. To protect your privacy do not use personal data, such
-	// as your name or location, as a name for your KMIP adapter. The name must be  alphanumeric and cannot contain spaces
+	// as your name or location, as a name for your KMIP adapter. The name must be alphanumeric and cannot contain spaces
 	// or special characters other than `-` or `_`. The name cannot be a UUID.
 	Name *string `json:"name,omitempty"`
 
@@ -4517,9 +4517,9 @@ type CreateKMIPClientCertificateObject struct {
 	// END CERTIFICATE tags.
 	Certificate *string `json:"certificate" validate:"required"`
 
-	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is  not specified, one
+	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is not specified, one
 	// will be autogenerated of the format `kmip_cert_<random_string>`. To protect your privacy do not use personal data,
-	// such as your name or location, as a name for your client certificate. The name must be  alphanumeric and cannot
+	// such as your name or location, as a name for your client certificate. The name must be alphanumeric and cannot
 	// contain spaces or special characters other than `-` or `_`. The name cannot be a UUID.
 	Name *string `json:"name,omitempty"`
 }
@@ -4558,11 +4558,11 @@ type CreateKeyAliasOptions struct {
 	// The v4 UUID or alias that uniquely identifies the key.
 	ID *string `json:"id" validate:"required,ne="`
 
-	// A human-readable alias that uniquely identifies a key. Each alias is unique  only within the given instance and is
-	// not reserved across the Key Protect service.  Each key can have up to five aliases. There is no limit to the number
-	// of aliases  per instance. The length of the alias can be between 2 - 90 characters, inclusive.  An alias must be
-	// alphanumeric and cannot contain spaces or special characters other  than '-' or '_'. Also, the alias cannot be a
-	// version 4 UUID and must not be  a Key Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`,
+	// A human-readable alias that uniquely identifies a key. Each alias is unique only within the given instance and is
+	// not reserved across the Key Protect service. Each key can have up to five aliases. There is no limit to the number
+	// of aliases per instance. The length of the alias can be between 2 - 90 characters, inclusive. An alias must be
+	// alphanumeric and cannot contain spaces or special characters other than '-' or '_'. Also, the alias cannot be a
+	// version 4 UUID and must not be a Key Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`,
 	// `policies`, `registration`, `registrations`, `ring`, `rings`, `rotate`, `wrap`, `unwrap`, `rewrap`, `version`,
 	// `versions`.
 	Alias *string `json:"alias" validate:"required,ne="`
@@ -4573,9 +4573,9 @@ type CreateKeyAliasOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -4646,9 +4646,9 @@ type CreateKeyOptions struct {
 	// time. To retrieve the key material, you can perform a subsequent `GET /keys/{id}` request.
 	Prefer *string `json:"Prefer,omitempty"`
 
-	// The ID of the key ring that the specified key belongs to. When the header is not specified,  Key Protect will
-	// perform a key ring lookup. For a more optimized request,  specify the key ring on every call. The key ring ID of
-	// keys that are created without an  `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key belongs to. When the header is not specified, Key Protect will perform
+	// a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys that
+	// are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -4778,9 +4778,9 @@ type CreateKeyWithPoliciesOverridesOptions struct {
 	// time. To retrieve the key material, you can perform a subsequent `GET /keys/{id}` request.
 	Prefer *string `json:"Prefer,omitempty"`
 
-	// The ID of the key ring that the specified key belongs to. When the header is not specified,  Key Protect will
-	// perform a key ring lookup. For a more optimized request,  specify the key ring on every call. The key ring ID of
-	// keys that are created without an  `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key belongs to. When the header is not specified, Key Protect will perform
+	// a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys that
+	// are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -4940,11 +4940,11 @@ type DeleteKeyAliasOptions struct {
 	// The v4 UUID or alias that uniquely identifies the key.
 	ID *string `json:"id" validate:"required,ne="`
 
-	// A human-readable alias that uniquely identifies a key. Each alias is unique  only within the given instance and is
-	// not reserved across the Key Protect service.  Each key can have up to five aliases. There is no limit to the number
-	// of aliases  per instance. The length of the alias can be between 2 - 90 characters, inclusive.  An alias must be
-	// alphanumeric and cannot contain spaces or special characters other  than '-' or '_'. Also, the alias cannot be a
-	// version 4 UUID and must not be  a Key Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`,
+	// A human-readable alias that uniquely identifies a key. Each alias is unique only within the given instance and is
+	// not reserved across the Key Protect service. Each key can have up to five aliases. There is no limit to the number
+	// of aliases per instance. The length of the alias can be between 2 - 90 characters, inclusive. An alias must be
+	// alphanumeric and cannot contain spaces or special characters other than '-' or '_'. Also, the alias cannot be a
+	// version 4 UUID and must not be a Key Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`,
 	// `policies`, `registration`, `registrations`, `ring`, `rings`, `rotate`, `wrap`, `unwrap`, `rewrap`, `version`,
 	// `versions`.
 	Alias *string `json:"alias" validate:"required,ne="`
@@ -4955,9 +4955,9 @@ type DeleteKeyAliasOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -5020,9 +5020,9 @@ type DeleteKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Alters server behavior for POST or DELETE operations. A header with `return=minimal` causes the service to return
@@ -5120,7 +5120,7 @@ type DeleteKeyRingOptions struct {
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
 	// Force delete the key ring. All keys in the key ring are required to be deleted (in state `5`) before this action can
-	// be performed.  If the key ring to be deleted contains keys, they will be moved to the `default` key ring which
+	// be performed. If the key ring to be deleted contains keys, they will be moved to the `default` key ring which
 	// requires the `kms.secrets.patch` IAM action.
 	Force *bool `json:"force,omitempty"`
 
@@ -5348,9 +5348,9 @@ type DisableKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -5478,9 +5478,9 @@ type EnableKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -5641,9 +5641,9 @@ type GetImportTokenOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key belongs to. When the header is not specified,  Key Protect will
-	// perform a key ring lookup. For a more optimized request,  specify the key ring on every call. The key ring ID of
-	// keys that are created without an  `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key belongs to. When the header is not specified, Key Protect will perform
+	// a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys that
+	// are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -6543,7 +6543,7 @@ type GetKeyCollectionMetadataOptions struct {
 	Extractable *bool `json:"extractable,omitempty"`
 
 	// When provided, returns the list of keys that match the queried properties. Each key property to be filtered on is
-	// specified as the property name itself, followed by an “=“ symbol,  and then the value to filter on, followed by a
+	// specified as the property name itself, followed by an “=“ symbol, and then the value to filter on, followed by a
 	// space if there are more properties to filter only. Note: Anything between `<` and `>` in the examples or
 	// descriptions represent placeholder to specify the value
 	// *Basic format*: <propertyA>=<valueB> <propertyB>=<valueB> - The value to filter on may contain a value related to
@@ -6584,8 +6584,8 @@ type GetKeyCollectionMetadataOptions struct {
 	Filter *string `json:"filter,omitempty"`
 
 	// The ID of the target key ring. If unspecified, all resources in the instance that the caller has access to will be
-	// returned. When the header  is specified, only resources within the specified key ring, that the caller has access
-	// to,  will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// returned. When the header is specified, only resources within the specified key ring, that the caller has access to,
+	// will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -6678,9 +6678,9 @@ type GetKeyMetadataOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -6736,9 +6736,9 @@ type GetKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -7072,9 +7072,9 @@ type GetKeyVersionsOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// The number of key versions to retrieve. By default, `GET /versions` returns the first 200 key versions. To retrieve
@@ -7275,7 +7275,7 @@ type GetKeysOptions struct {
 	Sort *string `json:"sort,omitempty"`
 
 	// When provided, returns the list of keys that match the queried properties. Each key property to be filtered on is
-	// specified as the property name itself, followed by an “=“ symbol,  and then the value to filter on, followed by a
+	// specified as the property name itself, followed by an “=“ symbol, and then the value to filter on, followed by a
 	// space if there are more properties to filter only. Note: Anything between `<` and `>` in the examples or
 	// descriptions represent placeholder to specify the value
 	// *Basic format*: <propertyA>=<valueB> <propertyB>=<valueB> - The value to filter on may contain a value related to
@@ -7316,8 +7316,8 @@ type GetKeysOptions struct {
 	Filter *string `json:"filter,omitempty"`
 
 	// The ID of the target key ring. If unspecified, all resources in the instance that the caller has access to will be
-	// returned. When the header  is specified, only resources within the specified key ring, that the caller has access
-	// to,  will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// returned. When the header is specified, only resources within the specified key ring, that the caller has access to,
+	// will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -7957,9 +7957,9 @@ type GetPolicyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// The type of policy that is associated with the specified key.
@@ -8029,8 +8029,8 @@ type GetRegistrationsAllKeysOptions struct {
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
 	// The ID of the target key ring. If unspecified, all resources in the instance that the caller has access to will be
-	// returned. When the header  is specified, only resources within the specified key ring, that the caller has access
-	// to,  will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// returned. When the header is specified, only resources within the specified key ring, that the caller has access to,
+	// will be returned. The key ring ID of keys that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Filters for resources that are associated with a specified [Cloud Resource Name](/docs/account?topic=account-crn)
@@ -8055,7 +8055,7 @@ type GetRegistrationsAllKeysOptions struct {
 	// Filters registrations based on the `preventKeyDeletion` property. You can use this query parameter to search for
 	// registered cloud resources that are non-erasable due to a retention policy. This policy should only be set if a WORM
 	// policy (https://www.ibm.com/docs/en/spectrum-scale/5.0.1?topic=ics-how-write-once-read-many-worm-storage-works) must
-	// be satisfied.  Do not set this policy by default.
+	// be satisfied. Do not set this policy by default.
 	// **Usage:** To search for registered cloud resources that have a retention policy, use
 	// `../registrations?preventKeyDeletion=true`.
 	PreventKeyDeletion *bool `json:"preventKeyDeletion,omitempty"`
@@ -8141,9 +8141,9 @@ type GetRegistrationsOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// The number of registrations to retrieve. By default returns the first 200 registrations. To retrieve a different set
@@ -8174,7 +8174,7 @@ type GetRegistrationsOptions struct {
 	// Filters registrations based on the `preventKeyDeletion` property. You can use this query parameter to search for
 	// registered cloud resources that are non-erasable due to a retention policy. This policy should only be set if a WORM
 	// policy (https://www.ibm.com/docs/en/spectrum-scale/5.0.1?topic=ics-how-write-once-read-many-worm-storage-works) must
-	// be satisfied.  Do not set this policy by default.
+	// be satisfied. Do not set this policy by default.
 	// **Usage:** To search for registered cloud resources that have a retention policy, use
 	// `../registrations?preventKeyDeletion=true`.
 	PreventKeyDeletion *bool `json:"preventKeyDeletion,omitempty"`
@@ -8836,7 +8836,7 @@ type KMIPAdapter struct {
 
 	// A human-readable name of the KMIP adapter unique within the kms instance. If one is not specified, one will be
 	// autogenerated of the format `kmip_adapter_<random_string>`. To protect your privacy do not use personal data, such
-	// as your name or location, as a name for your KMIP adapter. The name must be  alphanumeric and cannot contain spaces
+	// as your name or location, as a name for your KMIP adapter. The name must be alphanumeric and cannot contain spaces
 	// or special characters other than `-` or `_`. The name cannot be a UUID.
 	Name *string `json:"name" validate:"required"`
 
@@ -8846,8 +8846,8 @@ type KMIPAdapter struct {
 	// The unique identifier of the user that created the KMIP adapter.
 	CreatedBy *string `json:"created_by" validate:"required"`
 
-	// The date the KMIP adapter was last modified, either by creation or by modification  of adapter subresources. The
-	// date format follows RFC 3339.
+	// The date the KMIP adapter was last modified, either by creation or by modification of adapter subresources. The date
+	// format follows RFC 3339.
 	UpdatedAt *strfmt.DateTime `json:"updated_at" validate:"required"`
 
 	// The unique identifier of the user that updated the KMIP adapter.
@@ -8924,9 +8924,9 @@ func UnmarshalKMIPAdapter(m map[string]json.RawMessage, result interface{}) (err
 
 // KMIPClientCertificate : Properties of a client certificate.
 type KMIPClientCertificate struct {
-	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is  not specified, one
+	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is not specified, one
 	// will be autogenerated of the format `kmip_cert_<random_string>`. To protect your privacy do not use personal data,
-	// such as your name or location, as a name for your client certificate. The name must be  alphanumeric and cannot
+	// such as your name or location, as a name for your client certificate. The name must be alphanumeric and cannot
 	// contain spaces or special characters other than `-` or `_`. The name cannot be a UUID.
 	Name *string `json:"name" validate:"required"`
 
@@ -8978,9 +8978,9 @@ func UnmarshalKMIPClientCertificate(m map[string]json.RawMessage, result interfa
 
 // KMIPClientPartialCertificate : Partial properties of a client certificate.
 type KMIPClientPartialCertificate struct {
-	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is  not specified, one
+	// A human-readable name that uniquely identifies a certificate within the given adapter. If one is not specified, one
 	// will be autogenerated of the format `kmip_cert_<random_string>`. To protect your privacy do not use personal data,
-	// such as your name or location, as a name for your client certificate. The name must be  alphanumeric and cannot
+	// such as your name or location, as a name for your client certificate. The name must be alphanumeric and cannot
 	// contain spaces or special characters other than `-` or `_`. The name cannot be a UUID.
 	Name *string `json:"name" validate:"required"`
 
@@ -9210,8 +9210,8 @@ type KeyActionOneOfResponse struct {
 	Plaintext *string `json:"plaintext,omitempty"`
 
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -9338,7 +9338,7 @@ type KeyFullRepresentation struct {
 	// as your name or location, as the name for your key.
 	Name *string `json:"name,omitempty"`
 
-	// One or more, up to a total of five, human-readable unique aliases assigned  to your key. To protect your privacy do
+	// One or more, up to a total of five, human-readable unique aliases assigned to your key. To protect your privacy do
 	// not use personal data, such as your name or location, as an alias for your key. Each alias must be alphanumeric and
 	// cannot contain spaces or special characters other than `-` or `_`. The alias cannot be a UUID and must not be a Key
 	// Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`, `policies`, `registration`,
@@ -9350,7 +9350,7 @@ type KeyFullRepresentation struct {
 	Description *string `json:"description,omitempty"`
 
 	// Up to 30 tags can be created. Tags can be between 0-30 characters, including spaces. Special characters not
-	// permitted include angled  brackets, comma, colon, ampersand, and vertical pipe character (|). To protect your
+	// permitted include angled brackets, comma, colon, ampersand, and vertical pipe character (|). To protect your
 	// privacy, do not use personal data, such as your name or location, as a tag for your key.
 	Tags []string `json:"tags,omitempty"`
 
@@ -9936,7 +9936,7 @@ type KeyWithPayload struct {
 	// as your name or location, as the name for your key.
 	Name *string `json:"name,omitempty"`
 
-	// One or more, up to a total of five, human-readable unique aliases assigned  to your key. To protect your privacy do
+	// One or more, up to a total of five, human-readable unique aliases assigned to your key. To protect your privacy do
 	// not use personal data, such as your name or location, as an alias for your key. Each alias must be alphanumeric and
 	// cannot contain spaces or special characters other than `-` or `_`. The alias cannot be a UUID and must not be a Key
 	// Protect reserved name: `allowed_ip`, `key`, `keys`, `metadata`, `policy`, `policies`, `registration`,
@@ -9948,7 +9948,7 @@ type KeyWithPayload struct {
 	Description *string `json:"description,omitempty"`
 
 	// Up to 30 tags can be created. Tags can be between 0-30 characters, including spaces. Special characters not
-	// permitted include angled  brackets, comma, colon, ampersand, and vertical pipe character (|). To protect your
+	// permitted include angled brackets, comma, colon, ampersand, and vertical pipe character (|). To protect your
 	// privacy, do not use personal data, such as your name or location, as a tag for your key.
 	Tags []string `json:"tags,omitempty"`
 
@@ -10479,7 +10479,7 @@ type ListKeyRingsOptions struct {
 	// The IBM Cloud instance ID that identifies your Key Protect service instance.
 	BluemixInstance *string `json:"Bluemix-Instance" validate:"required"`
 
-	// The number of key rings to retrieve. By default, `GET /key_rings` returns  100 key rings including the default key
+	// The number of key rings to retrieve. By default, `GET /key_rings` returns 100 key rings including the default key
 	// ring. To retrieve a different set of key rings, use `limit` with `offset` to page through your available resources.
 	// The maximum value for `limit` is 5,000.
 	// **Usage:** If you have 20 key rings in your instance, and you want to retrieve only the first 5 key rings, use
@@ -10724,9 +10724,9 @@ type PatchKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -10820,9 +10820,9 @@ type PostImportTokenOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key belongs to. When the header is not specified,  Key Protect will
-	// perform a key ring lookup. For a more optimized request,  specify the key ring on every call. The key ring ID of
-	// keys that are created without an  `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key belongs to. When the header is not specified, Key Protect will perform
+	// a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys that
+	// are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -10909,9 +10909,9 @@ type PurgeKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Alters server behavior for POST or DELETE operations. A header with `return=minimal` causes the service to return
@@ -11063,9 +11063,9 @@ type PutPolicyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// The type of policy that is associated with the specified key.
@@ -11160,10 +11160,6 @@ type RegistrationResource struct {
 	// Description of the purpose of the registration.
 	Description *string `json:"description,omitempty"`
 
-	// Additional information about the registration. This field is not exposed to customers and is visible only with IBM
-	// Cloud service to service calls.
-	RegistrationMetadata *string `json:"registrationMetadata,omitempty"`
-
 	// A boolean that determines whether Key Protect must prevent deletion of a root key.
 	PreventKeyDeletion *bool `json:"preventKeyDeletion,omitempty"`
 
@@ -11212,11 +11208,6 @@ func UnmarshalRegistrationResource(m map[string]json.RawMessage, result interfac
 	err = core.UnmarshalPrimitive(m, "description", &obj.Description)
 	if err != nil {
 		err = core.SDKErrorf(err, "", "description-error", common.GetComponentInfo())
-		return
-	}
-	err = core.UnmarshalPrimitive(m, "registrationMetadata", &obj.RegistrationMetadata)
-	if err != nil {
-		err = core.SDKErrorf(err, "", "registrationMetadata-error", common.GetComponentInfo())
 		return
 	}
 	err = core.UnmarshalPrimitive(m, "preventKeyDeletion", &obj.PreventKeyDeletion)
@@ -11270,9 +11261,9 @@ type RestoreKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Alters server behavior for POST or DELETE operations. A header with `return=minimal` causes the service to return
@@ -11357,9 +11348,9 @@ type RewrapKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -11414,8 +11405,8 @@ func (options *RewrapKeyOptions) SetHeaders(param map[string]string) *RewrapKeyO
 // RewrapKeyResponseBody : Properties that are associated with the response body of an rewrap action.
 type RewrapKeyResponseBody struct {
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -11482,9 +11473,9 @@ type RotateKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Alters server behavior for POST or DELETE operations. A header with `return=minimal` causes the service to return
@@ -11956,9 +11947,9 @@ type SetKeyForDeletionOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -12310,9 +12301,9 @@ type SyncAssociatedResourcesOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -12368,9 +12359,9 @@ type UnsetKeyForDeletionOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -12429,9 +12420,9 @@ type UnwrapKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -12496,8 +12487,8 @@ type UnwrapKeyResponseBody struct {
 	Plaintext *string `json:"plaintext,omitempty"`
 
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -12550,9 +12541,9 @@ type WrapKeyOptions struct {
 	// The v4 UUID used to correlate and track transactions.
 	CorrelationID *string `json:"Correlation-Id,omitempty"`
 
-	// The ID of the key ring that the specified key is a part of. When the  header is not specified, Key Protect will
-	// perform a key ring lookup. For  a more optimized request, specify the key ring on every call. The key ring ID of
-	// keys that are created without an `X-Kms-Key-Ring` header is: `default`.
+	// The ID of the key ring that the specified key is a part of. When the header is not specified, Key Protect will
+	// perform a key ring lookup. For a more optimized request, specify the key ring on every call. The key ring ID of keys
+	// that are created without an `X-Kms-Key-Ring` header is: `default`.
 	XKmsKeyRing *string `json:"X-Kms-Key-Ring,omitempty"`
 
 	// Allows users to set headers on API requests.
@@ -12616,8 +12607,8 @@ type WrapKeyResponseBody struct {
 	Plaintext *string `json:"plaintext,omitempty"`
 
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -13061,8 +13052,8 @@ func UnmarshalKMIPProfileDataBodyKMIPProfileDataNative(m map[string]json.RawMess
 // This model "extends" KeyActionOneOfResponse
 type KeyActionOneOfResponseRewrapKeyResponseBody struct {
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -13114,8 +13105,8 @@ type KeyActionOneOfResponseUnwrapKeyResponseBody struct {
 	Plaintext *string `json:"plaintext,omitempty"`
 
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
@@ -13172,8 +13163,8 @@ type KeyActionOneOfResponseWrapKeyResponseBody struct {
 	Plaintext *string `json:"plaintext,omitempty"`
 
 	// The wrapped data encryption key (WDEK) that you can export to your app or service. The ciphertext contains the DEK
-	// wrapped by the latest version  of the key (WDEK). It is recommended to store and use  this WDEK in future calls to
-	// Key Protect. The value is base64 encoded.
+	// wrapped by the latest version of the key (WDEK). It is recommended to store and use this WDEK in future calls to Key
+	// Protect. The value is base64 encoded.
 	Ciphertext *string `json:"ciphertext,omitempty"`
 
 	// The key version that was used to wrap the DEK. This key version is associated with the `ciphertext` value that was
