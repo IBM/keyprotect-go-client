@@ -22,9 +22,15 @@ package ibmkeyprotectapiv2_test
 // constructing real JSON request bodies, io.NopCloser wrappers, and rate-limit waits.
 // The generated file only imported "fmt" and "os".
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"strings"
 	"time"
@@ -34,6 +40,36 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
+
+// MANUAL: generateTestCertPEM produces a self-signed X.509 certificate in memory,
+// removing the need for a pre-generated temp.pem file or an external openssl
+// invocation.
+func generateTestCertPEM() string {
+	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	Expect(err).To(BeNil())
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			Country:            []string{"XX"},
+			Province:           []string{"TX"},
+			Locality:           []string{"Austin"},
+			Organization:       []string{"IBM"},
+			OrganizationalUnit: []string{"KP"},
+			CommonName:         "CommonNameOrHostname",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(24 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	Expect(err).To(BeNil())
+
+	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
+}
 
 // This file provides an example of how to use the IBM Key Protect API service.
 //
@@ -1315,14 +1351,8 @@ var _ = Describe(`IbmKeyProtectApiV2 Examples Tests`, func() {
 				CollectionTotal: core.Int64Ptr(int64(1)),
 			}
 
-			// Read the PEM certificate from a file. The API validates the certificate format.
-			certBytes, err := os.ReadFile("./temp.pem")
-			if err != nil {
-				panic(err)
-			}
-
 			createKmipClientCertificateObjectModel := &ibmkeyprotectapiv2.CreateKMIPClientCertificateObject{
-				Certificate: core.StringPtr(string(certBytes)),
+				Certificate: core.StringPtr(generateTestCertPEM()), // MANUAL: generated in-process
 				Name:        core.StringPtr(exampleKmipCertName),
 			}
 
