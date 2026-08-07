@@ -1,9 +1,9 @@
 module github.com/IBM/keyprotect-go-client
 
-go 1.25.0
+go 1.26.4
 
 require (
-	github.com/IBM/go-sdk-core/v5 v5.21.3
+	github.com/IBM/go-sdk-core/v5 v5.22.1
 	github.com/ebitengine/purego v0.10.1
 	github.com/go-openapi/strfmt v0.25.0
 	github.com/google/uuid v1.6.0
