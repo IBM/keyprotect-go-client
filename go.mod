@@ -42,6 +42,7 @@ require (
 )
 
 retract (
+	v0.17.4 // Contains major version breaking changes
 	v0.12.3 // Contains only retractions
 	v0.12.1 // Contains bugs that break create key
 	v0.12.0 // Contains bugs that break create key
