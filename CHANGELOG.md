@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/IBM/keyprotect-go-client/compare/v1.0.0...v1.0.1) (2026-09-30)
+
+
+### Bug Fixes
+
+* **deps:** upgrade Go dependencies to resolve security vulnerabilities ([#161](https://github.com/IBM/keyprotect-go-client/issues/161)) ([3c30102](https://github.com/IBM/keyprotect-go-client/commit/3c301022bb70be55157cac8d55571bb06466aa54))
+
 # [1.0.0](https://github.com/IBM/keyprotect-go-client/compare/v0.17.4...v1.0.0) (2026-08-10)
 
 
