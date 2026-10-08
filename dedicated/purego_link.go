@@ -3,20 +3,28 @@
 package dedicated
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
-	"syscall"
 	"unsafe"
 
 	"github.com/IBM/go-sdk-core/v5/core"
 	"github.com/ebitengine/purego"
 )
 
+//go:embed internal/lib/linux-amd64/libkpd_hsm_manager.so.1.0.1
+//go:embed internal/lib/darwin-arm64/libkpd_hsm_manager.1.0.1.dylib
+//go:embed internal/lib/windows-amd64/libkpd_hsm_manager.dll
+var embeddedLibs embed.FS
+
 var (
+	hsmLibVersion = "1.0.1"
+
 	libHandle uintptr
 	initOnce  sync.Once
 	initError error
@@ -58,9 +66,9 @@ var (
 func resolveLibName(goos, goarch string) (string, error) {
 	type key struct{ os, arch string }
 	supported := map[key]string{
-		{"linux", "amd64"}:   "ibmkmscrypto.so.1.0.0",
-		{"darwin", "arm64"}:  "ibmkmscrypto.1.0.0.dylib",
-		{"windows", "amd64"}: "ibmkmscrypto.dll",
+		{"linux", "amd64"}:   fmt.Sprintf("libkpd_hsm_manager.so.%s", hsmLibVersion),
+		{"darwin", "arm64"}:  fmt.Sprintf("libkpd_hsm_manager.%s.dylib", hsmLibVersion),
+		{"windows", "amd64"}: "libkpd_hsm_manager.dll",
 	}
 	if name, ok := supported[key{goos, goarch}]; ok {
 		return name, nil
@@ -97,16 +105,20 @@ func initLibrary() error {
 			return
 		}
 
-		// Load library
+		// Obtain the path of the shared object library
 		libPath := getLibraryPath(libName)
-		if err = ensurePreload(libPath); err != nil {
-			initError = err
-			return
+		if libPath == "" {
+			var extractErr error
+			libPath, extractErr = extractEmbeddedLib(libName)
+			if extractErr != nil {
+				initError = fmt.Errorf("failed to find library or extract embedded library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libName, extractErr)
+				return
+			}
 		}
 
 		libHandle, err = openLibrary(libPath)
 		if err != nil {
-			initError = fmt.Errorf("failed to load library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
+			initError = fmt.Errorf("failed to open library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
 			return
 		}
 
@@ -144,28 +156,7 @@ func getLibraryPath(libName string) string {
 		}
 	}
 
-	// 2. Try embedded library in module source (for go get)
-	// This searches relative to the source file location
-	_, sourceFile, _, ok := runtime.Caller(0)
-	if ok {
-		sourceDir := filepath.Dir(sourceFile)
-		platform := runtime.GOOS + "-" + runtime.GOARCH
-
-		embeddedPaths := []string{
-			// In internal/lib/{platform}/ relative to this source file
-			filepath.Join(sourceDir, "internal", "lib", platform, libName),
-			// Fallback: in lib/{platform}/ relative to this source file
-			filepath.Join(sourceDir, "lib", platform, libName),
-		}
-
-		for _, path := range embeddedPaths {
-			if _, err := os.Stat(path); err == nil {
-				return path
-			}
-		}
-	}
-
-	// 3. Try relative to executable
+	// 2. Try relative to executable
 	exe, err := os.Executable()
 	if err == nil {
 		exeDir := filepath.Dir(exe)
@@ -189,7 +180,22 @@ func getLibraryPath(libName string) string {
 		}
 	}
 
-	// 3. Try current working directory
+	// 3. Try user cache directory (where extractEmbeddedLib writes)
+	if cacheRoot, err := os.UserCacheDir(); err == nil {
+		searchPaths := []string{
+			filepath.Join(cacheRoot, "lib", "ibm", libName),
+			filepath.Join(cacheRoot, "lib", "ibm", runtime.GOOS+"-"+runtime.GOARCH, libName),
+			filepath.Join(cacheRoot, "..", "lib", libName),
+			filepath.Join(cacheRoot, "..", "lib", runtime.GOOS+"-"+runtime.GOARCH, libName),
+		}
+		for _, path := range searchPaths {
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+		}
+	}
+
+	// 4. Try current working directory
 	if cwd, err := os.Getwd(); err == nil {
 		cwdPaths := []string{
 			filepath.Join(cwd, libName),
@@ -204,8 +210,7 @@ func getLibraryPath(libName string) string {
 		}
 	}
 
-	// 4. Fallback to system library path (LD_LIBRARY_PATH, DYLD_LIBRARY_PATH, etc.)
-	return libName
+	return ""
 }
 
 // Helper functions for string conversion
@@ -635,37 +640,42 @@ func wrapError(err error, context string) error {
 	return fmt.Errorf("%s: %w", context, err)
 }
 
-func ensurePreload(libPath string) error {
-	// Only do this on Linux
-	if runtime.GOOS != "linux" {
-		return nil
-	}
-
-	// Avoid infinite recursion
-	if os.Getenv("KP_PRELOADED") == "1" {
-		return nil
-	}
-
-	// If already preloaded, skip
-	if strings.Contains(os.Getenv("LD_PRELOAD"), libPath) {
-		return nil
-	}
-
-	// Build new environment
-	env := os.Environ()
-	env = append(
-		env,
-		"LD_PRELOAD="+libPath,
-		"KP_PRELOADED=1",
-	)
-
-	// Re-exec current process
-	// #nosec G204,G702 - This is intentional: re-executing the current process with modified environment
-	err := syscall.Exec(os.Args[0], os.Args, env)
+// extractEmbeddedLib writes the embedded shared library for the current
+// platform to a temp file and returns its path. The caller owns the file;
+// it persists for the lifetime of the process (OS cleans up on exit).
+func extractEmbeddedLib(libName string) (string, error) {
+	cacheRoot, err := os.UserCacheDir()
 	if err != nil {
-		return err
+		return "", fmt.Errorf("user cache dir: %w", err)
 	}
-	return nil
-}
 
-// Made with Bob
+	platform := runtime.GOOS + "-" + runtime.GOARCH
+	appCacheDir := filepath.Join(cacheRoot, "lib", "ibm")
+
+	// copy embedded libs to the cache location
+	const embedRoot = "internal/lib"
+	err = fs.WalkDir(embeddedLibs, embedRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, _ := filepath.Rel(embedRoot, path)
+		destPath := filepath.Join(appCacheDir, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(destPath, 0755)
+		}
+
+		data, err := embeddedLibs.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		return os.WriteFile(destPath, data, 0644)
+	})
+	if err != nil {
+		return "", fmt.Errorf("extract embedded libs: %w", err)
+	}
+
+	return filepath.Join(appCacheDir, platform, libName), nil
+}
