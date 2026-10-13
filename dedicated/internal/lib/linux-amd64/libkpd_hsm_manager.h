@@ -6,24 +6,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-/**
- * Called by csadm_handler to register the per-call output/error smbuf pointers.
- *
- * # Safety
- * Called from C; no Rust invariants are broken — we only store the raw
- * pointers for the duration of the surrounding C call.
- */
-void csadm_set_bufs(void *out, void *err);
+#define ERR_NULL_ARG 2
+
+#define ERR_NO_SESSION 3
+
+#define ERR_AUTH 4
 
 /**
- * Output handler called by secsrv_interface (2 args: stream_id, char_buf_ptr).
- * stream_id 0 → stdout, 1|3 → stderr, 2 → no-op.
- *
- * The second arg is a raw NUL-terminated char* (confirmed by hex dump).
- * secsrv_interface handles routing to the dst smbuf internally via csadm_set_bufs;
- * we only need to be a valid, callable non-NULL function.
+ * Append data to an smbuf string buffer.
  */
-void csadm_output_handler(int stream_id, void *buf);
+extern void smbuf_append(void *buf, const char *data);
 
 /**
  * Initialise the library (called once before any session is created).
@@ -257,8 +249,16 @@ int GetAuthStateC(uintptr_t session_id, int *auth_state_out);
 /**
  * List HSM users.
  *
- * Allocates a C string into `*result`.  The caller must free it with
- * `FreeStringC`.
+ * # Return codes
+ * - `0`: success; `*result` holds the JSON user list.
+ * - `2`: `result` is NULL.
+ * - `3`: no session for `session_id`.
+ * - `4`: auth preparation failed.
+ * - any other value: vendor rc; `*result` holds the vendor error text.
+ *
+ * `*result` is set on success AND on vendor failures, so the caller must
+ * call `FreeStringC` whenever `*result` is non-null.  `*result` is left
+ * untouched for codes 2/3/4.
  */
 int ListUsersC(uintptr_t session_id, char **result);
 

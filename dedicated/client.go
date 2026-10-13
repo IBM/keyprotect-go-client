@@ -518,14 +518,13 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GetSessionInfo(cryptoUni
 	sessionID, err := keyProtectCryptoUnitAPI.getSessionID(cryptoUnitID)
 	if err != nil {
 		return nil, err
+	} else {
+		keyProtectCryptoUnitAPI.logger.Info(
+			fmt.Sprintf("cryptounit %s has an existing session", cryptoUnitID),
+		)
 	}
-
 	// Get auth state as a proxy for HSM state
-
-	cryptounitID, sessErr := callGetCryptoUnitID(sessionID)
-	keyProtectCryptoUnitAPI.logger.Info(
-		fmt.Sprintf("cryptounit %s has an existing session", cryptounitID),
-	)
+	_, sessErr := callGetCryptoUnitID(sessionID)
 	if sessErr != nil {
 		return nil, wrapError(sessErr, fmt.Sprintf("failed to get state for cryptounit %s", cryptoUnitID))
 	}
@@ -1252,6 +1251,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 	// previous run.  There is no state on the HSM that records "a session was
 	// previously opened", so startStep can never skip past this point.
 	if startStep <= StepImportMBK {
+		logger.Info("step 4 – creating sessions after claiming")
 		if _, err := keyProtectCryptoUnitAPI.createSessions(ctx, cryptoUnits, skr.FilePath); err != nil {
 			return fmt.Errorf("step 4 – create sessions: %w", err)
 		}
@@ -1327,7 +1327,6 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ZeroizeCryptoUnit(crypto
 }
 
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ZeroizeCryptoUnitWithContext(ctx context.Context, cryptoUnitID string) error {
-
 	if err := keyProtectCryptoUnitAPI.Disconnect(cryptoUnitID); err != nil {
 		return fmt.Errorf("error trying to disconnecting session for cryptounit %s: %s", cryptoUnitID, err.Error())
 	}

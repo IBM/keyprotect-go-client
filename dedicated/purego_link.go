@@ -3,10 +3,13 @@
 package dedicated
 
 import (
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"fmt"
-	"io/fs"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -105,8 +108,14 @@ func initLibrary() error {
 			return
 		}
 
-		// Obtain the path of the shared object library
-		libPath := getLibraryPath(libName)
+		// Obtain the path of the shared object library.
+		// Untrusted hits must match the embedded SHA256, otherwise re-extract.
+		libPath, trusted := getLibraryPath(libName)
+		if libPath != "" && !trusted {
+			if verifyErr := verifyLibSHA256(libPath, libName); verifyErr != nil {
+				libPath = ""
+			}
+		}
 		if libPath == "" {
 			var extractErr error
 			libPath, extractErr = extractEmbeddedLib(libName)
@@ -145,14 +154,17 @@ func initLibrary() error {
 	return initError
 }
 
-// getLibraryPath searches for the shared library in multiple locations
-func getLibraryPath(libName string) string {
+// getLibraryPath searches for the shared library in multiple locations.
+// It returns the path found ("" if none) and whether the path is trusted.
+// trusted is true only when the path was found via the KEYPROTECT_LIB_PATH
+// environment variable; all other locations return false.
+func getLibraryPath(libName string) (path string, trusted bool) {
 	// 1. Try environment variable first (highest priority)
 	if path := os.Getenv("KEYPROTECT_LIB_PATH"); path != "" {
 		fullPath := filepath.Join(path, libName)
 		// #nosec G703 - This is intentional: users can specify custom library paths via environment variable
 		if _, err := os.Stat(fullPath); err == nil {
-			return fullPath
+			return fullPath, true
 		}
 	}
 
@@ -175,7 +187,7 @@ func getLibraryPath(libName string) string {
 
 		for _, path := range searchPaths {
 			if _, err := os.Stat(path); err == nil {
-				return path
+				return path, false
 			}
 		}
 	}
@@ -190,7 +202,7 @@ func getLibraryPath(libName string) string {
 		}
 		for _, path := range searchPaths {
 			if _, err := os.Stat(path); err == nil {
-				return path
+				return path, false
 			}
 		}
 	}
@@ -205,12 +217,12 @@ func getLibraryPath(libName string) string {
 
 		for _, path := range cwdPaths {
 			if _, err := os.Stat(path); err == nil {
-				return path
+				return path, false
 			}
 		}
 	}
 
-	return ""
+	return "", false
 }
 
 // Helper functions for string conversion
@@ -641,8 +653,12 @@ func wrapError(err error, context string) error {
 }
 
 // extractEmbeddedLib writes the embedded shared library for the current
-// platform to a temp file and returns its path. The caller owns the file;
-// it persists for the lifetime of the process (OS cleans up on exit).
+// platform to <UserCacheDir>/lib/ibm/<platform>/<libName> and returns its
+// path. The file is written atomically (temp file + rename) and verified
+// against the embedded SHA256 before the path is returned. On Windows, if the
+// destination cannot be replaced (e.g. the DLL is loaded by another process),
+// an existing matching file is reused, otherwise a hash-suffixed filename is
+// used.
 func extractEmbeddedLib(libName string) (string, error) {
 	cacheRoot, err := os.UserCacheDir()
 	if err != nil {
@@ -650,32 +666,123 @@ func extractEmbeddedLib(libName string) (string, error) {
 	}
 
 	platform := runtime.GOOS + "-" + runtime.GOARCH
-	appCacheDir := filepath.Join(cacheRoot, "lib", "ibm")
-
-	// copy embedded libs to the cache location
-	const embedRoot = "internal/lib"
-	err = fs.WalkDir(embeddedLibs, embedRoot, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, _ := filepath.Rel(embedRoot, path)
-		destPath := filepath.Join(appCacheDir, relPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		data, err := embeddedLibs.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		return os.WriteFile(destPath, data, 0644)
-	})
+	// embed.FS always uses forward slashes, so use path.Join.
+	data, err := embeddedLibs.ReadFile(path.Join("internal/lib", platform, libName))
 	if err != nil {
-		return "", fmt.Errorf("extract embedded libs: %w", err)
+		return "", fmt.Errorf("read embedded lib %s: %w", libName, err)
+	}
+	sum := sha256.Sum256(data)
+	want := hex.EncodeToString(sum[:])
+
+	destDir := filepath.Join(cacheRoot, "lib", "ibm", platform)
+	if err := os.MkdirAll(destDir, 0700); err != nil {
+		return "", fmt.Errorf("create lib dir %s: %w", destDir, err)
 	}
 
-	return filepath.Join(appCacheDir, platform, libName), nil
+	dest := filepath.Join(destDir, libName)
+	if err := writeFileAtomic(destDir, dest, data); err != nil {
+		if runtime.GOOS != "windows" {
+			return "", fmt.Errorf("extract embedded lib: %w", err)
+		}
+		// The DLL may be loaded by another process: reuse it if it matches,
+		// else fall back to a content-hash-suffixed filename.
+		if fileSHA256Equals(dest, want) {
+			return dest, nil
+		}
+		ext := filepath.Ext(libName)
+		dest = filepath.Join(destDir, strings.TrimSuffix(libName, ext)+"-"+want[:12]+ext)
+		if fileSHA256Equals(dest, want) {
+			return dest, nil
+		}
+		if err := writeFileAtomic(destDir, dest, data); err != nil {
+			return "", fmt.Errorf("extract embedded lib: %w", err)
+		}
+	}
+
+	if !fileSHA256Equals(dest, want) {
+		return "", fmt.Errorf("extracted library %s failed SHA256 verification", dest)
+	}
+	return dest, nil
+}
+
+// writeFileAtomic writes data to dest via a temp file in dir followed by a
+// rename, so readers never observe a partial file. The temp file is removed on
+// failure.
+func writeFileAtomic(dir, dest string, data []byte) (err error) {
+	tmp, err := os.CreateTemp(dir, filepath.Base(dest)+".tmp*")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err != nil {
+			tmp.Close()
+			os.Remove(tmp.Name())
+		}
+	}()
+
+	if _, err = tmp.Write(data); err != nil {
+		return err
+	}
+	if err = tmp.Sync(); err != nil {
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	if err = os.Chmod(tmp.Name(), 0755); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), dest)
+}
+
+// fileSHA256Equals reports whether the file at filePath has the given
+// hex-encoded SHA256. Any read error yields false.
+func fileSHA256Equals(filePath, want string) bool {
+	got, err := fileSHA256(filePath)
+	return err == nil && strings.EqualFold(got, want)
+}
+
+// fileSHA256 returns the hex-encoded SHA256 of the file at filePath.
+func fileSHA256(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+// embeddedLibSHA256 returns the hex-encoded SHA256 of the embedded library
+// for the current platform.
+func embeddedLibSHA256(libName string) (string, error) {
+	// embed.FS always uses forward slashes, so use path.Join, not filepath.Join.
+	embedPath := path.Join("internal/lib", runtime.GOOS+"-"+runtime.GOARCH, libName)
+	data, err := embeddedLibs.ReadFile(embedPath)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// verifyLibSHA256 returns an error if the SHA256 of the file at libPath does
+// not match the SHA256 of the embedded library libName.
+func verifyLibSHA256(libPath, libName string) error {
+	want, err := embeddedLibSHA256(libName)
+	if err != nil {
+		return fmt.Errorf("hash embedded library %s: %w", libName, err)
+	}
+	got, err := fileSHA256(libPath)
+	if err != nil {
+		return fmt.Errorf("hash library %s: %w", libPath, err)
+	}
+	if !strings.EqualFold(got, want) {
+		return fmt.Errorf("library %s SHA256 mismatch: got %s, want %s", libPath, got, want)
+	}
+	return nil
 }
