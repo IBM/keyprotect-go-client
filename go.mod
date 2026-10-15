@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	github.com/IBM/go-sdk-core/v5 v5.23.5
-	github.com/ebitengine/purego v0.10.1
+	github.com/ebitengine/purego v0.11.1
 	github.com/go-openapi/strfmt v0.27.2
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
