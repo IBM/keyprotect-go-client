@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/IBM/keyprotect-go-client/compare/v1.0.2...v1.1.0) (2026-10-19)
+
+
+### Features
+
+* **dedicated:** fixing deps and adding embed ([#162](https://github.com/IBM/keyprotect-go-client/issues/162)) ([37ad648](https://github.com/IBM/keyprotect-go-client/commit/37ad648a5da8f23f75ee8329624c237e5ad6ff41))
+
 ## [1.0.2](https://github.com/IBM/keyprotect-go-client/compare/v1.0.1...v1.0.2) (2026-10-07)
 
 
