@@ -57,3 +57,6 @@ cover.*
 package.json
 package-lock.json
 node_modules/
+
+# environmental files
+**/.envrc
