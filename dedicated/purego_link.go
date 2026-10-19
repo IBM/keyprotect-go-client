@@ -120,14 +120,14 @@ func initLibrary() error {
 			var extractErr error
 			libPath, extractErr = extractEmbeddedLib(libName)
 			if extractErr != nil {
-				initError = fmt.Errorf("failed to find library or extract embedded library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libName, extractErr)
+				initError = fmt.Errorf("failed to extract HSM Library: %w", extractErr)
 				return
 			}
 		}
 
 		libHandle, err = openLibrary(libPath)
 		if err != nil {
-			initError = fmt.Errorf("failed to open library %s: %w\nTry setting KEYPROTECT_LIB_PATH environment variable", libPath, err)
+			initError = fmt.Errorf("failed to load HSM library: %w", err)
 			return
 		}
 
@@ -675,7 +675,7 @@ func extractEmbeddedLib(libName string) (string, error) {
 	want := hex.EncodeToString(sum[:])
 
 	destDir := filepath.Join(cacheRoot, "lib", "ibm", platform)
-	if err := os.MkdirAll(destDir, 0700); err != nil {
+	if err := os.MkdirAll(destDir, 0o700); err != nil {
 		return "", fmt.Errorf("create lib dir %s: %w", destDir, err)
 	}
 
@@ -729,7 +729,7 @@ func writeFileAtomic(dir, dest string, data []byte) (err error) {
 	if err = tmp.Close(); err != nil {
 		return err
 	}
-	if err = os.Chmod(tmp.Name(), 0755); err != nil {
+	if err = os.Chmod(tmp.Name(), 0o755); err != nil {
 		return err
 	}
 	return os.Rename(tmp.Name(), dest)

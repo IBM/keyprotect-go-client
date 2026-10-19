@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -75,11 +74,12 @@ func NewKeyProtectCryptoUnitAPIOptions(url string) (*KeyProtectCryptoUnitAPIOpti
 
 // NewKeyProtectCryptoUnitAPI creates a KeyProtectCryptoUnitAPI instance. Always call disconnect() when done.
 func NewKeyProtectCryptoUnitAPI(options *KeyProtectCryptoUnitAPIOptions) (service *KeyProtectCryptoUnitAPI, disconnect func(), err error) {
+	sdkLogger := configureKPCryptoUnitLogger()
 	// Initialize the crypto library early to catch platform/library issues immediately
 	if initErr := initLibrary(); initErr != nil {
 		err = core.SDKErrorf(
 			initErr,
-			fmt.Sprintf("error: %#v initializing cryptounit operations for platform %s (%s). Rerun on one of the following platforms: linux (amd64), darwin (arm64), windows (amd64).", initErr, runtime.GOOS, runtime.GOARCH),
+			fmt.Sprintf("unable to initialize dedicated library; verify the cryptounit library installation or set KEYPROTECT_LIB_PATH: %s", initErr),
 			"library-init-error",
 			common.GetComponentInfo(),
 		)
@@ -90,8 +90,6 @@ func NewKeyProtectCryptoUnitAPI(options *KeyProtectCryptoUnitAPIOptions) (servic
 		URL:           options.URL,
 		Authenticator: options.Authenticator,
 	}
-
-	sdkLogger := configureKPCryptoUnitLogger()
 
 	baseService, err := core.NewBaseService(ServiceOptions)
 	if err != nil {
