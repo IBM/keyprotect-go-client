@@ -120,14 +120,15 @@ func initLibrary() error {
 			var extractErr error
 			libPath, extractErr = extractEmbeddedLib(libName)
 			if extractErr != nil {
-				initError = fmt.Errorf("failed to extract HSM Library: %w", extractErr)
+				initError = fmt.Errorf("failed to extract HSM dynamic Library: %w", extractErr)
 				return
 			}
 		}
 
+		// openLibrary is defined at purego_link_unix.go and purego_link_windows.go
 		libHandle, err = openLibrary(libPath)
 		if err != nil {
-			initError = fmt.Errorf("failed to load HSM library: %w", err)
+			initError = fmt.Errorf("failed to load HSM dynamic library: %w", err)
 			return
 		}
 
