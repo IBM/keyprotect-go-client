@@ -2,6 +2,7 @@ package dedicated_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -247,6 +248,115 @@ func TestMasterKeyPartsSpecValidation(t *testing.T) {
 	}
 }
 
+// TestSetThresholdValidation tests that SetThreshold rejects out-of-range
+// thresholds before it needs a session or the native library.
+func TestSetThresholdValidation(t *testing.T) {
+	// A zero-value client is enough: validation fails before any session lookup.
+	client := &keyprotect_dedicated.KeyProtectCryptoUnitAPI{}
+
+	tests := []struct {
+		name        string
+		signature   int
+		revocation  int
+		errContains string
+	}{
+		{name: "signature below minimum", signature: keyprotect_dedicated.MinThreshold - 1, revocation: 2, errContains: "signature-threshold"},
+		{name: "signature above maximum", signature: keyprotect_dedicated.MaxThreshold + 1, revocation: 2, errContains: "signature-threshold"},
+		{name: "revocation below minimum", signature: 2, revocation: keyprotect_dedicated.MinThreshold - 1, errContains: "revocation-threshold"},
+		{name: "revocation above maximum", signature: 2, revocation: keyprotect_dedicated.MaxThreshold + 1, errContains: "revocation-threshold"},
+		{name: "negative signature", signature: -1, revocation: 2, errContains: "signature-threshold"},
+		{name: "both zero reports signature first", signature: 0, revocation: 0, errContains: "signature-threshold"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := client.SetThreshold("cu-1", tt.signature, tt.revocation)
+			require.Error(t, err, "SetThreshold() should return error")
+			assert.Contains(t, err.Error(), tt.errContains)
+
+			err = client.SetThresholdWithContext(context.Background(), "cu-1", tt.signature, tt.revocation)
+			require.Error(t, err, "SetThresholdWithContext() should return error")
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+// TestInitializeCryptoUnitsAdminValidation tests that InitializeCryptoUnits
+// rejects an invalid admin/threshold configuration before any HSM call.
+func TestInitializeCryptoUnitsAdminValidation(t *testing.T) {
+	// A zero-value client is enough: validation fails before any API call.
+	client := &keyprotect_dedicated.KeyProtectCryptoUnitAPI{}
+
+	skr, err := keyprotect_dedicated.NewSignatureKeyRequest("kp-admin.key", "", "ADMIN", false)
+	require.NoError(t, err)
+	mbk, err := keyprotect_dedicated.NewMasterKeyPartsSpec(2, "TEST", []string{"k1.key#pass", "k2.key#pass"}, false)
+	require.NoError(t, err)
+	admin := func(name, path string) *keyprotect_dedicated.AdditionalAdminRequest {
+		a, err := keyprotect_dedicated.NewAdditionalAdminRequest(name, path, "", false, true)
+		require.NoError(t, err)
+		return a
+	}
+
+	tests := []struct {
+		name        string
+		admins      []*keyprotect_dedicated.AdditionalAdminRequest
+		threshold   *keyprotect_dedicated.ThresholdRequest
+		errContains string
+	}{
+		{
+			name:        "duplicate admin name",
+			admins:      []*keyprotect_dedicated.AdditionalAdminRequest{admin("ADMIN2", "a.key"), admin("ADMIN2", "b.key")},
+			errContains: "duplicate name",
+		},
+		{
+			name:        "threshold out of range",
+			threshold:   &keyprotect_dedicated.ThresholdRequest{SignatureThreshold: 0, RevocationThreshold: 2},
+			errContains: "signature-threshold",
+		},
+		{
+			name:        "not enough admins for threshold",
+			admins:      []*keyprotect_dedicated.AdditionalAdminRequest{admin("ADMIN2", "a.key")},
+			threshold:   &keyprotect_dedicated.ThresholdRequest{SignatureThreshold: 3, RevocationThreshold: 3},
+			errContains: "insufficient admins",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := client.InitializeCryptoUnits(context.Background(), skr, tt.admins, tt.threshold, mbk, "instance")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContains)
+		})
+	}
+}
+
+// TestThresholdConstants guards the threshold bounds and the admin permission value
+func TestThresholdConstants(t *testing.T) {
+	assert.Equal(t, 1, keyprotect_dedicated.MinThreshold)
+	assert.Equal(t, 5, keyprotect_dedicated.MaxThreshold)
+	assert.Equal(t, uint32(0x22000000), keyprotect_dedicated.AdminPermission)
+	assert.Equal(t, "altmdsign-pub.key", keyprotect_dedicated.ThresholdPublicKeyFile)
+	assert.Equal(t, "cmds.scf", keyprotect_dedicated.ThresholdSignedCfgFile)
+}
+
+// TestThresholdConfigResponseUnmarshal tests decoding of the threshold config API response
+func TestThresholdConfigResponseUnmarshal(t *testing.T) {
+	body := `{
+		"public_key_content": "cHViS2V5",
+		"signed_config_content": "c2NmRGF0YQ==",
+		"signature-threshold": 2,
+		"revocation-threshold": 3
+	}`
+
+	var cfg keyprotect_dedicated.ThresholdConfigResponse
+	require.NoError(t, json.Unmarshal([]byte(body), &cfg))
+
+	assert.Equal(t, "cHViS2V5", cfg.PublicKeyContent)
+	assert.Equal(t, "c2NmRGF0YQ==", cfg.SignedConfigContent)
+	assert.Equal(t, 2, cfg.SignatureThreshold)
+	assert.Equal(t, 3, cfg.RevocationThreshold)
+}
+
 // TestZeroizeCryptoUnit tests the zeroization of crypto units
 func TestZeroizeCryptoUnit(t *testing.T) {
 	apiKey := os.Getenv("IBMCLOUD_API_KEY")
@@ -341,7 +451,7 @@ func TestInitializeCryptoUnitsWithInvalidParams(t *testing.T) {
 	)
 
 	// This should fail with invalid instance ID
-	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, "invalid-instance")
+	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, "invalid-instance")
 	assert.Error(t, err, "should return error with invalid instance ID")
 }
 
@@ -512,7 +622,7 @@ func TestInitializationErrors(t *testing.T) {
 			t.Skip("Cannot create master key parts spec")
 		}
 
-		err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, instanceID)
+		err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, instanceID)
 		assert.Error(t, err, "should return error with nonexistent signature key file")
 	})
 
@@ -537,7 +647,7 @@ func TestInitializationErrors(t *testing.T) {
 			t.Skip("Cannot create master key parts spec")
 		}
 
-		err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, "")
+		err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, "")
 		assert.Error(t, err, "should return error with empty instance ID")
 	})
 }
@@ -773,7 +883,7 @@ func TestCryptoUnitInitialization(t *testing.T) {
 
 	// Initialize crypto units
 	t.Log("Initializing crypto units...")
-	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, instanceID)
+	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, instanceID)
 	if err != nil {
 		t.Logf("InitializeCryptoUnits error (may be expected if already initialized): %v", err)
 		t.Logf("718 errror: %s", err.Error())
@@ -1116,7 +1226,7 @@ func TestCryptoUnitValidClientError(t *testing.T) {
 
 	// Initialize crypto units
 	t.Log("Initializing crypto units...")
-	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, instanceID)
+	err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, instanceID)
 	if err != nil {
 		t.Logf("InitializeCryptoUnits error (may be expected if already initialized): %v", err)
 		t.Logf("error = %s", err.Error())
