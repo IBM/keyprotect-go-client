@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"embed"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -21,12 +22,12 @@ import (
 )
 
 //go:embed internal/lib/linux-amd64/libkpd_hsm_manager.so.1.0.1
-//go:embed internal/lib/darwin-arm64/libkpd_hsm_manager.1.0.1.dylib
+//go:embed internal/lib/darwin-arm64/libkpd_hsm_manager.1.1.0.dylib
 //go:embed internal/lib/windows-amd64/libkpd_hsm_manager.dll
 var embeddedLibs embed.FS
 
 var (
-	hsmLibVersion = "1.0.1"
+	hsmLibVersion = "1.1.0"
 
 	libHandle uintptr
 	initOnce  sync.Once
@@ -50,6 +51,15 @@ var (
 	getCryptoUnitIDFunc    func(sessionID uintptr, result **byte) int32
 	freeStringFunc         func(str *byte)
 	getLastErrorFunc       func(sessionID uintptr, result **byte) int32
+
+	// Threshold configuration functions
+	altMdlSigKeyLoadFunc func(sessionID uintptr, keyspecPath *byte, headers *byte, result **byte) int32
+	fileLoadFunc         func(sessionID uintptr, filename *byte, headers *byte, result **byte) int32
+	restartFunc          func(sessionID uintptr, headers *byte, result **byte) int32
+
+	// Multi-user session creation: authenticates several users (a JSON list of
+	// {user, keyfile, passphrase}) on one session.
+	createSessionMultiAuthFunc func(endpoint *byte, port int32, instanceID *byte, cryptoUnitID *byte, authsJSON *byte, iamToken *byte) uintptr
 
 	// Single authenticator for the client - used to get/refresh IAM tokens
 	clientAuthenticator core.Authenticator
@@ -135,6 +145,7 @@ func initLibrary() error {
 		// Load function symbols
 		// These must match the //export function names in internal/bridge/exports.go
 		purego.RegisterLibFunc(&createSessionFunc, libHandle, "CreateSessionC")
+		purego.RegisterLibFunc(&createSessionMultiAuthFunc, libHandle, "CreateSessionMultiAuthC")
 		purego.RegisterLibFunc(&closeSessionFunc, libHandle, "CloseSessionC")
 		purego.RegisterLibFunc(&setTokenGetterFunc, libHandle, "SetTokenGetterC")
 		purego.RegisterLibFunc(&getAuthStateFunc, libHandle, "GetAuthStateC")
@@ -150,6 +161,9 @@ func initLibrary() error {
 		purego.RegisterLibFunc(&getCryptoUnitIDFunc, libHandle, "GetCryptoUnitIDC")
 		purego.RegisterLibFunc(&freeStringFunc, libHandle, "FreeStringC")
 		purego.RegisterLibFunc(&getLastErrorFunc, libHandle, "GetLastErrorC")
+		purego.RegisterLibFunc(&altMdlSigKeyLoadFunc, libHandle, "AltMdlSigKeyLoadC")
+		purego.RegisterLibFunc(&fileLoadFunc, libHandle, "FileLoadC")
+		purego.RegisterLibFunc(&restartFunc, libHandle, "RestartC")
 	})
 
 	return initError
@@ -310,8 +324,22 @@ func getLastErrorMessage(sessionID uintptr, errorCode uint32) string {
 	return TranslateErrorCode(errorCode)
 }
 
-// callCreateSession wraps the C function call to create a session
-func callCreateSession(endpoint, instanceID, cryptoUnitID, username, keyfile, passphrase string, port int, authenticator core.Authenticator) (uintptr, error) {
+// callCreateSession wraps the C function call to create a session.
+// A single user uses CreateSessionC; several users use CreateSessionMultiAuthC
+// so every user is authenticated on the same session.
+func callCreateSession(endpoint, instanceID, cryptoUnitID string, auths []sessionAuth, port int, authenticator core.Authenticator) (uintptr, error) {
+	if len(auths) == 0 {
+		return 0, fmt.Errorf("at least one session user is required")
+	}
+	var authsJSON string
+	if len(auths) > 1 {
+		encoded, err := json.Marshal(auths)
+		if err != nil {
+			return 0, fmt.Errorf("failed to encode session users: %w", err)
+		}
+		authsJSON = string(encoded)
+	}
+
 	// Store the authenticator - it will be used for all token requests
 	clientAuthenticator = authenticator
 
@@ -326,16 +354,28 @@ func callCreateSession(endpoint, instanceID, cryptoUnitID, username, keyfile, pa
 		return 0, fmt.Errorf("port %d is out of valid range", port)
 	}
 	// Create session with initial token
-	sessionID := createSessionFunc(
-		cString(endpoint),
-		int32(port),
-		cString(instanceID),
-		cString(cryptoUnitID),
-		cString(username),
-		cString(keyfile),
-		cString(passphrase),
-		cString(token),
-	)
+	var sessionID uintptr
+	if len(auths) == 1 {
+		sessionID = createSessionFunc(
+			cString(endpoint),
+			int32(port),
+			cString(instanceID),
+			cString(cryptoUnitID),
+			cString(auths[0].User),
+			cString(auths[0].Keyfile),
+			cString(auths[0].Passphrase),
+			cString(token),
+		)
+	} else {
+		sessionID = createSessionMultiAuthFunc(
+			cString(endpoint),
+			int32(port),
+			cString(instanceID),
+			cString(cryptoUnitID),
+			cString(authsJSON),
+			cString(token),
+		)
+	}
 
 	if sessionID == 0 {
 		return 0, NewError(0xC7000005, "failed to create session for cryptounit "+cryptoUnitID)
@@ -611,6 +651,77 @@ func callGetCryptoUnitID(sessionID uintptr) (string, error) {
 
 	defer freeStringFunc(resultPtr)
 	return goString(resultPtr), nil
+}
+
+// callAltMdlSigKeyLoad wraps the C function call to load the alternate module
+// signing public key into the HSM
+func callAltMdlSigKeyLoad(sessionID uintptr, keyspecPath string, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
+	headerStr := convertHeadersToString(addtlHeaders)
+	var resultPtr *byte
+	status := altMdlSigKeyLoadFunc(sessionID, cString(keyspecPath), cString(headerStr), &resultPtr)
+
+	defer freeStringFunc(resultPtr)
+	result := goString(resultPtr)
+
+	if status != 0 {
+		// Result contains error message when status is non-zero
+		return fmt.Errorf("failed to load trusted signing key: %s", result)
+	}
+	return nil
+}
+
+// callFileLoad wraps the C function call to load a file (here, the signed
+// configuration file) into the HSM
+func callFileLoad(sessionID uintptr, filename string, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
+	headerStr := convertHeadersToString(addtlHeaders)
+	var resultPtr *byte
+	status := fileLoadFunc(sessionID, cString(filename), cString(headerStr), &resultPtr)
+
+	defer freeStringFunc(resultPtr)
+	result := goString(resultPtr)
+
+	if status != 0 {
+		// Result contains error message when status is non-zero
+		return fmt.Errorf("failed to load signed config: %s", result)
+	}
+	return nil
+}
+
+// callRestart wraps the C function call to restart the HSM so the loaded
+// configuration takes effect. The threshold values are passed through
+// addtlHeaders as "Signature-Threshold" and "Revocation-Threshold".
+func callRestart(sessionID uintptr, addtlHeaders map[string]string) error {
+	// Initialize library if not already done
+	if err := initLibrary(); err != nil {
+		return fmt.Errorf("library initialization failed: %w", err)
+	}
+
+	headerStr := convertHeadersToString(addtlHeaders)
+	var resultPtr *byte
+	status := restartFunc(sessionID, cString(headerStr), &resultPtr)
+
+	defer freeStringFunc(resultPtr)
+	result := goString(resultPtr)
+
+	if status != 0 {
+		// The HSM drops the connection while restarting; this is not a failure.
+		// #nosec G115 - vendor return codes are compared by bit pattern
+		if uint32(status) == HSMRestartConnRefused {
+			return nil
+		}
+		return fmt.Errorf("failed to restart HSM: %s", result)
+	}
+	return nil
 }
 
 // callGetLastError wraps the C function call to get the last error message
