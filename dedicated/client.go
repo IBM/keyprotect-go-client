@@ -2,11 +2,13 @@ package dedicated
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -231,24 +233,26 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GetLogger() core.Logger 
 // CreateCryptoUnitSession establishes a connection to a specific crypto unit and creates a session.
 // Multiple crypto units can be connected simultaneously. Each connection is tracked by cryptoUnitID.
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) CreateCryptoUnitSession(loginSpec *LoginSpec) error {
-	var filepath string
-	var passphrase string
-
-	parts := strings.Split(loginSpec.KeyFile, "#")
-	if len(parts) > 1 {
-		filepath = parts[0]
-		passphrase = parts[1]
-	} else {
-		filepath = parts[0]
-		passphrase = ""
+	keyPath, passphrase := splitKeyFileSpec(loginSpec.KeyFile)
+	auths := []sessionAuth{
+		{
+			User:       loginSpec.Username,
+			Keyfile:    keyPath,
+			Passphrase: passphrase,
+		},
+	}
+	for _, extra := range loginSpec.AdditionalAuths {
+		extraPath, extraPassphrase := splitKeyFileSpec(extra.KeyFile)
+		auths = append(auths, sessionAuth{User: extra.Username, Keyfile: extraPath, Passphrase: extraPassphrase})
 	}
 	// TODO: validate that the auth file exists
-	_, err := keyProtectCryptoUnitAPI.connectCryptoUnit(loginSpec.Username, filepath, passphrase, loginSpec.CryptoUnitID, loginSpec.Port)
+	_, err := keyProtectCryptoUnitAPI.connectCryptoUnit(auths, loginSpec.CryptoUnitID, loginSpec.Port)
 	return err
 }
 
-func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) connectCryptoUnit(username, keyfile, passphrase, cryptoUnitID string, port int) (uintptr, error) {
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) connectCryptoUnit(auths []sessionAuth, cryptoUnitID string, port int) (uintptr, error) {
 	logger := keyProtectCryptoUnitAPI.logger
+	username := sessionUsernames(auths)
 	if cryptoUnitID == "" {
 		return 0, fmt.Errorf("cryptoUnitID is required")
 	}
@@ -263,9 +267,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) connectCryptoUnit(userna
 		keyProtectCryptoUnitAPI.Service.GetServiceURL(),
 		keyProtectCryptoUnitAPI.instanceID,
 		cryptoUnitID,
-		username,
-		keyfile,
-		passphrase,
+		auths,
 		port,
 		keyProtectCryptoUnitAPI.authenticator,
 	)
@@ -1172,7 +1174,37 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ImportMasterKeyToCryptoU
 //  5. AddKMSUser                   → state: kms-authorized
 //  6. GenerateMasterKeyWithContext → local file (skipped when mbkspec.Exists)
 //  7. ImportMasterKeyToCryptoUnits → state: initialized / kms-initialized
-func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ctx context.Context, skr *SignatureKeyRequest, mbkspec *MasterKeyPartsSpec, instanceID string) error {
+//
+// adminReq (additional admins) and thresholdReq are optional. When provided they are validated together with skr before any
+// HSM state is changed.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(
+	ctx context.Context,
+	skr *SignatureKeyRequest,
+	adminReq []*AdditionalAdminRequest,
+	thresholdReq *ThresholdRequest,
+	mbkspec *MasterKeyPartsSpec,
+	instanceID string,
+) error {
+	if skr == nil {
+		return fmt.Errorf("signature key request cannot be nil")
+	}
+
+	if mbkspec == nil {
+		return fmt.Errorf("master key parts spec cannot be nil")
+	}
+
+	// Validate the optional admins/threshold up front so a bad configuration
+	// fails before any crypto unit is claimed.
+	if thresholdReq != nil {
+		if err := validateThreshold(thresholdReq.SignatureThreshold, thresholdReq.RevocationThreshold); err != nil {
+			return fmt.Errorf("invalid threshold configuration: %w", err)
+		}
+	}
+
+	if err := validateAdditionalAdmins(adminReq, skr, thresholdReq); err != nil {
+		return fmt.Errorf("invalid additional admin configuration: %w", err)
+	}
+
 	// Detach from the caller's cancellation signal. This operation touches
 	// durable HSM state and must not be interrupted mid-flight; values
 	// (auth tokens, headers) are still inherited from the parent context.
@@ -1228,8 +1260,7 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 				continue
 			}
 			if err := keyProtectCryptoUnitAPI.ClaimCryptoUnitWithContext(ctx, cu.ID, skr.FilePath); err != nil {
-				var apiErr *CryptoUnitAPIError
-				if errors.As(err, &apiErr) {
+				if apiErr, ok := errors.AsType[*CryptoUnitAPIError](err); ok {
 					logger.Error("failed to claim cryptounit %s: %v", err)
 					return fmt.Errorf("step 3 – claim crypto unit %s: %w", cu.ID, apiErr)
 				}
@@ -1250,8 +1281,86 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) InitializeCryptoUnits(ct
 	// previously opened", so startStep can never skip past this point.
 	if startStep <= StepImportMBK {
 		logger.Info("step 4 – creating sessions after claiming")
-		if _, err := keyProtectCryptoUnitAPI.createSessions(ctx, cryptoUnits, skr.FilePath); err != nil {
+		if _, err := keyProtectCryptoUnitAPI.createSessions(ctx, cryptoUnits, AuthSpec{Username: initialAdminUsername, KeyFile: skr.keyFileSpec()}); err != nil {
 			return fmt.Errorf("step 4 – create sessions: %w", err)
+		}
+	}
+
+	// ── Step 4b: Create the additional admins (optional) ──────────────────────
+	// Runs after the claim and session setup, before the KMS user is added.
+	// The admin key files are generated first (local operation); an admin whose
+	// key already exists on disk (Exists == true) is not regenerated.
+	// Adding is idempotent per unit, so a retry skips admins already present.
+	if len(adminReq) > 0 && startStep <= StepAddKMSUser {
+		if err := keyProtectCryptoUnitAPI.generateAdditionalAdminKeys(adminReq); err != nil {
+			return fmt.Errorf("step 4b – generate additional admin keys: %w", err)
+		}
+
+		for _, cu := range cryptoUnits.CryptoUnits {
+			if cryptoUnitStartStep(cu) > StepAddKMSUser {
+				logger.Info("step 4b – skipping additional admins for unit %s (state=%s)", cu.ID, cu.State)
+				continue
+			}
+			if err := keyProtectCryptoUnitAPI.addAdditionalAdmins(ctx, cu.ID, adminReq); err != nil {
+				return fmt.Errorf("step 4b – add additional admins: %w", err)
+			}
+		}
+	}
+
+	// ── Step 4c: Set the signature/revocation threshold (optional) ────────────
+	// Runs once the additional admins exist and before the KMS user is added,
+	// because the threshold can only be configured in the 'claimed' state.
+	// Skipped when both values are 1 (the HSM default).
+	if thresholdNeedsSetting(thresholdReq) && startStep <= StepAddKMSUser {
+		var restarted []CryptoUnit
+		for _, cu := range cryptoUnits.CryptoUnits {
+			if !canSetThreshold(cu.State) {
+				logger.Info("step 4c – skipping threshold for unit %s (state=%s)", cu.ID, cu.State)
+				continue
+			}
+			// A previous run may have applied the threshold already (the unit
+			// can then no longer be configured). Skip setting it, but still
+			// reconnect below so the session uses the quorum signers.
+			if current, err := thresholdsFromUnits([]CryptoUnit{cu}, cu.ID); err == nil && thresholdMatches(current[0], thresholdReq) {
+				logger.Info("step 4c – threshold already set for crypto unit %s (signature=%d, revocation=%d)",
+					cu.ID, thresholdReq.SignatureThreshold, thresholdReq.RevocationThreshold)
+				restarted = append(restarted, cu)
+				continue
+			}
+			if err := keyProtectCryptoUnitAPI.SetThresholdWithContext(ctx, cu.ID, thresholdReq.SignatureThreshold, thresholdReq.RevocationThreshold); err != nil {
+				return fmt.Errorf("step 4c – set threshold for crypto unit %s: %w", cu.ID, err)
+			}
+			logger.Info("step 4c – threshold set for crypto unit %s (signature=%d, revocation=%d)",
+				cu.ID, thresholdReq.SignatureThreshold, thresholdReq.RevocationThreshold)
+			restarted = append(restarted, cu)
+		}
+
+		// The HSM restarts after the threshold is applied, which invalidates the
+		// open session. Reopen it so the remaining steps can run. The new session
+		// authenticates the quorum signers (ADMIN only when skr.QuorumSigner is
+		// set), so commands carry several admins' signatures. Only the first
+		// max(signature, revocation) signers are used.
+		for _, cu := range restarted {
+			if err := keyProtectCryptoUnitAPI.Disconnect(cu.ID); err != nil {
+				return fmt.Errorf("step 4c – disconnect crypto unit %s: %w", cu.ID, err)
+			}
+		}
+		if len(restarted) > 0 {
+			signers := quorumSessionAuths(skr, adminReq, max(thresholdReq.SignatureThreshold, thresholdReq.RevocationThreshold))
+			// validateAdditionalAdmins guarantees at least one signer here.
+			logger.Info("step 4c – reconnecting with %d quorum signer(s)", len(signers))
+			if err := keyProtectCryptoUnitAPI.reconnectSessions(ctx, restarted, signers[0], signers[1:]...); err != nil {
+				return fmt.Errorf("step 4c – reconnect after threshold: %w", err)
+			}
+		}
+
+		// Confirm the thresholds took effect with the requested values. The
+		// units are listed once and all restarted units are checked against it.
+		if len(restarted) > 0 {
+			if err := keyProtectCryptoUnitAPI.verifyThresholds(ctx, restarted, thresholdReq); err != nil {
+				return fmt.Errorf("step 4c – verify threshold: %w", err)
+			}
+			logger.Info("step 4c – threshold verified for %d crypto unit(s)", len(restarted))
 		}
 	}
 
@@ -1365,7 +1474,157 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) ZeroizeCryptoUnitWithCon
 	return nil
 }
 
+// SetThreshold configures the signature and revocation thresholds of a crypto unit.
+//
+// The crypto unit must be in the 'claimed' state, and the threshold can only be
+// set once. The client must already be connected to the crypto unit with a user
+// that has the admin permission. The thresholds must be between MinThreshold and
+// MaxThreshold, and the crypto unit must have at least max(signature, revocation)
+// admins.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) SetThreshold(cryptoUnitID string, signatureThreshold, revocationThreshold int) error {
+	return keyProtectCryptoUnitAPI.SetThresholdWithContext(context.Background(), cryptoUnitID, signatureThreshold, revocationThreshold)
+}
+
+// SetThresholdWithContext configures the signature and revocation thresholds of a crypto unit with context
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) SetThresholdWithContext(ctx context.Context, cryptoUnitID string, signatureThreshold, revocationThreshold int) error {
+	// Detach from the caller's cancellation signal. This operation touches
+	// durable HSM state and must not be interrupted mid-flight; values
+	// (auth tokens, headers) are still inherited from the parent context.
+	ctx = detachContext(ctx)
+
+	logger := keyProtectCryptoUnitAPI.logger
+	if err := validateThreshold(signatureThreshold, revocationThreshold); err != nil {
+		return err
+	}
+
+	sessionID, err := keyProtectCryptoUnitAPI.getSessionID(cryptoUnitID)
+	if err != nil {
+		return err
+	}
+
+	// Make sure enough admins exist to satisfy the thresholds before asking for a signed config
+	users, err := keyProtectCryptoUnitAPI.ListUsers(cryptoUnitID)
+	if err != nil {
+		return fmt.Errorf("failed to list users for crypto unit %s: %w", cryptoUnitID, err)
+	}
+	if err := validateThresholdAdminCount(users, signatureThreshold, revocationThreshold); err != nil {
+		return fmt.Errorf("failed to set threshold: %w", err)
+	}
+
+	sdkHeaders := createHeadersfromContext(ctx, "set-threshold", keyProtectCryptoUnitAPI.instanceID)
+	sdkHeaders["Crypto-Unit-ID"] = cryptoUnitID
+	sdkHeaders["Signature-Threshold"] = strconv.Itoa(signatureThreshold)
+	sdkHeaders["Revocation-Threshold"] = strconv.Itoa(revocationThreshold)
+
+	thresholdConfig, err := keyProtectCryptoUnitAPI.getThresholdConfigWithContext(ctx, cryptoUnitID, sdkHeaders)
+	if err != nil {
+		if strings.Contains(err.Error(), "Threshold configuration can only be performed in 'claimed' state") {
+			logger.Warn("If setting the threshold previously failed on a crypto unit, retry setting the threshold specifically for that failed crypto unit.")
+		}
+		return fmt.Errorf("failed to set threshold: %w", err)
+	}
+
+	publicKeyContent, err := base64.StdEncoding.DecodeString(thresholdConfig.PublicKeyContent)
+	if err != nil {
+		return fmt.Errorf("failed to decode public key content: %w", err)
+	}
+	signedConfigContent, err := base64.StdEncoding.DecodeString(thresholdConfig.SignedConfigContent)
+	if err != nil {
+		return fmt.Errorf("failed to decode signed config content: %w", err)
+	}
+
+	// Isolated temp dir per crypto unit — prevents name collisions and ensures
+	// cleanup of both files even on early return or panic.
+	tmpDir, err := os.MkdirTemp("", fmt.Sprintf("threshold-%s-*", cryptoUnitID))
+	if err != nil {
+		return fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	pubKeyPath := filepath.Join(tmpDir, ThresholdPublicKeyFile)
+	if err := os.WriteFile(pubKeyPath, publicKeyContent, 0600); err != nil {
+		return fmt.Errorf("failed to write public key file: %w", err)
+	}
+	// signedConfigContent is a Utimaco Signed Configuration File (.scf), not raw cfg.
+	scfPath := filepath.Join(tmpDir, ThresholdSignedCfgFile)
+	if err := os.WriteFile(scfPath, signedConfigContent, 0600); err != nil {
+		return fmt.Errorf("failed to write signed config file: %w", err)
+	}
+
+	if err := callAltMdlSigKeyLoad(sessionID, pubKeyPath, sdkHeaders); err != nil {
+		return wrapError(err, fmt.Sprintf("failed to load trusted signing key for crypto unit %s", cryptoUnitID))
+	}
+
+	if err := callFileLoad(sessionID, scfPath, sdkHeaders); err != nil {
+		return wrapError(err, fmt.Sprintf("failed to load signed config for crypto unit %s", cryptoUnitID))
+	}
+
+	if err := callRestart(sessionID, sdkHeaders); err != nil {
+		return wrapError(err, fmt.Sprintf("failed to restart crypto unit %s", cryptoUnitID))
+	}
+
+	logger.Info("Threshold configuration applied and HSM restarting for crypto unit %s: signature-threshold=%d, revocation-threshold=%d",
+		cryptoUnitID, signatureThreshold, revocationThreshold)
+	return nil
+}
+
+// GetThreshold returns the signature and revocation thresholds of the crypto
+// units in the instance. When cryptoUnitID is empty all crypto units are
+// returned, otherwise only the given one (an error is returned if it is not
+// found). A threshold of 0 means it has not been configured.
+//
+// This reads the management API only, so no crypto unit session is required.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GetThreshold(cryptoUnitID string) ([]CryptoUnitThreshold, error) {
+	return keyProtectCryptoUnitAPI.GetThresholdWithContext(context.Background(), cryptoUnitID)
+}
+
+// GetThresholdWithContext returns the thresholds of the crypto units with context
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) GetThresholdWithContext(ctx context.Context, cryptoUnitID string) ([]CryptoUnitThreshold, error) {
+	cryptoUnits, _, err := keyProtectCryptoUnitAPI.ListCryptoUnitsWithContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get crypto units: %w", err)
+	}
+	return thresholdsFromUnits(cryptoUnits.CryptoUnits, cryptoUnitID)
+}
+
 // Internal Functions
+
+// getThresholdConfigWithContext requests the signed threshold configuration from the Key Protect management API
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) getThresholdConfigWithContext(ctx context.Context, cryptoUnitID string, headers map[string]string) (*ThresholdConfigResponse, error) {
+	builder := core.NewRequestBuilder(core.POST)
+	builder = builder.WithContext(ctx)
+	_, err := builder.ResolveRequestURL(keyProtectCryptoUnitAPI.Service.Options.URL, `/api/v1/crypto_units/threshold_config`, nil)
+	if err != nil {
+		return nil, core.SDKErrorf(err, "", "url-resolve-error", common.GetComponentInfo())
+	}
+
+	for headerName, headerValue := range headers {
+		builder.AddHeader(headerName, headerValue)
+	}
+
+	request, err := builder.Build()
+	if err != nil {
+		return nil, core.SDKErrorf(err, "", "build-error", common.GetComponentInfo())
+	}
+
+	var rawResponse *string
+	response, err := keyProtectCryptoUnitAPI.Service.Request(request, &rawResponse)
+	if err != nil {
+		return nil, core.SDKErrorf(err, "", "request-error", common.GetComponentInfo())
+	}
+
+	jsonBytesPtr, ok := response.Result.(*string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type: %T", response.Result)
+	}
+
+	var thresholdConfig ThresholdConfigResponse
+	if err := json.Unmarshal([]byte(*jsonBytesPtr), &thresholdConfig); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal threshold config: %w", err)
+	}
+
+	return &thresholdConfig, nil
+}
 
 // getCryptoUserMetadata retrieves crypto user metadata from the Key Protect management API
 func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) getCryptoUserMetadataWithContext(ctx context.Context) (*CryptoUserMetadata, error) {

@@ -87,6 +87,87 @@ func validateMasterKeyPartsSpec(mKeySpec *MasterKeyPartsSpec) error {
 	return nil
 }
 
+// validateAdditionalAdmins validates a list of additional admins against the
+// initial admin key and the threshold configuration. initial and threshold
+// may be nil to skip the corresponding checks.
+func validateAdditionalAdmins(admins []*AdditionalAdminRequest, initial *SignatureKeyRequest, threshold *ThresholdRequest) error {
+	names := map[string]struct{}{}
+	paths := map[string]struct{}{}
+	if initial != nil {
+		paths[filepath.Clean(initial.FilePath)] = struct{}{}
+	}
+	for i, a := range admins {
+		if a == nil {
+			return fmt.Errorf("additional_admin[%d] cannot be nil", i)
+		}
+		if _, err := a.SignatureKeyRequest(); err != nil {
+			return fmt.Errorf("additional_admin[%d]: %w", i, err)
+		}
+		if a.Name == initialAdminUsername {
+			return fmt.Errorf("additional_admin[%d]: name %q is reserved for the initial admin", i, a.Name)
+		}
+		if _, dup := names[a.Name]; dup {
+			return fmt.Errorf("additional_admin[%d]: duplicate name %q", i, a.Name)
+		}
+		names[a.Name] = struct{}{}
+		p := filepath.Clean(a.FilePath)
+		if _, dup := paths[p]; dup {
+			return fmt.Errorf("additional_admin[%d]: duplicate key file path %q", i, a.FilePath)
+		}
+		paths[p] = struct{}{}
+	}
+	if threshold != nil {
+		total := len(admins)
+		if initial != nil {
+			total++
+		}
+		needed := max(threshold.SignatureThreshold, threshold.RevocationThreshold)
+		if total < needed {
+			return fmt.Errorf("insufficient admins: have %d, need at least %d for the configured thresholds", total, needed)
+		}
+		// The quorum session is only opened when the threshold is applied.
+		if thresholdNeedsSetting(threshold) {
+			signers := len(quorumSessionAuths(initial, admins, total))
+			if signers < needed {
+				return fmt.Errorf("insufficient quorum signers: have %d, need at least %d for the configured thresholds", signers, needed)
+			}
+		}
+	}
+	return nil
+}
+
+// validateThreshold validates that both threshold values are within the allowed range
+func validateThreshold(signatureThreshold, revocationThreshold int) error {
+	if signatureThreshold < MinThreshold || signatureThreshold > MaxThreshold {
+		return fmt.Errorf("signature-threshold must be between %d and %d, got: %d", MinThreshold, MaxThreshold, signatureThreshold)
+	}
+
+	if revocationThreshold < MinThreshold || revocationThreshold > MaxThreshold {
+		return fmt.Errorf("revocation-threshold must be between %d and %d, got: %d", MinThreshold, MaxThreshold, revocationThreshold)
+	}
+
+	return nil
+}
+
+// validateThresholdAdminCount validates that the crypto unit has enough admins
+// to satisfy the requested thresholds
+func validateThresholdAdminCount(users []UserInfo, signatureThreshold, revocationThreshold int) error {
+	totalAdmins := 0
+	for _, u := range users {
+		if u.Permissions == AdminPermission {
+			totalAdmins++
+		}
+	}
+
+	needed := max(signatureThreshold, revocationThreshold)
+	if totalAdmins < needed {
+		return fmt.Errorf("insufficient admin count: have %d admins, need at least %d (signature-threshold=%d, revocation-threshold=%d)",
+			totalAdmins, needed, signatureThreshold, revocationThreshold)
+	}
+
+	return nil
+}
+
 // checkFileExists returns an error if the file at path does not exist or
 // cannot be stat'd. Use this when the caller asserts the file must already
 // be present (e.g. MasterKeyPartsSpec.Exists = true).

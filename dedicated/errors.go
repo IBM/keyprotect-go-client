@@ -2,6 +2,10 @@ package dedicated
 
 import "fmt"
 
+// HSMRestartConnRefused is the return code seen when the HSM drops the
+// connection while restarting. It is not a failure of the restart.
+const HSMRestartConnRefused uint32 = 0xB901306F
+
 // CryptoUnitAPIError represents an error from the API
 type CryptoUnitAPIError struct {
 	Code    uint32
@@ -197,6 +201,10 @@ func getErrorMessage(code uint32) string {
 		return "handshake error"
 	case 0xB9032007:
 		return "TLS handshake CA file could not be loaded"
+
+		// HSM Restart Error
+	case HSMRestartConnRefused:
+		return "connection refused while the HSM is restarting"
 
 	// IAM Token Error
 	case 0x00000008:

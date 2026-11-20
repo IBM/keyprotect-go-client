@@ -358,7 +358,242 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) generateMasterKeyHelper(
 	return "MasterKey generated successfully", nil
 }
 
-func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) createSessions(ctx context.Context, cryptounits CryptoUnits, keypath string) (func(), error) {
+// Reconnect policy after the HSM restarts (applied when the threshold is set).
+// The HSM needs time to come back, so each attempt is preceded by a wait that
+// doubles: 2s, 4s, 8s, 16s, 32s.
+const (
+	reconnectMaxAttempts = 5
+	reconnectBaseDelay   = 2 * time.Second
+)
+
+// retryWithBackoff calls fn up to attempts times. Before every attempt it waits
+// base, then 2*base, 4*base and so on. It returns nil on the first success, or
+// the last error once the attempts are used up.
+func retryWithBackoff(attempts int, base time.Duration, sleep func(time.Duration), fn func() error) error {
+	var err error
+	delay := base
+	for i := 1; i <= attempts; i++ {
+		sleep(delay)
+		if err = fn(); err == nil {
+			return nil
+		}
+		delay *= 2
+	}
+	return fmt.Errorf("giving up after %d attempts: %w", attempts, err)
+}
+
+// reconnectSessions reopens the session of every unit after an HSM restart,
+// retrying each unit with exponential backoff. Units are retried one at a
+// time, so a unit that already reconnected is never connected twice.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) reconnectSessions(ctx context.Context, units []CryptoUnit, primary AuthSpec, additional ...AuthSpec) error {
+	logger := keyProtectCryptoUnitAPI.logger
+	for _, cu := range units {
+		attempt := 0
+		err := retryWithBackoff(reconnectMaxAttempts, reconnectBaseDelay, time.Sleep, func() error {
+			attempt++
+			_, err := keyProtectCryptoUnitAPI.createSessions(ctx, CryptoUnits{CryptoUnits: []CryptoUnit{cu}}, primary, additional...)
+			if err != nil {
+				logger.Warn("reconnect to crypto unit %s failed (attempt %d/%d): %v", cu.ID, attempt, reconnectMaxAttempts, err)
+			}
+			return err
+		})
+		if err != nil {
+			return fmt.Errorf("reconnect crypto unit %s: %w", cu.ID, err)
+		}
+	}
+	return nil
+}
+
+// initialAdminUsername is the HSM user created by the claim; sessions are
+// opened with this user, so additional admins cannot reuse the name.
+const initialAdminUsername = "ADMIN"
+
+// adminUserType is the user type passed to the native layer when adding an
+// administrator (RSA signature key based).
+const adminUserType = "admin"
+
+// thresholdsFromUnits converts the listed crypto units into their threshold
+// configuration. When cryptoUnitID is not empty only that unit is returned,
+// and an error is returned if it is not part of the instance. A missing or
+// non-positive threshold is reported as 0 (not configured).
+func thresholdsFromUnits(units []CryptoUnit, cryptoUnitID string) ([]CryptoUnitThreshold, error) {
+	var result []CryptoUnitThreshold
+	for _, cu := range units {
+		if cryptoUnitID != "" && cu.ID != cryptoUnitID {
+			continue
+		}
+		t := CryptoUnitThreshold{CryptoUnitID: cu.ID, State: cu.State}
+		if cu.SignatureThreshold != nil && *cu.SignatureThreshold > 0 {
+			t.SignatureThreshold = *cu.SignatureThreshold
+		}
+		if cu.RevocationThreshold != nil && *cu.RevocationThreshold > 0 {
+			t.RevocationThreshold = *cu.RevocationThreshold
+		}
+		result = append(result, t)
+	}
+	if cryptoUnitID != "" && len(result) == 0 {
+		return nil, fmt.Errorf("crypto unit %s not found", cryptoUnitID)
+	}
+	return result, nil
+}
+
+// thresholdMatches reports whether a crypto unit's thresholds equal the request.
+func thresholdMatches(current CryptoUnitThreshold, want *ThresholdRequest) bool {
+	return current.SignatureThreshold == want.SignatureThreshold &&
+		current.RevocationThreshold == want.RevocationThreshold
+}
+
+// verifyThresholds checks, through GetThreshold, that every given crypto unit
+// reports the requested thresholds. The units are listed once per attempt and
+// all of them are checked against that single listing. The management API may
+// lag behind the HSM restart, so a mismatch is retried with the reconnect
+// backoff.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) verifyThresholds(ctx context.Context, units []CryptoUnit, want *ThresholdRequest) error {
+	return retryWithBackoff(reconnectMaxAttempts, reconnectBaseDelay, time.Sleep, func() error {
+		all, err := keyProtectCryptoUnitAPI.GetThresholdWithContext(ctx, "")
+		if err != nil {
+			return err
+		}
+		current := make(map[string]CryptoUnitThreshold, len(all))
+		for _, t := range all {
+			current[t.CryptoUnitID] = t
+		}
+		var mismatches []string
+		for _, cu := range units {
+			got, ok := current[cu.ID]
+			switch {
+			case !ok:
+				mismatches = append(mismatches, fmt.Sprintf("crypto unit %s not found", cu.ID))
+			case !thresholdMatches(got, want):
+				mismatches = append(mismatches, fmt.Sprintf("crypto unit %s: have signature=%d revocation=%d, want signature=%d revocation=%d",
+					cu.ID, got.SignatureThreshold, got.RevocationThreshold, want.SignatureThreshold, want.RevocationThreshold))
+			}
+		}
+		if len(mismatches) > 0 {
+			return fmt.Errorf("threshold mismatch: %s", strings.Join(mismatches, "; "))
+		}
+		return nil
+	})
+}
+
+// thresholdNeedsSetting reports whether the threshold request differs from the
+// HSM default of 1/1. A nil request, or one where both values are 1, is skipped.
+func thresholdNeedsSetting(t *ThresholdRequest) bool {
+	return t != nil && (t.SignatureThreshold > 1 || t.RevocationThreshold > 1)
+}
+
+// canSetThreshold reports whether a unit whose state was read in step 1 can
+// still have its threshold set: it is claimed in step 3 or already claimed.
+// Units at kms-authorized or beyond are past the 'claimed' state the threshold
+// configuration requires.
+func canSetThreshold(state CryptoUnitState) bool {
+	switch state {
+	case CryptoUnitStateKMSAuthorized, CryptoUnitStateInitialized, CryptoUnitStateKMSInitialized:
+		return false
+	}
+	return true
+}
+
+// generateAdditionalAdminKeys generates the signature key file of every
+// additional admin whose key does not already exist. This is a local
+// operation, like the initial admin key generation.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) generateAdditionalAdminKeys(admins []*AdditionalAdminRequest) error {
+	for _, a := range admins {
+		if a.Exists {
+			continue
+		}
+		keyReq, err := a.SignatureKeyRequest()
+		if err != nil {
+			return fmt.Errorf("additional admin %q: %w", a.Name, err)
+		}
+		if err := keyProtectCryptoUnitAPI.GenerateSignatureKey(keyProtectCryptoUnitAPI.instanceID, keyReq); err != nil {
+			return fmt.Errorf("additional admin %q: generate signature key: %w", a.Name, err)
+		}
+		keyProtectCryptoUnitAPI.logger.Info("additional admin %s – signature key generated: %s", a.Name, a.FilePath)
+	}
+	return nil
+}
+
+// addAdditionalAdmins adds every additional admin to the given crypto unit.
+// Admins that already exist on the unit are skipped, so the call is safe to
+// repeat after a partial failure. A session must already be open on the unit.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) addAdditionalAdmins(ctx context.Context, cryptoUnitID string, admins []*AdditionalAdminRequest) error {
+	logger := keyProtectCryptoUnitAPI.logger
+	users, err := keyProtectCryptoUnitAPI.ListUsers(cryptoUnitID)
+	if err != nil {
+		return fmt.Errorf("list users for crypto unit %s: %w", cryptoUnitID, err)
+	}
+	for _, a := range admins {
+		if userExists(users, a.Name) {
+			logger.Info("additional admin %s already exists on crypto unit %s, skipping", a.Name, cryptoUnitID)
+			continue
+		}
+		req := &AddUserRequest{
+			Username:  a.Name,
+			Mechanism: adminUserType,
+			// Format: filepath#passphrase (passphrase is empty when not provided)
+			Token: a.keyFileSpec(),
+		}
+		if err := keyProtectCryptoUnitAPI.AddUserWithContext(ctx, cryptoUnitID, req); err != nil {
+			return fmt.Errorf("add admin %s to crypto unit %s: %w", a.Name, cryptoUnitID, err)
+		}
+		logger.Info("additional admin %s added to crypto unit %s", a.Name, cryptoUnitID)
+	}
+	return nil
+}
+
+// userExists reports whether a user with the given name is in users.
+func userExists(users []UserInfo, name string) bool {
+	for _, u := range users {
+		if strings.EqualFold(u.Username, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// splitKeyFileSpec splits a "filepath#passphrase" key file specification.
+// The passphrase is empty when the specification has no '#'.
+func splitKeyFileSpec(spec string) (path, passphrase string) {
+	parts := strings.Split(spec, "#")
+	if len(parts) > 1 {
+		return parts[0], parts[1]
+	}
+	return parts[0], ""
+}
+
+// sessionUsernames joins the user names of a session for display and tracking.
+func sessionUsernames(auths []sessionAuth) string {
+	names := make([]string, len(auths))
+	for i, a := range auths {
+		names[i] = a.User
+	}
+	return strings.Join(names, ",")
+}
+
+// quorumSessionAuths returns the users that authenticate the session opened
+// after the threshold is set: the initial admin when flagged as a quorum
+// signer, followed by the flagged additional admins in request order. At most
+// limit users are returned, so any surplus signers are left out.
+func quorumSessionAuths(initial *SignatureKeyRequest, admins []*AdditionalAdminRequest, limit int) []AuthSpec {
+	var auths []AuthSpec
+	if initial != nil && initial.QuorumSigner {
+		auths = append(auths, AuthSpec{Username: initialAdminUsername, KeyFile: initial.keyFileSpec()})
+	}
+	for _, a := range admins {
+		if a != nil && a.QuorumSigner {
+			auths = append(auths, AuthSpec{Username: a.Name, KeyFile: a.keyFileSpec()})
+		}
+	}
+	if len(auths) > limit {
+		auths = auths[:limit]
+	}
+	return auths
+}
+
+// createSessions opens a session to every crypto unit, authenticated as the
+// primary user. Optional additional users are authenticated on the same sessions.
+func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) createSessions(ctx context.Context, cryptounits CryptoUnits, primary AuthSpec, additional ...AuthSpec) (func(), error) {
 	// Detach from the caller's cancellation signal. This operation touches
 	// durable HSM state and must not be interrupted mid-flight; values
 	// (auth tokens, headers) are still inherited from the parent context.
@@ -368,10 +603,11 @@ func (keyProtectCryptoUnitAPI *KeyProtectCryptoUnitAPI) createSessions(ctx conte
 		// Connect to the first crypto unit
 
 		loginSpec := LoginSpec{
-			KeyFile:      keypath,
-			CryptoUnitID: cryptoUnitID,
-			Port:         443,
-			Username:     "ADMIN",
+			KeyFile:         primary.KeyFile,
+			CryptoUnitID:    cryptoUnitID,
+			Port:            443,
+			Username:        primary.Username,
+			AdditionalAuths: additional,
 		}
 		err := keyProtectCryptoUnitAPI.CreateCryptoUnitSession(
 			&loginSpec,
@@ -431,13 +667,13 @@ func configureKPCryptoUnitLogger() core.Logger {
 type InitStep int
 
 const (
-	StepListUnits      InitStep = 1 // ListCryptoUnitsWithContext → determines per-unit resume point
-	StepGenerateSKR    InitStep = 2 // generate the admin signature key (local)
-	StepClaimUnits     InitStep = 3 // ClaimCryptoUnitWithContext → state: claimed
-	StepCreateSessions InitStep = 4 // createSessions (HSM login)
-	StepAddKMSUser     InitStep = 5 // AddKMSUser → state: kms-authorized
-	StepGenerateMBK    InitStep = 6 // GenerateMasterKeyWithContext (local-to-one-unit)
-	StepImportMBK      InitStep = 7 // ImportMasterKeyToCryptoUnits → state: initialized
+	StepListUnits      InitStep = iota + 1 // ListCryptoUnitsWithContext → determines per-unit resume point
+	StepGenerateSKR                        // generate the admin signature key (local)
+	StepClaimUnits                         // ClaimCryptoUnitWithContext → state: claimed
+	StepCreateSessions                     // createSessions (HSM login)
+	StepAddKMSUser                         // AddKMSUser → state: kms-authorized
+	StepGenerateMBK                        // GenerateMasterKeyWithContext (local-to-one-unit)
+	StepImportMBK                          // ImportMasterKeyToCryptoUnits → state: initialized
 )
 
 // stateToStep maps a CryptoUnitState to the earliest InitStep that still

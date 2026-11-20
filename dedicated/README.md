@@ -106,7 +106,7 @@ func main() {
   log.Fatalf("error creating NewMasterKeyPartsSpec  request: %s", err)
  }
 
- err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, mbkSpec, instanceID)
+ err = client.InitializeCryptoUnits(context.Background(), rootKeySpec, nil, nil, mbkSpec, instanceID)
  if err != nil {
   log.Fatalf("Failed to initialize cryptounits: %v", err)
  }
@@ -174,7 +174,45 @@ func main() {
 - ClaimCryptoUnitWithContext(ctx context.Context, cryptoUnitID string, filePath string) error - Claims crypto unit with context
 - ZeroizeCryptoUnit(cryptoUnitID string) error - Zeroizes a crypto unit
 - ZeroizeCryptoUnitWithContext(ctx context.Context, cryptoUnitID string) error - Zeroizes crypto unit with context
-- InitializeCryptoUnits(ctx context.Context, skr *SignatureKeyRequest, mbkspec*MasterKeyPartsSpec, instanceID string) error - Initializes crypto units
+- InitializeCryptoUnits(ctx context.Context, skr *SignatureKeyRequest, adminReq []*AdditionalAdminRequest, thresholdReq *ThresholdRequest, mbkspec *MasterKeyPartsSpec, instanceID string) error - Initializes crypto units (adminReq and thresholdReq are optional, pass nil to skip)
+- SetThreshold(cryptoUnitID string, signatureThreshold, revocationThreshold int) error - Sets the signature and revocation thresholds of a crypto unit
+- SetThresholdWithContext(ctx context.Context, cryptoUnitID string, signatureThreshold, revocationThreshold int) error - Sets thresholds with context
+- GetThreshold(cryptoUnitID string) ([]CryptoUnitThreshold, error) - Gets the thresholds of all crypto units, or of one when cryptoUnitID is set
+- GetThresholdWithContext(ctx context.Context, cryptoUnitID string) ([]CryptoUnitThreshold, error) - Gets thresholds with context
+
+##### Setting thresholds
+
+`SetThreshold` configures how many admin signatures are required to authorize commands (signature threshold) and to revoke admins (revocation threshold).
+
+- Both values must be between `MinThreshold` (1) and `MaxThreshold` (5).
+- The crypto unit must have at least `max(signatureThreshold, revocationThreshold)` admin users.
+- The crypto unit must be in the `claimed` state, and you must already be connected to it with an admin user.
+- The threshold can only be set once. To change it, the crypto unit must be in the `claimed` state again.
+- The HSM restarts after the configuration is applied, so reconnect before running further operations on that crypto unit.
+
+```go
+err = client.SetThreshold(cryptoUnitID, 2, 2)
+if err != nil {
+    log.Fatalf("Failed to set threshold: %v", err)
+}
+```
+
+`GetThreshold` reads the thresholds from the management API (the same list call as `ListCryptoUnits`), so it does not need a crypto unit session. A value of `0` means the threshold has not been configured on that unit; `Configured()` reports whether both values are set.
+
+```go
+// All crypto units of the instance
+thresholds, err := client.GetThreshold("")
+if err != nil {
+    log.Fatalf("Failed to get thresholds: %v", err)
+}
+for _, t := range thresholds {
+    fmt.Printf("%s state=%s signature=%d revocation=%d configured=%t\n",
+        t.CryptoUnitID, t.State, t.SignatureThreshold, t.RevocationThreshold, t.Configured())
+}
+
+// A single crypto unit
+thresholds, err = client.GetThreshold(cryptoUnitID)
+```
 
 #### User Management
 

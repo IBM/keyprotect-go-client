@@ -49,6 +49,13 @@ extern int session_append_auth(void *p_context,
                                uint32_t l_passph);
 
 /**
+ * Zeroize and remove every credential previously appended to the
+ * session. Later calls run unauthenticated until
+ * `session_append_auth` is called again.
+ */
+extern int session_clear_auth(void *p_context);
+
+/**
  * Enable/disable additional HTTP headers.
  */
 extern int session_headers(void *p_context, int enable);
@@ -181,6 +188,35 @@ extern int hsm_mbk_key_import(void *h_cs,
                               uint32_t *l_answ);
 
 /**
+ * Load an alternate-model signature key (public keyfile or PINpad
+ * keyspec) into the HSM.
+ */
+extern int hsm_alt_mdl_sig_key_load(void *h_cs,
+                                    char *p_hdrs,
+                                    uint32_t l_hdrs,
+                                    char *p_keyspec,
+                                    uint32_t l_keyspec,
+                                    char **p_answ,
+                                    uint32_t *l_answ);
+
+/**
+ * Restart the HSM. Thresholds are passed via the
+ * `Signature-Threshold` / `Revocation-Threshold` headers.
+ */
+extern int hsm_restart(void *h_cs, char *p_hdrs, uint32_t l_hdrs, char **p_answ, uint32_t *l_answ);
+
+/**
+ * Load a file (by filename) into the HSM.
+ */
+extern int hsm_file_load(void *h_cs,
+                         char *p_hdrs,
+                         uint32_t l_hdrs,
+                         char *p_filename,
+                         uint32_t l_filename,
+                         char **p_answ,
+                         uint32_t *l_answ);
+
+/**
  * Change a keyfile's encryption passphrase.
  * Does not require an active HSM connection.
  */
@@ -223,6 +259,35 @@ uintptr_t CreateSessionC(const char *endpoint,
                          const char *keyfile,
                          const char *passphrase,
                          const char *iam_token);
+
+/**
+ * Create a new HSM session that authenticates with several credentials.
+ *
+ * `credentials_json` is a JSON array, one object per admin:
+ *
+ * ```json
+ * [
+ *   {"user":"ADMIN","keyfile":"/keys/kp-admin.key","passphrase":""},
+ *   {"user":"ADMIN2","keyfile":"/keys/kp-admin2.key","passphrase":"s3cret-pass"}
+ * ]
+ * ```
+ *
+ * `keyfile` and `passphrase` are optional. As with `CreateSessionC`, the
+ * credentials are not sent to the HSM here: `prepare_auth` calls
+ * `session_append_auth` for each entry, in order, before the first command.
+ *
+ * Returns a non-zero `uintptr_t` handle on success, `0` on failure
+ * (including malformed or empty JSON).
+ *
+ * # Safety
+ * All `*const c_char` parameters must be valid NUL-terminated C strings or NULL.
+ */
+uintptr_t CreateSessionMultiAuthC(const char *endpoint,
+                                  int port,
+                                  const char *instance_id,
+                                  const char *crypto_unit_id,
+                                  const char *credentials_json,
+                                  const char *iam_token);
 
 /**
  * Close and release an HSM session.
@@ -316,6 +381,43 @@ int ImportMBKC(uintptr_t session_id,
                int slot_no,
                const char *headers,
                char **result);
+
+/**
+ * Load an alternate-model signature key (`hsm_alt_mdl_sig_key_load`).
+ *
+ * `keyspec` is the path to the public keyfile (or a PINpad keyspec).
+ * `headers` is a `"KEY=VALUE%KEY2=VALUE2"` string (percent-delimited) of
+ * additional HTTP headers; may be NULL or empty.
+ * Returns `0` on success and `1` on failure; `*result` receives a status or
+ * error message that the caller must release with `FreeStringC`.
+ */
+int AltMdlSigKeyLoadC(uintptr_t session_id,
+                      const char *keyspec,
+                      const char *headers,
+                      char **result);
+
+/**
+ * Load a file into the HSM (`hsm_file_load`).
+ *
+ * `filename` is the name/path of the file to load.
+ * `headers` is a `"KEY=VALUE%KEY2=VALUE2"` string (percent-delimited) of
+ * additional HTTP headers; may be NULL or empty.
+ * Returns `0` on success and `1` on failure; `*result` receives a status or
+ * error message that the caller must release with `FreeStringC`.
+ */
+int FileLoadC(uintptr_t session_id, const char *filename, const char *headers, char **result);
+
+/**
+ * Restart the HSM (`hsm_restart`).
+ *
+ * `headers` is a `"KEY=VALUE%KEY2=VALUE2"` string (percent-delimited) of
+ * additional HTTP headers; may be NULL or empty. Threshold values are
+ * supplied by the caller through this string, e.g.
+ * `"Signature-Threshold=2%Revocation-Threshold=2"`.
+ * Returns `0` on success and `1` on failure; `*result` receives a status or
+ * error message that the caller must release with `FreeStringC`.
+ */
+int RestartC(uintptr_t session_id, const char *headers, char **result);
 
 int ChangeUserPasswordC(uintptr_t session_id,
                         const char *username,
